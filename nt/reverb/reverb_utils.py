@@ -1,4 +1,5 @@
 import numpy as np
+import nt.reverb.CalcRIR_Simple_C as RIR
 
 def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
                  filterLength, soundDecayTime, algorithm="TranVu",
@@ -6,13 +7,22 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
                  soundvelocity=343):
     """
     Generates a room impulse response.
-
-
+    :param roomDimension:
+    :param sourcePositions:
+    :param sensorPositions:
+    :param samplingRate:
+    :param filterLength:
+    :param soundDecayTime:
+    :param algorithm:
+    :param sensorOrientations:
+    :param sensorDirectivity:
+    :param soundvelocity:
+    :return:
     """
 
     algorithmList = ("TranVu","Habets","Lehmann","LehmannFast","AllenBerkley")
-    directivityList = ("omnidirectional","subcardioid","cardioid",
-                       "hypercardioid","bidirectional")
+    directivityList = {"omnidirectional":1,"subcardioid":0.75,"cardioid":0.5,
+                       "hypercardioid":0.25,"bidirectional":0}
 
     # get number of sensors and sources
     try:
@@ -45,7 +55,7 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
         raise Exception("algorithm "+algorithm+" is unknown! Please choose"
                                                "one of the following: \n"+
                                                 algorithmList)
-    if not any(sensorDirectivity == s for s in directivityList):
+    if not any(sensorDirectivity == key for key in directivityList):
         raise Exception("sensor directivity " + sensorDirectivity + " unknown!")
     if not np.isscalar(soundvelocity):
         raise Exception("sound velocity isn't scalar!")
@@ -58,6 +68,16 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
 
     # todo: Fall 'Lehmann' und 'omnidirectional' ausschließen!
     # todo: Fall 'LehmannFast' und sound velocity != 343 ausschließen!
+
+    alpha = directivityList[sensorDirectivity]
+
+    rir = np.empty((filterLength,numSensors,numSources))
+
+    # todo: Unterscheide zwischen allen algorithmen
+    # TranVU method
+    noiseFloor = -60
+    rir = RIR.calc()
+
 
 
 
