@@ -9,17 +9,26 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
     """
     Generates a room impulse response.
     :param roomDimension: 3-floats-sequence; The room dimensions in meters
-    :param sourcePositions: List of 3-floats-lists containing the source
-    position coordinates in meters
-    :param sensorPositions:
-    :param samplingRate:
-    :param filterLength:
-    :param soundDecayTime:
-    :param algorithm:
-    :param sensorOrientations:
-    :param sensorDirectivity:
-    :param soundvelocity:
-    :return:
+    :param sourcePositions: List of 3-floats-lists (#sources) containing
+    the source position coordinates in meter within room dimension.
+    :param sensorPositions: List of 3-floats-List (#sensors). The sensor
+    positions in meter within room dimensions.
+    :param samplingRate: scalar in Hz.
+    :param filterLength: number of filter coefficients
+    :param soundDecayTime: scalar in seconds. Reverberation time.
+    :param algorithm: algorithm used for calculation. Default is "TranVu".
+    Choose from: "TranVu","Habets","Lehmann","LehmannFast","AllenBerkley"
+    :param sensorOrientations: List of name,value pairs (#sensors). Specifies
+    orientation of each sensor using azimuth and elevation angle.
+    :param sensorDirectivity: string determining directivity for all sensors.
+    default:'omnidirectional'. Choose from:'omnidirectional', 'subcardioid',
+    'cardioid','hypercardioid','bidirectional'
+    :param soundvelocity: scalar in m/s. default: 343
+    :return:RIR as Numpy matrix (filterlength x numberSensors x numberSources)
+
+    note: Having 1 source yields a RIR with shape (filterlength,numberSensors,1)
+    whereas matlab method would return 2-dimensional matrix (filterlength,
+    numberSensors)
 
     Example:
     >>> roomDim = (10,10,4)
