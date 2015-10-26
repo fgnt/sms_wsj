@@ -88,12 +88,12 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
     # todo: Unterscheide zwischen allen Algorithmen
     # TranVU method
     noiseFloor = -60
-    rir = tranVuRIR.calc(np.asarray(roomDimension,dtype=np.float32),
-                   np.asarray(sourcePositions,dtype=np.float32),
-                   np.asarray(sensorPositions,dtype=np.float32),
+    rir = tranVuRIR.calc(np.asarray(roomDimension,dtype=np.float64),
+                   np.asarray(sourcePositions,dtype=np.float64),
+                   np.asarray(sensorPositions,dtype=np.float64),
                    samplingRate,
                    filterLength,soundDecayTime*1000,noiseFloor,
-                   np.asarray(sensorOrientations, dtype=np.float32 ),
+                   np.asarray(sensorOrientations, dtype=np.float64 ),
                    alpha,soundvelocity)
     return rir
 
