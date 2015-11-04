@@ -11,6 +11,7 @@ Helps to quickly create source and sensor positions. Try it with the following c
 
 import numpy
 import matplotlib.pyplot as plt
+from operator import add
 
 
 def generate_sensor_positions(shape='cube', center=numpy.zeros((3, 1)), scale=0.01):
@@ -70,6 +71,52 @@ def generate_random_source_positions(center=numpy.zeros((3, 1)), n=1, distance_i
 
     x *= radius
     return x + center
+
+def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
+                                                  n=1,
+                                                  azimuth_angles = None,
+                                                  elevation_angles = None,
+                                                  radius=1,
+                                                  dims=3):
+    """
+    Generate positions aligned at predefined angles on a sphere's surface or
+    on a circle's boundary.
+    :param center: The sphere's/circle's center coordinates in accord with dim.
+    :param n: The amount of source positions to be sampled.
+    :param azimuth_angles: List or tuple of azimuth angles pointing to samples.
+     Size must equal n.
+    :param elevation_angles: List or tuple of elevation angles pointing to
+     samples. Size must equal n.
+    :param radius: The sphere's/circle's radius to sample positions at.
+    :param dims: 2 for circle, 3 for sphere
+    :return: pos: n times 3 numpy array of calculated positions
+    Example:
+    >>> center = [3,3,3]
+    >>> n = 32
+    >>> deltaAngle = numpy.pi/16
+    >>> azimuth_angles = numpy.arange(0,2*numpy.pi,deltaAngle)
+    >>> elevation_angles = numpy.arange(0,numpy.pi,deltaAngle/2)
+    >>> radius = 2
+    >>> dims = 3
+    >>> source_positions = generate_equally_distributed_source_positions(center,n,azimuth_angles,elevation_angles,radius,dims)
+    """
+    if not 2 <= dims <= 3:
+        raise NotImplementedError("Dims out of implemented range. Please choose"
+                                  "2 or 3.")
+    if azimuth_angles is None or elevation_angles is None:
+        raise NotImplementedError("Please provide azimuth and elevation angles")
+    if not len(azimuth_angles)==n or not len(elevation_angles)==n:
+        raise EnvironmentError("length of azimuth angles and elevation angles "
+                               "must be equal n")
+    x = center
+    if dims == 2:
+        x[2,:] = 0
+    pos = numpy.array([x]*n,dtype=numpy.float64).reshape((n,3))
+    z = numpy.array([(numpy.cos(elevation_angles)*numpy.cos(azimuth_angles)),
+                 (numpy.cos(elevation_angles)*numpy.sin(azimuth_angles)),
+                 numpy.sin(elevation_angles)]).T
+    pos += radius*z
+    return pos
 
 
 def plot(src=None, mic=None, room=None):
