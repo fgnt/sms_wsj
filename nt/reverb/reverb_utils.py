@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 import nt.reverb.CalcRIR_Simple_C as tranVuRIR
 import random
 
@@ -66,9 +66,9 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
             in sensorPositions):
         raise Exception("Sensor positions aren't lists of positive 3-element-"
                         "lists or inside room dimensions!")
-    if not np.isscalar(samplingRate):
+    if not numpy.isscalar(samplingRate):
         raise Exception("sampling rate isn't scalar!")
-    if not np.isscalar(filterLength):
+    if not numpy.isscalar(filterLength):
         raise Exception("Filter length isn't scalar!")
     if type(soundDecayTime)==str:
         raise Exception("sound decay time should be numeric!")
@@ -78,7 +78,7 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
                                                 algorithmList)
     if not any(sensorDirectivity == key for key in directivityList):
         raise Exception("sensor directivity "+sensorDirectivity+" unknown!")
-    if not np.isscalar(soundvelocity):
+    if not numpy.isscalar(soundvelocity):
         raise Exception("sound velocity isn't scalar!")
 
     # Give optional arguments default values
@@ -92,17 +92,17 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
 
     alpha = directivityList[sensorDirectivity]
 
-    rir = np.zeros((filterLength,numSensors,numSources))
+    rir = numpy.zeros((filterLength,numSensors,numSources))
 
     # todo: Unterscheide zwischen allen Algorithmen
     # TranVU method
     noiseFloor = -60
-    rir = tranVuRIR.calc(np.asarray(roomDimension,dtype=np.float64),
-                   np.asarray(sourcePositions,dtype=np.float64),
-                   np.asarray(sensorPositions,dtype=np.float64),
+    rir = tranVuRIR.calc(numpy.asarray(roomDimension,dtype=numpy.float64),
+                   numpy.asarray(sourcePositions,dtype=numpy.float64),
+                   numpy.asarray(sensorPositions,dtype=numpy.float64),
                    samplingRate,
                    filterLength,soundDecayTime*1000,noiseFloor,
-                   np.asarray(sensorOrientations, dtype=np.float64 ),
+                   numpy.asarray(sensorOrientations, dtype=numpy.float64 ),
                    alpha,soundvelocity)
     return rir
 
@@ -117,7 +117,7 @@ def isInsideRoom(roomDim,x):
     :return: True for x being inside the room dimensions and False otherwise.
     """
     positive = all([elem > 0 for elem in x]) # all elements shall be greater 0
-    return positive and np.all(np.subtract(roomDim,x))
+    return positive and numpy.all(numpy.subtract(roomDim,x))
 
 def generateRandomSourcesAndSensors(roomDim,numSources,numSensors):
     """
@@ -145,3 +145,31 @@ def generateRandomSourcesAndSensors(roomDim,numSources,numSensors):
     return srcList,micList
 
 
+def nearfield_time_of_flight(source_positions, sensor_positions, sound_velocity=343):
+    """ Calculates exact time of flight in seconds without farfield assumption.
+
+    :param source_positions: Array of 3D source position column vectors.
+    :param sensor_positions: Array of 3D sensor position column vectors.
+    :param sound_velocity: Speed of sound in m/s.
+    :return: Time of flight in s.
+    """
+    # TODO: Check, if this works for any number of sources and sensors.
+    difference = source_positions[:, :, numpy.newaxis] - sensor_positions[:, numpy.newaxis, :]
+    difference = numpy.linalg.norm(difference, axis=0)
+    return difference / sound_velocity
+
+
+def steering_vector(time_of_flight, frequency):
+    """ Calculates a steering vector.
+
+    Keep in mind, that many steering vectors describe the same.
+
+    :param time_of_flight: Time of flight in s.
+    :param frequency: Vector of center frequencies as created
+        by `get_stft_center_frequencies()`.
+    :return:
+    """
+    # TODO: Check, if this works for any number of sources and sensors.
+    return numpy.exp(-2j * numpy.pi
+                     * frequency[numpy.newaxis, numpy.newaxis, :]
+                     * time_of_flight[:, :, numpy.newaxis])
