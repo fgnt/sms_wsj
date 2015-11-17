@@ -1,6 +1,6 @@
 import numpy
 import nt.reverb.CalcRIR_Simple_C as tranVuRIR
-import random
+import nt.reverb.scenario as scenario
 
 def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
                  filterLength, soundDecayTime, algorithm="TranVu",
@@ -57,12 +57,12 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
     if not len(roomDimension)==3:
         raise Exception("RoomDimensions needs 3 positive numbers!")
     if not (len(sourcePositions[s]) == 3 for s in range(numSources)) or \
-            not all(isInsideRoom(roomDimension,[u,v,w]) for u,v,w \
+            not all(scenario.isInsideRoom(roomDimension,[u,v,w]) for u,v,w \
                     in sourcePositions):
         raise Exception("Source positions aren't lists of positive 3-element-"
                         "lists or inside room dimensions!")
     if not (len(sensorPositions[s]) == 3 for s in range(numSensors)) or \
-            not (all(isInsideRoom(roomDimension,[s,t,u])) for s,t,u \
+            not (all(scenario.isInsideRoom(roomDimension,[s,t,u])) for s,t,u \
             in sensorPositions):
         raise Exception("Sensor positions aren't lists of positive 3-element-"
                         "lists or inside room dimensions!")
@@ -105,45 +105,6 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
                    numpy.asarray(sensorOrientations, dtype=numpy.float64 ),
                    alpha,soundvelocity)
     return rir
-
-
-
-def isInsideRoom(roomDim,x):
-    """
-    Treats x as 3-dim vector and determines whether it's inside the
-     room dimensions.
-    :param roomDim: 3-object-sequence. Denotes the room dimensions.
-    :param x: 3-object-sequence. Denotes the point to verify.
-    :return: True for x being inside the room dimensions and False otherwise.
-    """
-    positive = all([elem > 0 for elem in x]) # all elements shall be greater 0
-    return positive and numpy.all(numpy.subtract(roomDim,x))
-
-def generateRandomSourcesAndSensors(roomDim,numSources,numSensors):
-    """
-    Returns two lists with random sources and sensors
-    within the room dimensions
-    :param roomDim: 1x3 list; room dimensions in meters e.g. [9,7,3]
-    :param numSources: Integer; Number of desired source positions e.g. 3
-    :param numSensors: Integer; Number of desired sensor positions e.g. 1
-    :return:srcList,micList: Each is a list of 3-element-lists denoting
-            the positions' coordinates
-    """
-    srcList = []
-    micList = []
-    # todo: avoid sensors/sources in the room's center
-    for s in range(numSources):
-        x = random.uniform(10**-3,roomDim[0])
-        y = random.uniform(10**-3,roomDim[1])
-        z = random.uniform(10**-3,roomDim[2])
-        srcList.append([x,y,z])
-    for m in range(numSensors):
-        x = random.uniform(10**-3,roomDim[0])
-        y = random.uniform(10**-3,roomDim[1])
-        z = random.uniform(10**-3,roomDim[2])
-        micList.append([x,y,z])
-    return srcList,micList
-
 
 def nearfield_time_of_flight(source_positions, sensor_positions, sound_velocity=343):
     """ Calculates exact time of flight in seconds without farfield assumption.
