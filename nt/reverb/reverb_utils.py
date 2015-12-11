@@ -1,6 +1,8 @@
-import numpy
+import numpy,scipy
 import nt.reverb.CalcRIR_Simple_C as tranVuRIR
+#import nt.reverb.Habets_RIR_C as HabetsRIR
 import nt.reverb.scenario as scenario
+from scipy import signal
 
 def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
                  filterLength, soundDecayTime, algorithm="TranVu",
@@ -36,8 +38,10 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
     >>> mics = ((2,3,2),(9,9,2))
     >>> sampleRate = 16000
     >>> filterLength = 2**13
-    >>> T60=0.3
+    >>> T60 = 0.3
     >>> pyRIR = generate_RIR(roomDim,sources,mics,sampleRate, filterLength,T60)
+    >>> pyRIR.shape
+    (8192, 2, 1)
     """
 
     # These are lists of possible picks
@@ -94,16 +98,19 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
 
     rir = numpy.zeros((filterLength,numSensors,numSources))
 
-    # todo: Unterscheide zwischen allen Algorithmen
-    # TranVU method
-    noiseFloor = -60
-    rir = tranVuRIR.calc(numpy.asarray(roomDimension,dtype=numpy.float64),
-                   numpy.asarray(sourcePositions,dtype=numpy.float64),
-                   numpy.asarray(sensorPositions,dtype=numpy.float64),
-                   samplingRate,
-                   filterLength,soundDecayTime*1000,noiseFloor,
-                   numpy.asarray(sensorOrientations, dtype=numpy.float64 ),
-                   alpha,soundvelocity)
+    # todo: Mehr Algorithmen in Betracht ziehen
+    if algorithm == "TranVu":
+        # TranVU method
+        noiseFloor = -60
+        rir = tranVuRIR.calc(numpy.asarray(roomDimension,dtype=numpy.float64),
+                       numpy.asarray(sourcePositions,dtype=numpy.float64),
+                       numpy.asarray(sensorPositions,dtype=numpy.float64),
+                       samplingRate,
+                       filterLength,soundDecayTime*1000,noiseFloor,
+                       numpy.asarray(sensorOrientations, dtype=numpy.float64 ),
+                       alpha,soundvelocity)
+    else:
+        raise NotImplementedError("The chosen algorithm is not implemented yet.")
     return rir
 
 def nearfield_time_of_flight(source_positions, sensor_positions, sound_velocity=343):
@@ -134,3 +141,38 @@ def steering_vector(time_of_flight, frequency):
     return numpy.exp(-2j * numpy.pi
                      * frequency[numpy.newaxis, numpy.newaxis, :]
                      * time_of_flight[:, :, numpy.newaxis])
+
+def fft_convolve(x,impulse_response):
+    # Get number of sources and sensors
+    num_sensors = impulse_response.shape[1]
+    num_sources = impulse_response.shape[2]
+    convolved_signal = numpy.zeros([num_sensors,
+                                    num_sources,
+                                    len(x)+len(impulse_response)-1])
+    # fftconvolve for every sensor and source
+    for i in range(num_sensors):
+        for j in range(num_sources):
+            convolved_signal[i,j,:] = signal.fftconvolve(x,
+                                                         impulse_response[:,i,j])
+
+    return convolved_signal
+
+def time_convolve(x,impulse_response):
+    # Get number of sources and sensors
+    num_sensors = impulse_response.shape[1]
+    num_sources = impulse_response.shape[2]
+    convolved_signal = numpy.zeros([num_sensors,
+                                    num_sources,
+                                    len(x)+len(impulse_response)-1])
+    # fftconvolve for every sensor and source
+    for i in range(num_sensors):
+        for j in range(num_sources):
+            convolved_signal[i,j,:] = numpy.convolve(x,
+                                                     impulse_response[:,i,j])
+
+    return convolved_signal
+
+#if __name__ == "__main__":
+#    import doctest
+#    doctest.testmod()
+
