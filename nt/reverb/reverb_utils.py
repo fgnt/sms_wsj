@@ -143,6 +143,15 @@ def steering_vector(time_of_flight, frequency):
                      * time_of_flight[:, :, numpy.newaxis])
 
 def fft_convolve(x,impulse_response):
+    """
+    Takes an audio signal and an impulse response and returns the convolution.
+    Convolution is conducted through frequency domain via FFT.
+    :param x: [1xD - array] the audio signal to convolute
+    :param impulse_response: [filter_length x number_sensors x number_sources - numpy matrix ]
+    The three dimensional impulse response.
+    :return: convolved_signal: [number_sensors x number_sources x signal_length - numpy matrix]
+    The convoluted signal for every sensor and each source
+    """
     # Get number of sources and sensors
     num_sensors = impulse_response.shape[1]
     num_sources = impulse_response.shape[2]
@@ -158,13 +167,22 @@ def fft_convolve(x,impulse_response):
     return convolved_signal
 
 def time_convolve(x,impulse_response):
+    """
+    Takes an audio signal and an impulse response and returns the convolution.
+    Convolution is conducted through time domain.
+    :param x: [1xD - array] the audio signal to convolve
+    :param impulse_response: [filter_length x number_sensors x number_sources - numpy matrix ]
+    The three dimensional impulse response.
+    :return: convolved_signal: [number_sensors x number_sources x signal_length - numpy matrix]
+    The convoluted signal for every sensor and each source
+    """
     # Get number of sources and sensors
     num_sensors = impulse_response.shape[1]
     num_sources = impulse_response.shape[2]
     convolved_signal = numpy.zeros([num_sensors,
                                     num_sources,
                                     len(x)+len(impulse_response)-1])
-    # fftconvolve for every sensor and source
+    # convolve for every sensor and source
     for i in range(num_sensors):
         for j in range(num_sources):
             convolved_signal[i,j,:] = numpy.convolve(x,
