@@ -81,6 +81,7 @@ def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
     """
     Generate positions aligned at predefined angles on a sphere's surface or
     on a circle's boundary.
+
     :param center: The sphere's/circle's center coordinates in accord with dim.
     :param n: The amount of source positions to be sampled.
     :param azimuth_angles: List or tuple of azimuth angles pointing to samples.
@@ -90,7 +91,9 @@ def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
     :param radius: The sphere's/circle's radius to sample positions at.
     :param dims: 2 for circle, 3 for sphere
     :return: pos: n times 3 numpy array of calculated positions
+
     Example:
+
     >>> center = [3,3,3]
     >>> n = 32
     >>> deltaAngle = numpy.pi/16
@@ -98,7 +101,7 @@ def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
     >>> elevation_angles = numpy.arange(0,numpy.pi,deltaAngle/2)
     >>> radius = 2
     >>> dims = 3
-    >>> source_positions = generate_equally_distributed_source_positions(center,n,azimuth_angles,elevation_angles,radius,dims)
+    >>> source_positions = generate_deterministic_source_positions(center,n,azimuth_angles,elevation_angles,radius,dims)
     """
     if not 2 <= dims <= 3:
         raise NotImplementedError("Dims out of implemented range. Please choose"
@@ -121,7 +124,8 @@ def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
 def isInsideRoom(roomDim,x):
     """
     Treats x as 3-dim vector and determines whether it's inside the
-     room dimensions.
+    room dimensions.
+
     :param roomDim: 3-object-sequence. Denotes the room dimensions.
     :param x: 3-object-sequence. Denotes the point to verify.
     :return: True for x being inside the room dimensions and False otherwise.
@@ -133,7 +137,8 @@ def isInsideRoom(roomDim,x):
 def generate_uniformly_random_sources_and_sensors(roomDim,numSources,numSensors):
     """
     Returns two lists with random sources and sensors
-    within the room dimensions
+    within the room dimensions.
+
     :param roomDim: 1x3 list; room dimensions in meters e.g. [9,7,3]
     :param numSources: Integer; Number of desired source positions e.g. 3
     :param numSensors: Integer; Number of desired sensor positions e.g. 1
