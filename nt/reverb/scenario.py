@@ -143,7 +143,7 @@ def generate_uniformly_random_sources_and_sensors(roomDim,numSources,numSensors)
     :param numSources: Integer; Number of desired source positions e.g. 3
     :param numSensors: Integer; Number of desired sensor positions e.g. 1
     :return:srcList,micList: Each is a list of 3-element-lists denoting
-            the positions' coordinates
+    the positions' coordinates
     """
     srcList = []
     micList = []
