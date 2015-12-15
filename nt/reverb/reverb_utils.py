@@ -1,3 +1,8 @@
+"""
+Offers methods for calculating room impulse responses and convolutions of these
+with audio signals.
+"""
+
 import numpy,scipy
 import nt.reverb.CalcRIR_Simple_C as tranVuRIR
 #import nt.reverb.Habets_RIR_C as HabetsRIR
@@ -10,6 +15,7 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
                  soundvelocity=343):
     """
     Generates a room impulse response.
+
     :param roomDimension: 3-floats-sequence; The room dimensions in meters
     :param sourcePositions: List of 3-floats-lists (#sources) containing
     the source position coordinates in meter within room dimension.
@@ -33,6 +39,7 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
     numberSensors)
 
     Example:
+
     >>> roomDim = (10,10,4)
     >>> sources = ((1,1,2),)
     >>> mics = ((2,3,2),(9,9,2))
@@ -40,8 +47,6 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
     >>> filterLength = 2**13
     >>> T60 = 0.3
     >>> pyRIR = generate_RIR(roomDim,sources,mics,sampleRate, filterLength,T60)
-    >>> pyRIR.shape
-    (8192, 2, 1)
     """
 
     # These are lists of possible picks
