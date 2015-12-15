@@ -18,23 +18,23 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
 
     :param roomDimension: 3-floats-sequence; The room dimensions in meters
     :param sourcePositions: List of 3-floats-lists (#sources) containing
-    the source position coordinates in meter within room dimension.
+        the source position coordinates in meter within room dimension.
     :param sensorPositions: List of 3-floats-List (#sensors). The sensor
-    positions in meter within room dimensions.
+        positions in meter within room dimensions.
     :param samplingRate: scalar in Hz.
     :param filterLength: number of filter coefficients
     :param soundDecayTime: scalar in seconds. Reverberation time.
     :param algorithm: algorithm used for calculation. Default is "TranVu".
-    Choose from: "TranVu","Habets","Lehmann","LehmannFast","AllenBerkley"
+        Choose from: "TranVu","Habets","Lehmann","LehmannFast","AllenBerkley"
     :param sensorOrientations: List of name,value pairs (#sensors). Specifies
-    orientation of each sensor using azimuth and elevation angle.
+        orientation of each sensor using azimuth and elevation angle.
     :param sensorDirectivity: string determining directivity for all sensors.
-    default:'omnidirectional'. Choose from:'omnidirectional', 'subcardioid',
-    'cardioid','hypercardioid','bidirectional'
+        default:'omnidirectional'. Choose from:'omnidirectional', 'subcardioid',
+        'cardioid','hypercardioid','bidirectional'
     :param soundvelocity: scalar in m/s. default: 343
     :return:RIR as Numpy matrix (filterlength x numberSensors x numberSources)
 
-    note: Having 1 source yields a RIR with shape (filterlength,numberSensors,1)
+    Note that Having 1 source yields a RIR with shape (filterlength,numberSensors,1)
     whereas matlab method would return 2-dimensional matrix (filterlength,
     numberSensors)
 
@@ -151,11 +151,14 @@ def fft_convolve(x,impulse_response):
     """
     Takes an audio signal and an impulse response and returns the convolution.
     Convolution is conducted through frequency domain via FFT.
+
     :param x: [1xD - array] the audio signal to convolute
-    :param impulse_response: [filter_length x number_sensors x number_sources - numpy matrix ]
-    The three dimensional impulse response.
-    :return: convolved_signal: [number_sensors x number_sources x signal_length - numpy matrix]
-    The convoluted signal for every sensor and each source
+    :param impulse_response:
+        [filter_length x number_sensors x number_sources - numpy matrix ]
+        The three dimensional impulse response.
+    :return: convolved_signal:
+        [number_sensors x number_sources x signal_length - numpy matrix]
+        The convoluted signal for every sensor and each source
     """
     # Get number of sources and sensors
     num_sensors = impulse_response.shape[1]
@@ -175,11 +178,14 @@ def time_convolve(x,impulse_response):
     """
     Takes an audio signal and an impulse response and returns the convolution.
     Convolution is conducted through time domain.
+
     :param x: [1xD - array] the audio signal to convolve
-    :param impulse_response: [filter_length x number_sensors x number_sources - numpy matrix ]
-    The three dimensional impulse response.
-    :return: convolved_signal: [number_sensors x number_sources x signal_length - numpy matrix]
-    The convoluted signal for every sensor and each source
+    :param impulse_response:
+        [filter_length x number_sensors x number_sources - numpy matrix ]
+        The three dimensional impulse response.
+    :return: convolved_signal:
+        [number_sensors x number_sources x signal_length - numpy matrix]
+        The convoluted signal for every sensor and each source
     """
     # Get number of sources and sensors
     num_sensors = impulse_response.shape[1]
