@@ -90,7 +90,7 @@ def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
      samples. Size must equal n.
     :param radius: The sphere's/circle's radius to sample positions at.
     :param dims: 2 for circle, 3 for sphere
-    :return: pos: n times 3 numpy array of calculated positions
+    :return: pos: (n times 3) numpy array of calculated positions
 
     Example:
 
@@ -143,7 +143,7 @@ def generate_uniformly_random_sources_and_sensors(roomDim,numSources,numSensors)
     :param numSources: Integer; Number of desired source positions e.g. 3
     :param numSensors: Integer; Number of desired sensor positions e.g. 1
     :return:srcList,micList: Each is a list of 3-element-lists denoting
-    the positions' coordinates
+        the positions' coordinates
     """
     srcList = []
     micList = []
