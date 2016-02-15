@@ -1,9 +1,10 @@
 """
-Helps to quickly create source and sensor positions. Try it with the following code:
+Helps to quickly create source and sensor positions.
+Try it with the following code:
 
 >>> from mpl_toolkits.mplot3d import proj3d
 >>> import nt.reverb.scenario as scenario
->>> src = scenario.generate_random_source_positions(dims=2, n=1000)
+>>> src = scenario.generate_random_source_positions(dims=2, sources=1000)
 >>> src[1, :] = numpy.abs(src[1, :])
 >>> mic = scenario.generate_sensor_positions(shape='linear', scale=0.1)
 >>> scenario.plot(src, mic)
@@ -11,12 +12,23 @@ Helps to quickly create source and sensor positions. Try it with the following c
 
 import numpy
 import matplotlib.pyplot as plt
-from operator import add
 import random
 
-def generate_sensor_positions(shape='cube', center=numpy.zeros((3, 1)), scale=0.01):
+########################################################
+# Register Axes3D as a 'projection' object available
+# for use just like any other axes
+########################################################
+from mpl_toolkits.mplot3d import Axes3D
+
+
+def generate_sensor_positions(
+        shape='cube',
+        center=numpy.zeros((3, 1)),
+        scale=0.01
+):
     """
-    Generate different sensor configurations as known from the Matlab implementations.
+    Generate different sensor configurations as known from the Matlab
+    implementations.
 
     :param shape:
     :param center:
@@ -29,18 +41,26 @@ def generate_sensor_positions(shape='cube', center=numpy.zeros((3, 1)), scale=0.
         b = scale / 2
         sensor_positions = numpy.array([
             [-b, -b, -b],
-            [-b, -b,  b],
-            [-b,  b, -b],
-            [-b,  b,  b],
-            [ b, -b, -b],
-            [ b, -b,  b],
-            [ b,  b, -b],
-            [ b,  b,  b]
+            [-b, -b, b],
+            [-b, b, -b],
+            [-b, b, b],
+            [b, -b, -b],
+            [b, -b, b],
+            [b, b, -b],
+            [b, b, b]
         ]).T
+    if shape == 'triangle':
+        b = scale
+        sensor_positions = numpy.array([
+            [b/2, 0, 0],
+            [0, numpy.sqrt(3)/2 * b, 0],
+            [-b/2, 0, 0],
+        ]).T
+        sensor_positions -= numpy.mean(sensor_positions, axis=1, keepdims=True)
     elif shape == 'linear':
         b = scale / 2
         sensor_positions = numpy.array([
-            [ b, 0, 0],
+            [b, 0, 0],
             [-b, 0, 0]
         ]).T
     else:
@@ -49,7 +69,12 @@ def generate_sensor_positions(shape='cube', center=numpy.zeros((3, 1)), scale=0.
     return sensor_positions + center
 
 
-def generate_random_source_positions(center=numpy.zeros((3, 1)), n=1, distance_interval=(1, 2), dims=3):
+def generate_random_source_positions(
+        center=numpy.zeros((3, 1)),
+        sources=1,
+        distance_interval=(1, 2),
+        dims=3
+):
     """ Generates random positions on a hollow sphere or circle.
 
     Samples are drawn from a uniform distribution on a hollow sphere with
@@ -57,27 +82,30 @@ def generate_random_source_positions(center=numpy.zeros((3, 1)), n=1, distance_i
 
     The idea is to sample from an angular centric Gaussian distribution.
     """
-    x = numpy.random.normal(size=(3, n))
+    x = numpy.random.normal(size=(3, sources))
     if dims == 2:
         x[2, :] = 0
 
     x /= numpy.linalg.norm(x, axis=0)
 
     radius = numpy.random.uniform(
-        distance_interval[0]**dims,
-        distance_interval[1]**dims,
-        size=(1, n)
-    )**(1 / dims)
+        distance_interval[0] ** dims,
+        distance_interval[1] ** dims,
+        size=(1, sources)
+    ) ** (1 / dims)
 
     x *= radius
     return x + center
 
-def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
-                                                  n=1,
-                                                  azimuth_angles = None,
-                                                  elevation_angles = None,
-                                                  radius=1,
-                                                  dims=3):
+
+def generate_deterministic_source_positions(
+        center=numpy.zeros((3, 1)),
+        n=1,
+        azimuth_angles=None,
+        elevation_angles=None,
+        radius=1,
+        dims=3
+):
     """
     Generate positions aligned at predefined angles on a sphere's surface or
     on a circle's boundary.
@@ -97,73 +125,82 @@ def generate_deterministic_source_positions(center=numpy.zeros((3,1)),
     >>> center = [3,3,3]
     >>> n = 32
     >>> deltaAngle = numpy.pi/16
-    >>> azimuth_angles = numpy.arange(0,2*numpy.pi,deltaAngle)
-    >>> elevation_angles = numpy.arange(0,numpy.pi,deltaAngle/2)
+    >>> azimuth_angles = numpy.arange(0, 2*numpy.pi, deltaAngle)
+    >>> elevation_angles = numpy.arange(0, numpy.pi, deltaAngle/2)
     >>> radius = 2
     >>> dims = 3
-    >>> source_positions = generate_deterministic_source_positions(center,n,azimuth_angles,elevation_angles,radius,dims)
+    >>> source_positions = generate_deterministic_source_positions(center, n, azimuth_angles, elevation_angles, radius, dims)
     """
     if not 2 <= dims <= 3:
         raise NotImplementedError("Dims out of implemented range. Please choose"
                                   "2 or 3.")
     if azimuth_angles is None or elevation_angles is None:
         raise NotImplementedError("Please provide azimuth and elevation angles")
-    if not len(azimuth_angles)==n or not len(elevation_angles)==n:
+    if not len(azimuth_angles) == n or not len(elevation_angles) == n:
         raise EnvironmentError("length of azimuth angles and elevation angles "
                                "must be equal n")
     x = center
     if dims == 2:
-        x[2,:] = 0
-    pos = numpy.array([x]*n,dtype=numpy.float64).reshape((n,3))
-    z = numpy.array([(numpy.cos(elevation_angles)*numpy.cos(azimuth_angles)),
-                 (numpy.cos(elevation_angles)*numpy.sin(azimuth_angles)),
-                 numpy.sin(elevation_angles)]).T
-    pos += radius*z
+        x[2, :] = 0
+    pos = numpy.array([x] * n, dtype=numpy.float64).reshape((n, 3))
+    z = numpy.array([(numpy.cos(elevation_angles) * numpy.cos(azimuth_angles)),
+                     (numpy.cos(elevation_angles) * numpy.sin(azimuth_angles)),
+                     numpy.sin(elevation_angles)]).T
+    pos += radius * z
     return pos
 
-def isInsideRoom(roomDim,x):
+
+def is_inside_room(dimensions, x):
     """
     Treats x as 3-dim vector and determines whether it's inside the
     room dimensions.
 
-    :param roomDim: 3-object-sequence. Denotes the room dimensions.
+    :param dimensions: 3-object-sequence. Denotes the room dimensions.
     :param x: 3-object-sequence. Denotes the point to verify.
     :return: True for x being inside the room dimensions and False otherwise.
     """
-    positive = all([elem > 0 for elem in x]) # all elements shall be greater 0
-    return positive and numpy.all(numpy.subtract(roomDim,x))
+    positive = all([elem > 0 for elem in x])  # all elements shall be greater 0
+    return positive and numpy.all(numpy.subtract(dimensions, x))
 
 
-def generate_uniformly_random_sources_and_sensors(roomDim,numSources,numSensors):
+def generate_uniformly_random_sources_and_sensors(
+        dimensions,
+        sources,
+        sensors
+):
     """
     Returns two lists with random sources and sensors
     within the room dimensions.
 
-    :param roomDim: 1x3 list; room dimensions in meters e.g. [9,7,3]
-    :param numSources: Integer; Number of desired source positions e.g. 3
-    :param numSensors: Integer; Number of desired sensor positions e.g. 1
-    :return: srcList,micList: Each is a list of 3-element-lists denoting
-        the positions' coordinates
+    :param dimensions: 1x3 list; room dimensions in meters e.g. [9,7,3]
+    :param sources: Integer; Number of desired source positions e.g. 3
+    :param sensors: Integer; Number of desired sensor positions e.g. 1
+    :return: source_list, sensor_list:
+        Each is a list of 3-element-lists denoting the positions' coordinates
     """
-    srcList = []
-    micList = []
+    source_list = []
+    sensor_list = []
     # todo: avoid sensors/sources in the room's center
-    for s in range(numSources):
-        x = random.uniform(10**-3,roomDim[0])
-        y = random.uniform(10**-3,roomDim[1])
-        z = random.uniform(10**-3,roomDim[2])
-        srcList.append([x,y,z])
-    for m in range(numSensors):
-        x = random.uniform(10**-3,roomDim[0])
-        y = random.uniform(10**-3,roomDim[1])
-        z = random.uniform(10**-3,roomDim[2])
-        micList.append([x,y,z])
-    return srcList,micList
+    for s in range(sources):
+        x = random.uniform(10 ** -3, dimensions[0])
+        y = random.uniform(10 ** -3, dimensions[1])
+        z = random.uniform(10 ** -3, dimensions[2])
+        source_list.append([x, y, z])
+    for m in range(sensors):
+        x = random.uniform(10 ** -3, dimensions[0])
+        y = random.uniform(10 ** -3, dimensions[1])
+        z = random.uniform(10 ** -3, dimensions[2])
+        sensor_list.append([x, y, z])
+    return source_list, sensor_list
 
-def plot(src=None, mic=None, room=None):
+
+def plot(room=None, sources=None, sensors=None):
     fig = plt.figure(figsize=(8, 3.5))
     ax1 = fig.add_subplot(1, 2, 1, projection='3d')
     ax2 = fig.add_subplot(1, 2, 2)
+
+    for axis in 'x y z'.split():
+        ax1.locator_params(axis=axis, nbins=4)
 
     if room is None:
         ax1.set_xlim3d((-3, 3))
@@ -178,10 +215,10 @@ def plot(src=None, mic=None, room=None):
         ax2.set_xlim((-room[0], room[0]))
         ax2.set_ylim((-room[1], room[1]))
 
-    if src is not None:
-        ax1.scatter(src[0, :], src[1, :], src[2, :])
-        ax2.scatter(src[0, :], src[1, :])
+    if sources is not None:
+        ax1.scatter(sources[0, :], sources[1, :], sources[2, :])
+        ax2.scatter(sources[0, :], sources[1, :])
 
-    if mic is not None:
-        ax1.scatter(mic[0, :], mic[1, :], mic[2, :], c='r')
-        ax2.scatter(mic[0, :], mic[1, :], c='r')
+    if sensors is not None:
+        ax1.scatter(sensors[0, :], sensors[1, :], sensors[2, :], c='r')
+        ax2.scatter(sensors[0, :], sensors[1, :], c='r')
