@@ -13,11 +13,11 @@ Try it with the following code:
 import numpy
 import matplotlib.pyplot as plt
 import random
+import itertools
 
-########################################################
-# Register Axes3D as a 'projection' object available
-# for use just like any other axes
-########################################################
+################################################################################
+# Register Axes3D as a 'projection' object available for use just like any  axes
+################################################################################
 from mpl_toolkits.mplot3d import Axes3D
 
 
@@ -195,30 +195,63 @@ def generate_uniformly_random_sources_and_sensors(
 
 
 def plot(room=None, sources=None, sensors=None):
+    """ Plot a given room with possible sources and sensors.
+
+    All positions and distances in meters.
+
+    TODO: This function has way to many hard coded numbers.
+
+    >>> room = (4.5, 5, 3)
+    >>> sources = generate_random_source_positions()
+    >>> sensors = generate_sensor_positions(shape='triangle', scale=0.1)
+    >>> from nt.visualization import context_manager
+    >>> with context_manager(): plot(room, sources, sensors)
+
+    :param room: Tuple or array of room dimensions with shape (3,)
+    :param sources: Array of K source positions with shape (3, K)
+    :param sensors: Array of D sensor positions with shape (3, D)
+    :return:
+    """
     fig = plt.figure(figsize=(8, 3.5))
     ax1 = fig.add_subplot(1, 2, 1, projection='3d')
     ax2 = fig.add_subplot(1, 2, 2)
 
-    for axis in 'x y z'.split():
-        ax1.locator_params(axis=axis, nbins=4)
+    room = numpy.asarray(room)
+    ranges = numpy.asarray([-0.5 * room, 0.5 * room]).T
 
-    if room is None:
-        ax1.set_xlim3d((-3, 3))
-        ax1.set_ylim3d((-3, 3))
-        ax1.set_zlim3d((-1, 1))
-        ax2.set_xlim((-3, 3))
-        ax2.set_ylim((-3, 3))
-    else:
-        ax1.set_xlim3d((-room[0], room[0]))
-        ax1.set_ylim3d((-room[1], room[1]))
-        ax1.set_zlim3d((-room[2], room[2]))
-        ax2.set_xlim((-room[0], room[0]))
-        ax2.set_ylim((-room[1], room[1]))
+    for axis in 'x y z'.split():
+        ax1.locator_params(axis=axis, nbins=5)
+    for axis in 'x y'.split():
+        ax2.locator_params(axis=axis, nbins=7)
+
+    ax1.set_xlabel('x')
+    ax1.set_ylabel('y')
+    ax1.set_zlabel('z')
+
+    ax1.set_xlim3d((-3.5, 3.5))
+    ax1.set_ylim3d((-3.5, 3.5))
+    ax1.set_zlim3d((-2.4, 2.4))
+    ax2.set_xlim((-5, 5))
+    ax2.set_ylim((-3.5, 3.5))
+
+    if room is not None:
+        setup = {'alpha': 0.2, 'c': 'b'}
+        for a, b in itertools.product(range(2), repeat=2):
+            ax1.plot(ranges[0], ranges[1, [a, a]], ranges[2, [b, b]], **setup)
+            ax1.plot(ranges[0, [a, a]], ranges[1], ranges[2, [b, b]], **setup)
+            ax1.plot(ranges[0, [a, a]], ranges[1, [b, b]], ranges[2], **setup)
+
+        for a in range(2):
+            ax2.plot(ranges[0, [a, a]], ranges[1], **setup)
+            ax2.plot(ranges[0], ranges[1, [a, a]], **setup)
 
     if sources is not None:
         ax1.scatter(sources[0, :], sources[1, :], sources[2, :])
         ax2.scatter(sources[0, :], sources[1, :])
 
     if sensors is not None:
-        ax1.scatter(sensors[0, :], sensors[1, :], sensors[2, :], c='r')
-        ax2.scatter(sensors[0, :], sensors[1, :], c='r')
+        setup = {'c': 'b'}
+        ax1.scatter(sensors[0, :], sensors[1, :], sensors[2, :], **setup)
+        ax2.scatter(sensors[0, :], sensors[1, :], **setup)
+
+    plt.subplots_adjust(right=1.2)
