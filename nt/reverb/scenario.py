@@ -36,7 +36,6 @@ def generate_sensor_positions(
     :return:
     """
     # TODO: Allow different dims for shape=linear
-
     if shape == 'cube':
         b = scale / 2
         sensor_positions = numpy.array([
@@ -49,7 +48,7 @@ def generate_sensor_positions(
             [b, b, -b],
             [b, b, b]
         ]).T
-    if shape == 'triangle':
+    elif shape == 'triangle':
         b = scale
         sensor_positions = numpy.array([
             [b/2, 0, 0],
@@ -66,7 +65,7 @@ def generate_sensor_positions(
     else:
         raise NotImplementedError('Given shape is not implemented.')
 
-    return sensor_positions + center
+    return numpy.asarray(sensor_positions + center)
 
 
 def generate_random_source_positions(
@@ -95,7 +94,7 @@ def generate_random_source_positions(
     ) ** (1 / dims)
 
     x *= radius
-    return x + center
+    return numpy.asarray(x + center)
 
 
 def generate_deterministic_source_positions(
@@ -250,8 +249,18 @@ def plot(room=None, sources=None, sensors=None):
         ax2.scatter(sources[0, :], sources[1, :])
 
     if sensors is not None:
-        setup = {'c': 'b'}
+        setup = {'c': 'r'}
         ax1.scatter(sensors[0, :], sensors[1, :], sensors[2, :], **setup)
         ax2.scatter(sensors[0, :], sensors[1, :], **setup)
 
     plt.subplots_adjust(right=1.2)
+    ax1.xaxis.pane.set_edgecolor('black')
+    ax1.yaxis.pane.set_edgecolor('black')
+
+    ax1.xaxis.pane.fill = False
+    ax1.yaxis.pane.fill = False
+    ax1.zaxis.pane.fill = False
+
+    ax1.w_xaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
+    ax1.w_yaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
+    ax1.w_zaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
