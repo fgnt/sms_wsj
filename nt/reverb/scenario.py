@@ -14,6 +14,7 @@ import numpy
 import matplotlib.pyplot as plt
 import random
 import itertools
+from nt.visualization.new_cm import viridis_hex
 
 ################################################################################
 # Register Axes3D as a 'projection' object available for use just like any  axes
@@ -97,6 +98,23 @@ def generate_random_source_positions(
     return numpy.asarray(x + center)
 
 
+def generate_source_positions_on_circle(
+        center=numpy.zeros((3, 1)),
+        azimuth_angles=numpy.deg2rad(numpy.arange(0, 360, 1)),
+        radius=1
+):
+    return numpy.asarray(
+        generate_deterministic_source_positions(
+            center=center,
+            n=azimuth_angles.shape[0],
+            azimuth_angles=azimuth_angles,
+            elevation_angles=numpy.zeros_like(azimuth_angles),
+            radius=radius,
+            dims=3
+        )
+    ).T
+
+
 def generate_deterministic_source_positions(
         center=numpy.zeros((3, 1)),
         n=1,
@@ -133,11 +151,15 @@ def generate_deterministic_source_positions(
     if not 2 <= dims <= 3:
         raise NotImplementedError("Dims out of implemented range. Please choose"
                                   "2 or 3.")
-    if azimuth_angles is None or elevation_angles is None:
+    if azimuth_angles is None:
         raise NotImplementedError("Please provide azimuth and elevation angles")
     if not len(azimuth_angles) == n or not len(elevation_angles) == n:
         raise EnvironmentError("length of azimuth angles and elevation angles "
                                "must be equal n")
+
+    if elevation_angles is None:
+        elevation_angles = numpy.zeros_like(azimuth_angles)
+
     x = center
     if dims == 2:
         x[2, :] = 0
@@ -193,7 +215,7 @@ def generate_uniformly_random_sources_and_sensors(
     return source_list, sensor_list
 
 
-def plot(room=None, sources=None, sensors=None):
+def plot(room=None, sources=None, sensors=None, dictionary=None):
     """ Plot a given room with possible sources and sensors.
 
     All positions and distances in meters.
@@ -211,12 +233,12 @@ def plot(room=None, sources=None, sensors=None):
     :param sensors: Array of D sensor positions with shape (3, D)
     :return:
     """
+    for parameter in (room, sources, sensors):
+        assert parameter is None or parameter.shape[0] == 3
+
     fig = plt.figure(figsize=(8, 3.5))
     ax1 = fig.add_subplot(1, 2, 1, projection='3d')
     ax2 = fig.add_subplot(1, 2, 2)
-
-    room = numpy.asarray(room)
-    ranges = numpy.asarray([-0.5 * room, 0.5 * room]).T
 
     for axis in 'x y z'.split():
         ax1.locator_params(axis=axis, nbins=5)
@@ -234,6 +256,8 @@ def plot(room=None, sources=None, sensors=None):
     ax2.set_ylim((-3.5, 3.5))
 
     if room is not None:
+        room = numpy.asarray(room)
+        ranges = numpy.asarray([-0.5 * room, 0.5 * room]).T
         setup = {'alpha': 0.2, 'c': 'b'}
         for a, b in itertools.product(range(2), repeat=2):
             ax1.plot(ranges[0], ranges[1, [a, a]], ranges[2, [b, b]], **setup)
@@ -252,6 +276,13 @@ def plot(room=None, sources=None, sensors=None):
         setup = {'c': 'r'}
         ax1.scatter(sensors[0, :], sensors[1, :], sensors[2, :], **setup)
         ax2.scatter(sensors[0, :], sensors[1, :], **setup)
+
+    if dictionary is not None:
+        colors = viridis_hex[::len(viridis_hex) // len(dictionary)]
+        for (key, value), color in zip(dictionary.items(), colors):
+            ax1.scatter(value[0, :], value[1, :], value[2, :], c=color)
+            ax2.scatter(value[0, :], value[1, :], color=color, label=key)
+            ax2.legend()
 
     plt.subplots_adjust(right=1.2)
     ax1.xaxis.pane.set_edgecolor('black')
