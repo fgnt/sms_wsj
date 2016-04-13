@@ -226,13 +226,19 @@ def plot(room=None, sources=None, sensors=None, dictionary=None):
     >>> sources = generate_random_source_positions()
     >>> sensors = generate_sensor_positions(shape='triangle', scale=0.1)
     >>> from nt.visualization import context_manager
-    >>> with context_manager(): plot(room, sources, sensors)
+    >>> with context_manager():
+    ...     plot(room, sources, sensors)
+    >>> plt.show()
 
     :param room: Tuple or array of room dimensions with shape (3,)
     :param sources: Array of K source positions with shape (3, K)
     :param sensors: Array of D sensor positions with shape (3, D)
     :return:
     """
+    room = numpy.asarray(room) if room is not None else None
+    sources = numpy.asarray(sources) if sources is not None else None
+    sensors = numpy.asarray(sensors) if sensors is not None else None
+
     for parameter in (room, sources, sensors):
         assert parameter is None or parameter.shape[0] == 3
 
