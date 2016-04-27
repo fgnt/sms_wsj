@@ -50,11 +50,12 @@ def generate_sensor_positions(
             [b, b, b]
         ]).T
     elif shape == 'triangle':
+        # b is the radius here
         b = scale
         sensor_positions = numpy.array([
-            [b/2, 0, 0],
-            [0, numpy.sqrt(3)/2 * b, 0],
-            [-b/2, 0, 0],
+            [b/2, -numpy.sqrt(3)/2 * b, 0],
+            [b/2, numpy.sqrt(3)/2 * b, 0],
+            [-b, 0, 0],
         ]).T
         sensor_positions -= numpy.mean(sensor_positions, axis=1, keepdims=True)
     elif shape == 'linear':
