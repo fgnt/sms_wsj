@@ -135,14 +135,11 @@ def fft_convolve(x, impulse_response):
     to correspond to the number of sources in the given RIR.
     Convolution is conducted through frequency domain via FFT.
 
-    :param x: [number_sources x audio_signal_length - array] the audio signal
-        to convolve
-    :param impulse_response:
-        [filter_length x number_sensors x number_sources - numpy matrix ]
-        The three dimensional impulse response.
-    :return: convolved_signal:
-        [number_sensors x number_sources x signal_length - numpy matrix]
-        The convoluted signal for every sensor and each source
+    :param x: Source signal with shape (number_sources, audio_signal_length)
+    :param impulse_response: Impulse response
+        with shape (filter_length, number_sensors, number_sources)
+    :return: convolved_signal: Convoluted signal for every sensor and each source
+        with shape (number_sensors, number_sources, signal_length)
     """
     _, sensors, sources = impulse_response.shape
 
