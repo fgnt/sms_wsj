@@ -256,15 +256,15 @@ def plot(room=None, sources=None, sensors=None, dictionary=None):
     ax1.set_ylabel('y')
     ax1.set_zlabel('z')
 
-    ax1.set_xlim3d((-3.5, 3.5))
-    ax1.set_ylim3d((-3.5, 3.5))
-    ax1.set_zlim3d((-2.4, 2.4))
-    ax2.set_xlim((-5, 5))
-    ax2.set_ylim((-3.5, 3.5))
+    ax1.set_xlim3d((-1, room[0]+1))
+    ax1.set_ylim3d((-1, room[1]+1))
+    ax1.set_zlim3d((-1, room[2]+1))
+    ax2.set_xlim(-1, room[0]+1)
+    ax2.set_ylim(-1, room[1]+1)
 
     if room is not None:
         room = numpy.asarray(room)
-        ranges = numpy.asarray([-0.5 * room, 0.5 * room]).T
+        ranges = numpy.asarray([0*room, room]).T
         setup = {'alpha': 0.2, 'c': 'b'}
         for a, b in itertools.product(range(2), repeat=2):
             ax1.plot(ranges[0], ranges[1, [a, a]], ranges[2, [b, b]], **setup)
