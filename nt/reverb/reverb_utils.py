@@ -4,10 +4,82 @@ with audio signals.
 """
 
 import numpy
+import numpy as np
 from scipy import signal
 
 import nt.reverb.CalcRIR_Simple_C as tranVuRIR
 import nt.reverb.scenario as scenario
+
+
+def generate_rir(
+        room,
+        sources,
+        sensors,
+        sound_decay_time,
+        sampling_rate=16000,
+        filter_length=2**13,
+        sensor_orientations=None,
+        sensor_directivity=None,
+        sound_velocity=343,
+        algorithm=None
+):
+    """ Wrapper of Wilhelm's RIR generator with sane defaults.
+
+    Args:
+        room: Numpy array with shape (3, 1)
+            which holds coordinates x, y and z.
+        sources: Numpy array with shape (3, number_of_sources)
+            which holds coordinates x, y and z in each column.
+        sensors: Numpy array with shape (3, number_of_sensors)
+            which holds coordinates x, y and z in each column.
+        sound_decay_time: Reverberation time in seconds.
+        sampling_rate: Sampling rate in Hertz.
+        filter_length: Filter length, typically 2**13.
+            Longer huge reverberation times.
+        sensor_orientations: Numpy array with shape (2, 1)
+            which holds azimuth and elevation angle in each column.
+        sensor_directivity: String determining directivity for all sensors.
+        sound_velocity: Set to 343 m/s.
+        algorithm: The only implemented algorithm is 'TranVu'.
+
+    Returns: Numpy array of room impulse respones with
+        shape (number_of_sources, number_of_sensors, filter_length).
+    """
+
+    assert room.shape == (3, 1)
+    assert sources.shape[0] == 3
+    assert sensors.shape[0] == 3
+
+    number_of_sources = sources.shape[1]
+    number_of_sensors = sensors.shape[1]
+
+    if sensor_orientations is None:
+        sensor_orientations = np.zeros((2, number_of_sources))
+
+    if sensor_directivity is None:
+        sensor_directivity = 'omnidirectional'
+
+    if algorithm is None:
+        algorithm = 'TranVu'
+
+    rir = generate_RIR(
+        roomDimension=list(room[:, 0]),
+        sourcePositions=sources.T,
+        sensorPositions=sensors.T,
+        samplingRate=sampling_rate,
+        filterLength=filter_length,
+        soundDecayTime=sound_decay_time,
+        algorithm=algorithm,
+        sensorOrientations=sensor_orientations,
+        sensorDirectivity=sensor_directivity,
+        soundvelocity=sound_velocity
+    ).transpose((2, 1, 0))
+
+    assert rir.shape[0] == number_of_sources
+    assert rir.shape[1] == number_of_sensors
+    assert rir.shape[2] == filter_length
+
+    return rir
 
 
 def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
@@ -96,7 +168,7 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
         raise Exception("sound velocity isn't scalar!")
 
     # Give optional arguments default values
-    if not sensorOrientations:
+    if sensorOrientations is None:
         sensorOrientations = []
         for x in range(numSensors):
             sensorOrientations.append((0, 0))
@@ -126,6 +198,10 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
         raise NotImplementedError(
             "The chosen algorithm is not implemented yet.")
     return rir
+
+
+def filter():
+    pass
 
 
 def fft_convolve(x, impulse_response):
