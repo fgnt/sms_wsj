@@ -5,7 +5,7 @@ with audio signals.
 
 import numpy
 import numpy as np
-from scipy import signal
+import scipy
 
 import nt.reverb.CalcRIR_Simple_C as tranVuRIR
 import nt.reverb.scenario as scenario
@@ -200,82 +200,30 @@ def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
     return rir
 
 
-def filter():
-    pass
+def convolve(signal, impulse_resonse):
+    """ Convolution of time signal with impulse response.
 
-
-def fft_convolve(x, impulse_response):
-    """
     Takes audio signals and the impulse responses according to their position
     and returns the convolution. The number of audio signals in x are required
     to correspond to the number of sources in the given RIR.
     Convolution is conducted through frequency domain via FFT.
 
-    :param x: Source signal with shape (number_sources, audio_signal_length)
-    :param impulse_response: Impulse response
-        with shape (filter_length, number_sensors, number_sources)
-    :return: convolved_signal: Convoluted signal for every sensor and each source
-        with shape (number_sensors, number_sources, signal_length)
+    Args:
+        signal: Time signal with shape (sources, samples)
+        impulse_response: Shape (sources, sensors, samples)
+
+    Returns:
+
     """
-    _, sensors, sources = impulse_response.shape
+    sources, samples = signal.shape
+    sources_, sensors, filter_length = impulse_resonse.shape
+    assert sources == sources_
 
-    if not sources == x.shape[0]:
-        raise Exception(
-            "Number audio signals (" +
-            str(x.shape[0]) +
-            ") does not match source positions (" +
-            str(sources) +
-            ") in given impulse response!"
-        )
-    convolved_signal = numpy.zeros(
-        [sensors, sources, x.shape[1] + len(impulse_response) - 1]
-    )
-
-    for i in range(sensors):
-        for j in range(sources):
-            convolved_signal[i, j, :] = signal.fftconvolve(
-                x[j, :],
-                impulse_response[:, i, j]
+    x = np.zeros((sources, sensors, samples + filter_length - 1))
+    for source_index in range(sources):
+        for target_index in range(sensors):
+            x[source_index, target_index, :] = scipy.signal.fftconvolve(
+                signal[source_index, :],
+                impulse_resonse[source_index, target_index, :]
             )
-
-    return convolved_signal
-
-
-def time_convolve(x, impulse_response):
-    """
-    Takes audio signals and the impulse responses according to their position
-    and returns the convolution. The number of audio signals in x are required
-    to correspond to the number of sources in the given RIR.
-    Convolution is conducted through time domain.
-
-    :param x: [number_sources x audio_signal_length - array] the audio signal
-        to convolve
-    :param impulse_response:
-        [filter_length x number_sensors x number_sources - numpy matrix ]
-        The three dimensional impulse response.
-    :return: convolved_signal:
-        [number_sensors x number_sources x signal_length - numpy matrix]
-        The convoluted signal for every sensor and each source
-    """
-    _, sensors, sources = impulse_response.shape
-
-    if not sources == x.shape[0]:
-        raise Exception(
-            "Number audio signals (" +
-            str(x.shape[0]) +
-            ") does not match source positions (" +
-            str(sources) +
-            ") in given impulse response!"
-        )
-    convolved_signal = numpy.zeros(
-        [sensors, sources, x.shape[1] + len(impulse_response) - 1]
-    )
-
-    for i in range(sensors):
-        for j in range(sources):
-            convolved_signal[i, j, :] = numpy.convolve(
-                x[j, :],
-                impulse_response[:, i, j]
-            )
-
-    return convolved_signal
+    return x
