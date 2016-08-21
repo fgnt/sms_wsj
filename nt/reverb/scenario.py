@@ -23,6 +23,34 @@ from nt.visualization.new_cm import viridis_hex
 from mpl_toolkits.mplot3d import Axes3D
 
 
+def sample_from_random_box(center, edge_lengths):
+    """ Sample from a random box to get somewhat random locations.
+
+    >>> points = np.asarray([sample_from_random_box(
+    ...     [[10], [20], [30]], [[1], [2], [3]]
+    ... ) for _ in range(1000)])
+    >>> import matplotlib.pyplot as plt
+    >>> from mpl_toolkits.mplot3d import Axes3D
+    >>> fig = plt.figure()
+    >>> ax = fig.add_subplot(111, projection='3d')
+    >>> _ = ax.scatter(points[:, 0, 0], points[:, 1, 0], points[:, 2, 0])
+    >>> _ = plt.show()
+
+    Args:
+        center: Original center (mean).
+        edge_lengths: Edge length of the box to be sampled from.
+
+    Returns:
+
+    """
+    center = np.asarray(center)
+    edge_lengths = np.asarray(edge_lengths)
+    return center + np.random.uniform(
+        low=-edge_lengths / 2,
+        high=edge_lengths / 2
+    )
+
+
 def generate_sensor_positions(
         shape='cube',
         center=np.zeros((3, 1)),
