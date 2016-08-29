@@ -75,6 +75,7 @@ def generate_rir(
             sensor_directivity == 'omnidirectional'
         ), 'Directional sensors is wrongly implemented in the Cython code.'
 
+        # TODO: Call cython code directly without generate_RIR
         rir = generate_RIR(
             roomDimension=list(room_dimensions[:, 0]),
             sourcePositions=source_positions.T,
@@ -269,6 +270,7 @@ def _generate_rir_tran_vu_python_loopy(
         sound_velocity=343,
         dtype=np.float64
 ):
+    print('Hello world.')
     air_coefficient = 0.9991
 
     norm_cut_off = 0.95
@@ -405,7 +407,7 @@ def _generate_rir_tran_vu_python(
         reflection_coefficient = 0.0
         image_order = 0
 
-    image = np.zeros((3,), dtype=dtype)
+    image = np.zeros((3, 1), dtype=dtype)
     rir = np.zeros((sources, sensors, filter_length), dtype=dtype)
 
     for s in range(sources):
@@ -422,7 +424,7 @@ def _generate_rir_tran_vu_python(
                                (-1) ** (y % 2) * source_positions[1, s]
 
                     for m in range(sensors):
-                        difference = image - sensor_positions[:, m]
+                        difference = image[:, 0] - sensor_positions[:, m]
                         distance = np.linalg.norm(difference)
                         attenuation = reflection_coefficient ** (
                             np.abs(x) + np.abs(y) + np.abs(z)
@@ -433,17 +435,13 @@ def _generate_rir_tran_vu_python(
                         fractional_delay = distance_in_samples - int_delay
                         count = - fractional_delay - window_length / 2
 
-                        for t in range(window_length):
-                            if int_delay + t < filter_length:
-                                win_si = np.pi * norm_cut_off * count
-                                win_si = np.where(win_si == 0, 1.0e-20, win_si)
-                                win_si = norm_cut_off * blackman_harris_window(
-                                    count) * np.sin(win_si) / win_si
-                                a = int_delay + t
-                                rir[s, m, a] += attenuation * win_si
-                                count += 1
-                            else:
-                                break
+                        t = np.asarray(range(min(window_length, filter_length - int_delay)))
+                        win_si = np.pi * norm_cut_off * (count + t)
+                        win_si = np.where(win_si == 0, 1.0e-20, win_si)
+                        win_si = norm_cut_off * blackman_harris_window(
+                            (count + t)) * np.sin(win_si) / win_si
+                        a = int_delay + t
+                        rir[s, m, list(a)] += attenuation * win_si
 
     return rir
 
