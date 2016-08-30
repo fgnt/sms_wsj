@@ -407,41 +407,51 @@ def _generate_rir_tran_vu_python(
         reflection_coefficient = 0.0
         image_order = 0
 
-    image = np.zeros((3, 1), dtype=dtype)
+    images = np.zeros((
+        3, sources,
+        2 * image_order + 1, 2 * image_order + 1, 2 * image_order + 1,
+    ), dtype=dtype)
+
+    for i in range(-image_order, image_order + 1):
+        images[0, :, i, :, :] = (
+            (i + (i % 2)) * room_dimensions[0] +
+            (-1) ** (i % 2) * source_positions[0, :, None, None]
+        )
+        images[1, :, :, i, :] = (
+            (i + (i % 2)) * room_dimensions[1] +
+            (-1) ** (i % 2) * source_positions[1, :, None, None]
+        )
+        images[2, :, :, :, i] = (
+            (i + (i % 2)) * room_dimensions[2] +
+            (-1) ** (i % 2) * source_positions[2, :, None, None]
+        )
+
     rir = np.zeros((sources, sensors, filter_length), dtype=dtype)
+    t = np.asarray(range(window_length))
+
+    differences = images[:, :, :, :, :, None] - sensor_positions[:, None, None, None, None, :]
+    distances = np.linalg.norm(differences, axis=0)
 
     for s in range(sources):
-        for z in range(-image_order, image_order + 1):
-            image[2] = (z + (z % 2)) * room_dimensions[2] + \
-                       (-1) ** (z % 2) * source_positions[2, s]
-
-            for x in range(-image_order, image_order + 1):
-                image[0] = (x + (x % 2)) * room_dimensions[0] + \
-                           (-1) ** (x % 2) * source_positions[0, s]
-
-                for y in range(-image_order, image_order + 1):
-                    image[1] = (y + (y % 2)) * room_dimensions[1] + \
-                               (-1) ** (y % 2) * source_positions[1, s]
-
-                    for m in range(sensors):
-                        difference = image[:, 0] - sensor_positions[:, m]
-                        distance = np.linalg.norm(difference)
-                        attenuation = reflection_coefficient ** (
-                            np.abs(x) + np.abs(y) + np.abs(z)
-                        ) * air_coefficient ** distance / (1 + distance)
-
-                        distance_in_samples = distance * samples_per_meter
-                        int_delay = int(distance_in_samples + 0.5)
-                        fractional_delay = distance_in_samples - int_delay
-                        count = - fractional_delay - window_length / 2
-
-                        t = np.asarray(range(min(window_length, filter_length - int_delay)))
-                        win_si = np.pi * norm_cut_off * (count + t)
-                        win_si = np.where(win_si == 0, 1.0e-20, win_si)
-                        win_si = norm_cut_off * blackman_harris_window(
-                            (count + t)) * np.sin(win_si) / win_si
-                        a = int_delay + t
-                        rir[s, m, list(a)] += attenuation * win_si
+        for x in range(-image_order, image_order + 1):
+            for y in range(-image_order, image_order + 1):
+                for z in range(-image_order, image_order + 1):
+                    distance = distances[s, x, y, z, :]
+                    attenuation = reflection_coefficient ** (
+                        np.abs(x) + np.abs(y) + np.abs(z)
+                    ) * air_coefficient ** distance / (1 + distance)
+                    distance_in_samples = distance * samples_per_meter
+                    int_delay = [int(_d) for _d in distance_in_samples + 0.5]
+                    lengths = [min(window_length, max(filter_length - int_delay[m], 0)) for m in range(sensors)]
+                    for m, length in zip(range(sensors), lengths):
+                        if length > 0:
+                            fractional_delay = distance_in_samples[m] - int_delay[m]
+                            print(fractional_delay)
+                            count = - fractional_delay - window_length / 2
+                            win_si = np.pi * norm_cut_off * (count + t[:length])
+                            win_si = np.where(win_si == 0, 1.0e-20, win_si)
+                            win_si = norm_cut_off * blackman_harris_window((count + t[:length])) * np.sin(win_si) / win_si
+                            rir[s, m, int_delay[m]:int_delay[m] + length] += attenuation[m] * win_si[:length]
 
     return rir
 
