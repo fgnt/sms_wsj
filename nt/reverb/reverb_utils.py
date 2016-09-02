@@ -130,9 +130,15 @@ def generate_rir(
     return rir
 
 
-def generate_RIR(roomDimension, sourcePositions, sensorPositions, samplingRate,
-                 filterLength, soundDecayTime, algorithm="TranVu",
-                 sensorOrientations=None, sensorDirectivity="omnidirectional",
+def generate_RIR(roomDimension,
+                 sourcePositions,
+                 sensorPositions,
+                 samplingRate,
+                 filterLength,
+                 soundDecayTime,
+                 algorithm="TranVu",
+                 sensorOrientations=None,
+                 sensorDirectivity="omnidirectional",
                  soundvelocity=343):
     """
     Generates a room impulse response.
