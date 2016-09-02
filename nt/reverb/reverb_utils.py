@@ -78,18 +78,29 @@ def generate_rir(
             sensor_directivity == 'omnidirectional'
         ), 'Directional sensors is wrongly implemented in the Cython code.'
 
-        # TODO: Call cython code directly without generate_RIR
-        rir = generate_RIR(
-            roomDimension=list(room_dimensions[:, 0]),
-            sourcePositions=source_positions.T,
-            sensorPositions=sensor_positions.T,
-            samplingRate=sample_rate,
-            filterLength=filter_length,
-            soundDecayTime=sound_decay_time,
-            algorithm='TranVu',
-            sensorOrientations=sensor_orientations,
-            sensorDirectivity=sensor_directivity,
-            soundvelocity=sound_velocity
+        # rir = generate_RIR(
+        #     roomDimension=list(room_dimensions[:, 0]),
+        #     sourcePositions=source_positions.T,
+        #     sensorPositions=sensor_positions.T,
+        #     samplingRate=sample_rate,
+        #     filterLength=filter_length,
+        #     soundDecayTime=sound_decay_time,
+        #     algorithm='TranVu',
+        #     sensorOrientations=sensor_orientations,
+        #     sensorDirectivity=sensor_directivity,
+        #     soundvelocity=sound_velocity
+        # ).transpose((2, 1, 0))
+
+        noiseFloor = -60
+        rir = tranVuRIR.calc(
+            np.ndarray.astype(room_dimensions[:, 0], dtype=np.float64),
+            np.ndarray.astype(source_positions.T, dtype=np.float64),
+            np.ndarray.astype(sensor_positions.T, dtype=np.float64),
+            sample_rate,
+            filter_length, sound_decay_time * 1000, noiseFloor,
+            np.ndarray.astype(sensor_orientations, dtype=np.float64),
+            1,
+            sound_velocity
         ).transpose((2, 1, 0))
 
     elif algorithm == 'tran_vu_python':
