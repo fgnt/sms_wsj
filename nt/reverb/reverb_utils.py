@@ -13,6 +13,9 @@ import nt.reverb.scenario as scenario
 eps = 1e-60
 window_length = 256
 
+available_rir_algorithms = ['tran_vu_python',
+                            'tran_vu_cython',
+                            'tran_vu_python_loopy']
 
 def generate_rir(
         room_dimensions,
