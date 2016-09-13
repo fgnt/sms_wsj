@@ -466,7 +466,6 @@ def _generate_rir_tran_vu_python(
                     for m, length in zip(range(sensors), lengths):
                         if length > 0:
                             fractional_delay = distance_in_samples[m] - int_delay[m]
-                            print(fractional_delay)
                             count = - fractional_delay - window_length / 2
                             win_si = np.pi * norm_cut_off * (count + t[:length])
                             win_si = np.where(win_si == 0, 1.0e-20, win_si)
