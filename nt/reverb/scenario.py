@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import random
 import itertools
 from nt.visualization.new_cm import viridis_hex
+from nt.utils.deprecated import deprecated
 
 ################################################################################
 # Register Axes3D as a 'projection' object available for use just like any axes
@@ -171,21 +172,18 @@ def generate_random_source_positions(
 
 def generate_source_positions_on_circle(
         center=np.zeros((3, 1)),
-        azimuth_angles=np.deg2rad(np.arange(0, 360, 1)),
+        azimuth_angles=np.deg2rad(np.linspace(0, 360, 360, endpoint=False)),
         radius=1
 ):
-    return np.asarray(
-        generate_deterministic_source_positions(
-            center=center,
-            n=azimuth_angles.shape[0],
-            azimuth_angles=azimuth_angles,
-            elevation_angles=np.zeros_like(azimuth_angles),
-            radius=radius,
-            dims=3
-        )
-    ).T
+    K = azimuth_angles.shape[0]
+    positions = np.zeros((3, K))
+    positions[0] = radius * np.cos(azimuth_angles)
+    positions[1] = radius * np.sin(azimuth_angles)
+
+    return positions + center
 
 
+@deprecated
 def generate_deterministic_source_positions(
         center=np.zeros((3, 1)),
         n=1,
