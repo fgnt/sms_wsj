@@ -1,6 +1,6 @@
-from os import listdir, path, walk
-import json
 import re
+from os import listdir, path, walk
+
 from nt.database.helper import dump_database_as_json
 
 
@@ -27,7 +27,6 @@ def main():
 
 
 def update_dict(target_dict, dict_to_add):
-    no_conflicts = True
     for key, value in dict_to_add.items():
         if key not in target_dict:
             target_dict.update({key: value})
