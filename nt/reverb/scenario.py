@@ -4,7 +4,7 @@ Try it with the following code:
 
 >>> import numpy as np
 >>> from mpl_toolkits.mplot3d import proj3d
->>> import nt.reverb.scenario as scenario
+>>> import os.reverb.scenario as scenario
 >>> src = scenario.generate_random_source_positions(dims=2, sources=1000)
 >>> src[1, :] = np.abs(src[1, :])
 >>> mic = scenario.generate_sensor_positions(shape='linear', scale=0.1)
@@ -21,8 +21,6 @@ from nt.utils.deprecated import deprecated
 ################################################################################
 # Register Axes3D as a 'projection' object available for use just like any axes
 ################################################################################
-from mpl_toolkits.mplot3d import Axes3D
-
 
 def sample_from_random_box(center, edge_lengths):
     """ Sample from a random box to get somewhat random locations.
