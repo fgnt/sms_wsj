@@ -3,12 +3,11 @@ Offers methods for calculating room impulse responses and convolutions of these
 with audio signals.
 """
 
+import nt.reverb.CalcRIR_Simple_C as tranVuRIR
 import numpy
 import numpy as np
-import scipy
-
-import nt.reverb.CalcRIR_Simple_C as tranVuRIR
 import nt.reverb.scenario as scenario
+import scipy
 
 eps = 1e-60
 window_length = 256
@@ -16,6 +15,8 @@ window_length = 256
 available_rir_algorithms = ['tran_vu_python',
                             'tran_vu_cython',
                             'tran_vu_python_loopy']
+
+# TODO: Refactor
 
 def generate_rir(
         room_dimensions,
@@ -144,7 +145,7 @@ def generate_rir(
     return rir
 
 
-def generate_RIR(roomDimension,
+def _generate_RIR(roomDimension,
                  sourcePositions,
                  sensorPositions,
                  samplingRate,
