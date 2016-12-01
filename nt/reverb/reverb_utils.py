@@ -476,7 +476,7 @@ def _generate_rir_tran_vu_python(
     return rir
 
 
-def convolve(signal, impulse_resonse):
+def convolve(signal, impulse_response):
     """ Convolution of time signal with impulse response.
 
     Takes audio signals and the impulse responses according to their position
@@ -492,7 +492,7 @@ def convolve(signal, impulse_resonse):
 
     """
     sources, samples = signal.shape
-    sources_, sensors, filter_length = impulse_resonse.shape
+    sources_, sensors, filter_length = impulse_response.shape
     assert sources == sources_
 
     x = np.zeros((sources, sensors, samples + filter_length - 1))
@@ -500,6 +500,6 @@ def convolve(signal, impulse_resonse):
         for target_index in range(sensors):
             x[source_index, target_index, :] = scipy.signal.fftconvolve(
                 signal[source_index, :],
-                impulse_resonse[source_index, target_index, :]
+                impulse_response[source_index, target_index, :]
             )
     return x
