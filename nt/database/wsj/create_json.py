@@ -2,11 +2,12 @@ import re
 from os import listdir, path, walk
 
 from nt.database.helper import dump_database_as_json
+from nt.io.data_dir import wsj, kaldi_root as kr
 
 
 def main():
-    main_path = "/net/speechdb/wsj"
-    kaldi_root = "/net/storage/jheymann/kaldi_egs"
+    main_path = wsj
+    kaldi_root = kr / 'egs'
 
     scenarios, flists = get_data_sets(main_path)
     scenarios["train"].update(get_official_train_sets(main_path))
