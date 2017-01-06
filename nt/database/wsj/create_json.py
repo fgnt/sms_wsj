@@ -2,19 +2,18 @@ import re
 from os import listdir, path, walk
 
 from nt.database.helper import dump_database_as_json
-from nt.io.data_dir import wsj, kaldi_root as kr
+from nt.io.data_dir import wsj
 
 
 def main():
-    main_path = wsj
-    kaldi_root = kr / 'egs'
+    main_path = str(wsj)
 
     scenarios, flists = get_data_sets(main_path)
     scenarios["train"].update(get_official_train_sets(main_path))
     scenarios["test"].update(get_official_test_sets(main_path))
     scenarios["dev"].update(get_official_dev_sets(main_path))
 
-    transcriptions = get_transcriptions(main_path, kaldi_root)
+    transcriptions = get_transcriptions(main_path, main_path)
 
     data = {'test': {'flists': {"wave": scenarios["test"]}},
             'train': {'flists': {"wave": scenarios["train"]}},
@@ -213,7 +212,7 @@ def get_official_dev_sets(wsj_root):
     return data_dict
 
 
-def get_transcriptions(root,  kaldi_root):
+def get_transcriptions(root, wsj_root):
     word = dict()
     clean_word = dict()
     for subdir, _, files in walk(root):
@@ -231,8 +230,7 @@ def get_transcriptions(root,  kaldi_root):
                                for trans, utt_id in matches})
 
     kaldi = dict()
-    kaldi_wsj_data_dir = path.join(kaldi_root, "wsj", "s5", "data",
-                                   "local", "data")
+    kaldi_wsj_data_dir = path.join(wsj_root, "kaldi_data")
     files = [path.join(kaldi_wsj_data_dir, file)
              for file in listdir(kaldi_wsj_data_dir)
              if path.isfile(path.join(kaldi_wsj_data_dir, file)) and
