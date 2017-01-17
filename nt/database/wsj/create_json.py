@@ -4,6 +4,8 @@ from os import listdir, path, walk
 from nt.database.helper import dump_database_as_json
 from nt.io.data_dir import wsj
 
+import sh
+
 
 def main():
     main_path = str(wsj)
@@ -15,14 +17,15 @@ def main():
 
     transcriptions = get_transcriptions(main_path, main_path)
 
-    data = {'test': {'flists': {"wave": scenarios["test"]}},
-            'train': {'flists': {"wave": scenarios["train"]}},
-            'dev': {'flists': {"wave": scenarios["dev"]}},
-            'orth': transcriptions,
-            'flists': (flists)
-            }
+    data = {
+        'test': {'flists': {"wave": scenarios["test"]}},
+        'train': {'flists': {"wave": scenarios["train"]}},
+        'dev': {'flists': {"wave": scenarios["dev"]}},
+        'orth': transcriptions,
+        'flists': (flists)
+    }
 
-    # creating the wsj.json file
+    # Creating the wsj.json file
     dump_database_as_json('wsj.json', data)
 
 
@@ -44,7 +47,7 @@ def get_data_sets(root):
     flists = list()
 
     for dir_name in listdir(root):
-        dir_file = path.join(root, dir_name, dir_name+".dir")
+        dir_file = path.join(root, dir_name, dir_name + ".dir")
         if not path.isfile(dir_file):
             continue
 
@@ -82,7 +85,8 @@ def get_data_sets(root):
                 set_name += "/" + path_elements[3].lower()
 
             update_dict(data_sets,
-                        {set_type: {set_name: {utt_id: {"observed": {channel: file_path}}}}})
+                        {set_type: {set_name: {
+                            utt_id: {"observed": {channel: file_path}}}}})
 
             if (set_type + "/flists/wave/" + set_name) not in flists:
                 flists.append(set_type + "/flists/wave/" + set_name)
@@ -127,12 +131,11 @@ def read_ndx(wsj_root, ndx_file):
 
 
 def get_official_train_sets(wsj_root):
-
     official_train_sets = [
         "13_34_1/wsj1/doc/indices/si_tr_s.ndx",
         "11_13_1/wsj0/doc/indices/train/tr_s_wv1.ndx"
     ]
-    official_train_set_names =[
+    official_train_set_names = [
         "official_si_284",
         "official_si_84"
     ]
@@ -149,7 +152,6 @@ def get_official_train_sets(wsj_root):
 
 
 def get_official_test_sets(wsj_root):
-
     official_test_sets = [
         "11_13_1/wsj0/doc/indices/test/nvp/si_et_20.ndx",
         "11_13_1/wsj0/doc/indices/test/nvp/si_et_05.ndx",
@@ -175,7 +177,6 @@ def get_official_test_sets(wsj_root):
 
 
 def get_official_dev_sets(wsj_root):
-
     official_dev_sets = [
         "13_34_1/wsj1/doc/indices/h1_p0.ndx",
         "13_34_1/wsj1/doc/indices/h2_p0.ndx",
@@ -207,7 +208,8 @@ def get_official_dev_sets(wsj_root):
                     file_path = path.join(wsj_root, subdir, file)
 
                     update_dict(data_dict,
-                                {set_name: {utt_id: {"observed": {"ch1": file_path}}}})
+                                {set_name: {
+                                    utt_id: {"observed": {"ch1": file_path}}}})
 
     return data_dict
 
@@ -226,7 +228,7 @@ def get_transcriptions(root, wsj_root):
                 matches = re.findall("^(.+)\s+\((\S+)\)$", fid.read(),
                                      flags=re.M)
             word.update({utt_id: trans for trans, utt_id in matches})
-            clean_word.update({utt_id: normalize_transcription(trans)
+            clean_word.update({utt_id: normalize_transcription(utt_id, trans)
                                for trans, utt_id in matches})
 
     kaldi = dict()
@@ -248,44 +250,28 @@ def get_transcriptions(root, wsj_root):
     return data_dict
 
 
-def normalize_transcription(trans):
-    """ converts a word transcription by removing additional Information like
-    noises or written punctuation marks
+def normalize_transcription(utt_id, transcription):
+    """ Passes the dirty transcription to a Kaldi Perl script for cleanup.
 
-    :type trans: string
-    :param trans: contains the string that gets converted into a clean
-     transcription
-    :return: the clean version of the string as a string
+    We use the original perl file, to make sure, that the cleanup is done
+    exactly as it is done by Kaldi.
+
+    Args:
+        utt_id: Utterance ID.
+        transcription: Dirty transcription.
+
+    Returns: Clean transcription.
+
+    >>> utt_id = '4k2c0308'
+    >>> transcription = "Of course there isn\'t any guarantee the company will keep its hot hand [misc_noise]"
+    >>> normalize_transcription(utt_id, transcription)
+    ['4k2c0308', "OF COURSE THERE ISN'T ANY GUARANTEE THE COMPANY WILL KEEP ITS HOT HAND <NOISE>"]
     """
-    trans = trans.upper()  # Upcase everything to match the CMU dictionary.
-    trans = trans.replace('\\', '')
-    trans = trans.replace('\r', '')
-    trans = trans.replace('%PERCENT', 'PERCENT')
-    trans = trans.replace('.POINT', 'POINT')
-    trans = re.sub('\[<\w+\]', '', trans)
-    trans = re.sub('\[\w+>\]', '', trans)
-    trans = re.sub('\[\w+/\]', '', trans)
-    trans = re.sub('\[/\w+\]', '', trans)
-    trans = trans.replace(' ~ ', ' ').replace(' . ', ' ').replace(' .', '')
-    trans = re.sub('\[\w+\]', 'n', trans)
-    trans = trans.replace(' n ', ' ')
-    trans = re.sub('^n ', '', trans)
-    trans = re.sub(' n$', '', trans)
-    trans = trans.replace('--DASH', '-DASH')
-
-    def _repl(matchobj):
-        return matchobj.group(1)
-    trans = re.sub("<([\w\']+)>", _repl, trans)
-    trans = trans.replace('OFFICALS', 'OFFICIALS')
-    trans = trans.replace('EXISITING', 'EXISTING')
-    trans = trans.replace('GOVERMENT\'S', 'GOVERNMENT\'S')
-    trans = trans.replace('GRAMOPHONEPERIOD', 'GRAMAPHONEPERIOD')
-    trans = trans.replace(' ~', ' ')
-    trans = trans.replace('~ ', '')
-    trans = trans.replace('*', '')
-    trans = re.sub('^\. ', '', trans)
-
-    return trans
+    return sh.perl(
+        sh.echo(' '.join((utt_id, transcription))),
+        wsj / 'kaldi_tools' / 'normalize_transcript.pl',
+        '<NOISE>'
+    ).strip().split(maxsplit=1)
 
 
 if __name__ == '__main__':
