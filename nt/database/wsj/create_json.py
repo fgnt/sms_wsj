@@ -3,8 +3,10 @@ from os import listdir, path, walk
 
 from nt.database.helper import dump_database_as_json
 from nt.io.data_dir import wsj
+import tempfile
 
 import sh
+from pathlib import Path
 
 
 def main():
@@ -216,7 +218,6 @@ def get_official_dev_sets(wsj_root):
 
 def get_transcriptions(root, wsj_root):
     word = dict()
-    clean_word = dict()
     for subdir, _, files in walk(root):
         dot_files = [file for file in files if file.endswith(".dot")]
         ptx_files = [file for file in files if file.endswith(".ptx") and
@@ -228,8 +229,6 @@ def get_transcriptions(root, wsj_root):
                 matches = re.findall("^(.+)\s+\((\S+)\)$", fid.read(),
                                      flags=re.M)
             word.update({utt_id: trans for trans, utt_id in matches})
-            clean_word.update({utt_id: normalize_transcription(utt_id, trans)
-                               for trans, utt_id in matches})
 
     kaldi = dict()
     kaldi_wsj_data_dir = path.join(wsj_root, "kaldi_data")
@@ -245,33 +244,37 @@ def get_transcriptions(root, wsj_root):
 
     data_dict = dict()
     data_dict["word"] = word
-    data_dict["clean word"] = clean_word
+    print('Start')
+    data_dict["clean word"] = normalize_transcription(word)
+    print('Stop')
     data_dict["kaldi"] = kaldi
     return data_dict
 
 
-def normalize_transcription(utt_id, transcription):
-    """ Passes the dirty transcription to a Kaldi Perl script for cleanup.
+def normalize_transcription(transcriptions):
+    """ Passes the dirty transcription dict to a Kaldi Perl script for cleanup.
 
-    We use the original perl file, to make sure, that the cleanup is done
+    We use the original Perl file, to make sure, that the cleanup is done
     exactly as it is done by Kaldi.
 
     Args:
-        utt_id: Utterance ID.
-        transcription: Dirty transcription.
+        transcriptions: Dirty transcription dictionary.
 
-    Returns: Clean transcription.
-
-    >>> utt_id = '4k2c0308'
-    >>> transcription = "Of course there isn\'t any guarantee the company will keep its hot hand [misc_noise]"
-    >>> normalize_transcription(utt_id, transcription)
-    ['4k2c0308', "OF COURSE THERE ISN'T ANY GUARANTEE THE COMPANY WILL KEEP ITS HOT HAND <NOISE>"]
+    Returns: Clean transcription dictionary.
     """
-    return sh.perl(
-        sh.echo(' '.join((utt_id, transcription))),
-        wsj / 'kaldi_tools' / 'normalize_transcript.pl',
-        '<NOISE>'
-    ).strip().split(maxsplit=1)
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        temporary_directory = Path(temporary_directory)
+        with (temporary_directory / 'dirty.txt').open('w') as f:
+            for key, value in transcriptions.items():
+                f.write('{} {}\n'.format(key, value))
+        result = sh.perl(
+            sh.cat(temporary_directory / 'dirty.txt'),
+            wsj / 'kaldi_tools' / 'normalize_transcript.pl',
+            '<NOISE>'
+        )
+    result = [line.split(maxsplit=1) for line in result.strip().split('\n')]
+    result = {k: v for k, v in result}
+    return result
 
 
 if __name__ == '__main__':
