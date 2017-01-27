@@ -21,6 +21,8 @@ from nt.utils.deprecated import deprecated
 ################################################################################
 # Register Axes3D as a 'projection' object available for use just like any axes
 ################################################################################
+from mpl_toolkits.mplot3d import Axes3D
+
 
 def sample_from_random_box(center, edge_lengths):
     """ Sample from a random box to get somewhat random locations.
@@ -282,6 +284,37 @@ def generate_uniformly_random_sources_and_sensors(
     return source_list, sensor_list
 
 
+def simple_plot(room=None, sources=None, sensors=None):
+    room = np.asarray(room) if room is not None else None
+    sources = np.asarray(sources) if sources is not None else None
+    sensors = np.asarray(sensors) if sensors is not None else None
+    room = room.squeeze()
+    for parameter in (room, sources, sensors):
+        assert parameter is None or parameter.shape[0] == 3
+
+    f, ax = plt.subplots()
+
+    for axis in 'x y'.split():
+        ax.locator_params(axis=axis, nbins=7)
+
+    if room is not None:
+        room = np.asarray(room)
+        ranges = np.asarray([0 * room, room]).T
+        setup = {'alpha': 0.2, 'c': 'b'}
+        for a in range(2):
+            ax.plot(ranges[0, [a, a]], ranges[1], **setup)
+            ax.plot(ranges[0], ranges[1, [a, a]], **setup)
+
+    if sources is not None:
+        ax.scatter(sources[0, :], sources[1, :])
+
+    if sensors is not None:
+        setup = {'c': 'r'}
+        ax.scatter(sensors[0, :], sensors[1, :], **setup)
+
+    return f
+
+
 def plot(room=None, sources=None, sensors=None, dictionary=None):
     """ Plot a given room with possible sources and sensors.
 
@@ -370,3 +403,5 @@ def plot(room=None, sources=None, sensors=None, dictionary=None):
     ax1.w_xaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
     ax1.w_yaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
     ax1.w_zaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
+
+    return fig
