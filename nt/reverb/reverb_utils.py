@@ -16,8 +16,8 @@ available_rir_algorithms = ['tran_vu_python',
                             'tran_vu_cython',
                             'tran_vu_python_loopy']
 
-# TODO: Refactor
 
+# TODO: Refactor
 def generate_rir(
         room_dimensions,
         source_positions,
@@ -146,15 +146,15 @@ def generate_rir(
 
 
 def _generate_RIR(roomDimension,
-                 sourcePositions,
-                 sensorPositions,
-                 samplingRate,
-                 filterLength,
-                 soundDecayTime,
-                 algorithm="TranVu",
-                 sensorOrientations=None,
-                 sensorDirectivity="omnidirectional",
-                 soundvelocity=343):
+                  sourcePositions,
+                  sensorPositions,
+                  samplingRate,
+                  filterLength,
+                  soundDecayTime,
+                  algorithm="TranVu",
+                  sensorOrientations=None,
+                  sensorDirectivity="omnidirectional",
+                  soundvelocity=343):
     """
     Generates a room impulse response.
 
@@ -450,7 +450,8 @@ def _generate_rir_tran_vu_python(
     rir = np.zeros((sources, sensors, filter_length), dtype=dtype)
     t = np.asarray(range(window_length))
 
-    differences = images[:, :, :, :, :, None] - sensor_positions[:, None, None, None, None, :]
+    differences = images[:, :, :, :, :, None] - sensor_positions[:, None, None,
+                                                None, None, :]
     distances = np.linalg.norm(differences, axis=0)
 
     for s in range(sources):
@@ -463,20 +464,25 @@ def _generate_rir_tran_vu_python(
                     ) * air_coefficient ** distance / (1 + distance)
                     distance_in_samples = distance * samples_per_meter
                     int_delay = [int(_d) for _d in distance_in_samples + 0.5]
-                    lengths = [min(window_length, max(filter_length - int_delay[m], 0)) for m in range(sensors)]
+                    lengths = [
+                        min(window_length, max(filter_length - int_delay[m], 0))
+                        for m in range(sensors)]
                     for m, length in zip(range(sensors), lengths):
                         if length > 0:
-                            fractional_delay = distance_in_samples[m] - int_delay[m]
+                            fractional_delay = distance_in_samples[m] - \
+                                               int_delay[m]
                             count = - fractional_delay - window_length / 2
                             win_si = np.pi * norm_cut_off * (count + t[:length])
                             win_si = np.where(win_si == 0, 1.0e-20, win_si)
-                            win_si = norm_cut_off * blackman_harris_window((count + t[:length])) * np.sin(win_si) / win_si
-                            rir[s, m, int_delay[m]:int_delay[m] + length] += attenuation[m] * win_si[:length]
+                            win_si = norm_cut_off * blackman_harris_window(
+                                (count + t[:length])) * np.sin(win_si) / win_si
+                            rir[s, m, int_delay[m]:int_delay[m] + length] += \
+                            attenuation[m] * win_si[:length]
 
     return rir
 
 
-def convolve(signal, impulse_response):
+def convolve(signal, impulse_response, truncate=False):
     """ Convolution of time signal with impulse response.
 
     Takes audio signals and the impulse responses according to their position
@@ -488,7 +494,7 @@ def convolve(signal, impulse_response):
         signal: Time signal with shape (sources, samples)
         impulse_response: Shape (sources, sensors, samples)
 
-    Returns:
+    Returns: Convolution result with shape (sources, sensors, samples)
 
     """
     sources, samples = signal.shape
@@ -502,4 +508,4 @@ def convolve(signal, impulse_response):
                 signal[source_index, :],
                 impulse_response[source_index, target_index, :]
             )
-    return x
+    return x[..., :samples] if truncate else x
