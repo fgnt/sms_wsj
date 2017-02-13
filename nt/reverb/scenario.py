@@ -4,11 +4,12 @@ Try it with the following code:
 
 >>> import numpy as np
 >>> from mpl_toolkits.mplot3d import proj3d
->>> import os.reverb.scenario as scenario
+>>> import nt.reverb.scenario as scenario
 >>> src = scenario.generate_random_source_positions(dims=2, sources=1000)
 >>> src[1, :] = np.abs(src[1, :])
->>> mic = scenario.generate_sensor_positions(shape='linear', scale=0.1)
->>> scenario.plot(src, mic)
+>>> mic = scenario.generate_sensor_positions(shape='linear', scale=0.1, number_of_sensors=6)
+>>> scenario.simple_plot(room=None, sources=src, sensors=mic)
+>>> plt.show()
 """
 
 import numpy as np
@@ -215,7 +216,10 @@ def generate_deterministic_source_positions(
     >>> elevation_angles = np.arange(0, np.pi, deltaAngle/2)
     >>> radius = 2
     >>> dims = 3
-    >>> source_positions = generate_deterministic_source_positions(center, n, azimuth_angles, elevation_angles, radius, dims)
+    >>> source_positions = generate_deterministic_source_positions(
+    ...     center, n, azimuth_angles, elevation_angles, radius, dims
+    ... )
+
     """
     if not 2 <= dims <= 3:
         raise NotImplementedError("Dims out of implemented range. Please choose"
@@ -267,16 +271,25 @@ def generate_uniformly_random_sources_and_sensors(
     :param sensors: Integer; Number of desired sensor positions e.g. 1
     :return: source_list, sensor_list:
         Each is a list of 3-element-lists denoting the positions' coordinates
+
+    >>> room = (4.5, 5, 3)
+    >>> sources = generate_random_source_positions()
+    >>> sensors = generate_sensor_positions(shape='triangle', scale=0.1)
+    >>> from nt.visualization import context_manager
+    >>> with context_manager():
+    ...     simple_plot(room, sources, sensors)
+    >>> plt.show()
+
     """
     source_list = []
     sensor_list = []
-    # todo: avoid sensors/sources in the room's center
-    for s in range(sources):
+    
+    for _ in range(sources):
         x = random.uniform(10 ** -3, dimensions[0])
         y = random.uniform(10 ** -3, dimensions[1])
         z = random.uniform(10 ** -3, dimensions[2])
         source_list.append([x, y, z])
-    for m in range(sensors):
+    for _ in range(sensors):
         x = random.uniform(10 ** -3, dimensions[0])
         y = random.uniform(10 ** -3, dimensions[1])
         z = random.uniform(10 ** -3, dimensions[2])
@@ -284,22 +297,19 @@ def generate_uniformly_random_sources_and_sensors(
     return source_list, sensor_list
 
 
-def simple_plot(room=None, sources=None, sensors=None, ax=None):
-    room = np.asarray(room) if room is not None else None
-    sources = np.asarray(sources) if sources is not None else None
-    sensors = np.asarray(sensors) if sensors is not None else None
-    room = room.squeeze()
+def plot(room=None, sources=None, sensors=None, ax=None):
     for parameter in (room, sources, sensors):
         assert parameter is None or parameter.shape[0] == 3
 
     if ax is None:
-        ax = plt.subplots()
+        _, ax = plt.subplots()
 
     for axis in 'x y'.split():
         ax.locator_params(axis=axis, nbins=7)
 
     if room is not None:
         room = np.asarray(room)
+        room = room.squeeze()
         ranges = np.asarray([0 * room, room]).T
         setup = {'alpha': 0.2, 'c': 'b'}
         for a in range(2):
@@ -307,100 +317,12 @@ def simple_plot(room=None, sources=None, sensors=None, ax=None):
             ax.plot(ranges[0], ranges[1, [a, a]], **setup)
 
     if sources is not None:
+        sources = np.asarray(sources)
         ax.scatter(sources[0, :], sources[1, :])
 
     if sensors is not None:
+        sensors = np.asarray(sensors)
         setup = {'c': 'r'}
         ax.scatter(sensors[0, :], sensors[1, :], **setup)
 
-
-def plot(room=None, sources=None, sensors=None, dictionary=None):
-    """ Plot a given room with possible sources and sensors.
-
-    All positions and distances in meters.
-
-    TODO: This function has way to many hard coded numbers.
-
-    >>> room = (4.5, 5, 3)
-    >>> sources = generate_random_source_positions()
-    >>> sensors = generate_sensor_positions(shape='triangle', scale=0.1)
-    >>> from nt.visualization import context_manager
-    >>> with context_manager():
-    ...     plot(room, sources, sensors)
-    >>> plt.show()
-
-    :param room: Tuple or array of room dimensions with shape (3,)
-    :param sources: Array of K source positions with shape (3, K)
-    :param sensors: Array of D sensor positions with shape (3, D)
-    :return:
-    """
-    room = np.asarray(room) if room is not None else None
-    sources = np.asarray(sources) if sources is not None else None
-    sensors = np.asarray(sensors) if sensors is not None else None
-
-    room = room.squeeze()
-
-    for parameter in (room, sources, sensors):
-        assert parameter is None or parameter.shape[0] == 3
-
-    fig = plt.figure(figsize=(8, 3.5))
-    ax1 = fig.add_subplot(1, 2, 1, projection='3d')
-    ax2 = fig.add_subplot(1, 2, 2)
-
-    for axis in 'x y z'.split():
-        ax1.locator_params(axis=axis, nbins=5)
-    for axis in 'x y'.split():
-        ax2.locator_params(axis=axis, nbins=7)
-
-    ax1.set_xlabel('x')
-    ax1.set_ylabel('y')
-    ax1.set_zlabel('z')
-
-    ax1.set_xlim3d((-1, room[0]+1))
-    ax1.set_ylim3d((-1, room[1]+1))
-    ax1.set_zlim3d((-1, room[2]+1))
-    ax2.set_xlim(-1, room[0]+1)
-    ax2.set_ylim(-1, room[1]+1)
-
-    if room is not None:
-        room = np.asarray(room)
-        ranges = np.asarray([0 * room, room]).T
-        setup = {'alpha': 0.2, 'c': 'b'}
-        for a, b in itertools.product(range(2), repeat=2):
-            ax1.plot(ranges[0], ranges[1, [a, a]], ranges[2, [b, b]], **setup)
-            ax1.plot(ranges[0, [a, a]], ranges[1], ranges[2, [b, b]], **setup)
-            ax1.plot(ranges[0, [a, a]], ranges[1, [b, b]], ranges[2], **setup)
-
-        for a in range(2):
-            ax2.plot(ranges[0, [a, a]], ranges[1], **setup)
-            ax2.plot(ranges[0], ranges[1, [a, a]], **setup)
-
-    if sources is not None:
-        ax1.scatter(sources[0, :], sources[1, :], sources[2, :])
-        ax2.scatter(sources[0, :], sources[1, :])
-
-    if sensors is not None:
-        setup = {'c': 'r'}
-        ax1.scatter(sensors[0, :], sensors[1, :], sensors[2, :], **setup)
-        ax2.scatter(sensors[0, :], sensors[1, :], **setup)
-
-    if dictionary is not None:
-        colors = viridis_hex[::len(viridis_hex) // len(dictionary)]
-        for (key, value), color in zip(dictionary.items(), colors):
-            ax1.scatter(value[0, :], value[1, :], value[2, :], c=color)
-            ax2.scatter(value[0, :], value[1, :], color=color, label=key)
-            ax2.legend()
-
-    plt.subplots_adjust(right=1.2)
-    ax1.xaxis.pane.set_edgecolor('black')
-    ax1.yaxis.pane.set_edgecolor('black')
-
-    ax1.xaxis.pane.fill = False
-    ax1.yaxis.pane.fill = False
-    ax1.zaxis.pane.fill = False
-
-    ax1.w_xaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
-    ax1.w_yaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
-    ax1.w_zaxis.line.set_color((0.0, 0.0, 0.0, 0.2))
-
-    return fig
+    plt.axis('equal')
