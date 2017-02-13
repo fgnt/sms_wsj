@@ -284,7 +284,7 @@ def generate_uniformly_random_sources_and_sensors(
     return source_list, sensor_list
 
 
-def simple_plot(room=None, sources=None, sensors=None):
+def simple_plot(room=None, sources=None, sensors=None, ax=None):
     room = np.asarray(room) if room is not None else None
     sources = np.asarray(sources) if sources is not None else None
     sensors = np.asarray(sensors) if sensors is not None else None
@@ -292,7 +292,8 @@ def simple_plot(room=None, sources=None, sensors=None):
     for parameter in (room, sources, sensors):
         assert parameter is None or parameter.shape[0] == 3
 
-    f, ax = plt.subplots()
+    if ax is None:
+        ax = plt.subplots()
 
     for axis in 'x y'.split():
         ax.locator_params(axis=axis, nbins=7)
@@ -311,8 +312,6 @@ def simple_plot(room=None, sources=None, sensors=None):
     if sensors is not None:
         setup = {'c': 'r'}
         ax.scatter(sensors[0, :], sensors[1, :], **setup)
-
-    return f
 
 
 def plot(room=None, sources=None, sensors=None, dictionary=None):
