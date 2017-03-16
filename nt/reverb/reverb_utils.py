@@ -8,6 +8,7 @@ import numpy
 import numpy as np
 import nt.reverb.scenario as scenario
 import scipy
+import nt.reverb.rirgen
 
 eps = 1e-60
 window_length = 256
@@ -64,7 +65,7 @@ def generate_rir(
     if algorithm is None:
         algorithm = 'tran_vu_cython'
     assert algorithm in [
-        'tran_vu_cython', 'tran_vu_python', 'tran_vu_python_loopy'
+        'tran_vu_cython', 'tran_vu_python', 'tran_vu_python_loopy', 'habets'
     ], 'Unknown algorithm {}'.format(algorithm)
 
     if sensor_orientations is None:
@@ -133,6 +134,23 @@ def generate_rir(
             filter_length=filter_length,
             sampling_rate=sample_rate
         )
+    elif algorithm == 'habets':
+        assert filter_length is not None
+        rir = np.zeros(
+            (number_of_sources, number_of_sensors, filter_length),
+            dtype=np.float
+        )
+        for k in range(number_of_sources):
+            for d in range(number_of_sensors):
+                rir[k, d, :] = nt.reverb.rirgen.generate_rir(
+                    room_measures=room_dimensions[:, 0],
+                    source_position=source_positions[:, k],
+                    receiver_positions=sensor_positions[:, d],
+                    reverb_time=sound_decay_time,
+                    sound_velocity=sound_velocity,
+                    fs=sample_rate,
+                    n_samples=filter_length
+                )
     else:
         raise NotImplementedError(
             'Algorithm "{}" is unknown.'.format(algorithm)
