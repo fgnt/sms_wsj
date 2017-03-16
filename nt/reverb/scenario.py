@@ -55,7 +55,7 @@ def sample_from_random_box(center, edge_lengths):
 
 def generate_sensor_positions(
         shape='cube',
-        center=np.zeros((3, 1)),
+        center=np.zeros((3, 1), dtype=np.float),
         scale=0.01,
         number_of_sensors=None,
         jitter=None
@@ -94,13 +94,13 @@ def generate_sensor_positions(
         )
 
     elif shape == 'linear':
-        sensor_positions = np.zeros((3, number_of_sensors))
+        sensor_positions = np.zeros((3, number_of_sensors), dtype=np.float)
         sensor_positions[1, :] = scale * np.arange(number_of_sensors)
         sensor_positions -= np.mean(sensor_positions, keepdims=True)
 
     elif shape == 'circular':
         if number_of_sensors == 1:
-            sensor_positions = np.array([[0, 0, 0]]).T
+            sensor_positions = np.zeros((3, 1), dtype=np.float)
         else:
             radius = scale
             delta_phi = 2 * np.pi / number_of_sensors
@@ -283,7 +283,7 @@ def generate_uniformly_random_sources_and_sensors(
     """
     source_list = []
     sensor_list = []
-    
+
     for _ in range(sources):
         x = random.uniform(10 ** -3, dimensions[0])
         y = random.uniform(10 ** -3, dimensions[1])
