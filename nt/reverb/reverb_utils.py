@@ -54,6 +54,9 @@ def generate_rir(
     Returns: Numpy array of room impulse respones with
         shape (number_of_sources, number_of_sensors, filter_length).
     """
+    room_dimensions = np.array(room_dimensions)
+    source_positions = np.array(source_positions)
+    sensor_positions = np.array(sensor_positions)
 
     assert room_dimensions.shape == (3, 1)
     assert source_positions.shape[0] == 3
