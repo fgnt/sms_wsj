@@ -15,7 +15,8 @@ window_length = 256
 
 available_rir_algorithms = ['tran_vu_python',
                             'tran_vu_cython',
-                            'tran_vu_python_loopy']
+                            'tran_vu_python_loopy',
+                            'habets']
 
 
 # TODO: Refactor
