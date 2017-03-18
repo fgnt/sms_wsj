@@ -144,16 +144,16 @@ def generate_rir(
             dtype=np.float
         )
         for k in range(number_of_sources):
-            for d in range(number_of_sensors):
-                rir[k, d, :] = nt.reverb.rirgen.generate_rir(
-                    room_measures=room_dimensions[:, 0],
-                    source_position=source_positions[:, k],
-                    receiver_positions=sensor_positions[:, d],
-                    reverb_time=sound_decay_time,
-                    sound_velocity=sound_velocity,
-                    fs=sample_rate,
-                    n_samples=filter_length
-                )
+            temp = nt.reverb.rirgen.generate_rir(
+                room_measures=room_dimensions[:, 0],
+                source_position=source_positions[:, k],
+                receiver_positions=sensor_positions.T,
+                reverb_time=sound_decay_time,
+                sound_velocity=sound_velocity,
+                fs=sample_rate,
+                n_samples=filter_length
+            )
+            rir[k, :, :] = np.asarray(temp)
     else:
         raise NotImplementedError(
             'Algorithm "{}" is unknown.'.format(algorithm)
