@@ -18,6 +18,7 @@ import random
 import itertools
 from nt.visualization.new_cm import viridis_hex
 from nt.utils.deprecated import deprecated
+from nt.math.rotation import rot_x, rot_y, rot_z
 
 ################################################################################
 # Register Axes3D as a 'projection' object available for use just like any axes
@@ -111,6 +112,23 @@ def generate_sensor_positions(
                 radius * np.sin(phi),
                 np.zeros(phi.shape)
             ])
+
+    elif shape == 'chime3':
+        assert scale == None, scale
+        assert (
+            number_of_sensors == None or number_of_sensors == 6
+        ), number_of_sensors
+
+        sensor_positions = np.asarray(
+            [
+                [-0.1, 0, 0.1, -0.1, 0, 0.1],
+                [0.095, 0.095, 0.095, -0.095, -0.095, -0.095],
+                [0, -0.02, 0, 0, 0, 0]
+            ]
+        )
+        sensor_positions = rot_x(np.random.uniform(0, 2 * np.pi)) @ sensor_positions
+        sensor_positions = rot_y(np.random.uniform(0, 2 * np.pi)) @ sensor_positions
+        sensor_positions = rot_z(np.random.uniform(0, 2 * np.pi)) @ sensor_positions
 
     else:
         raise NotImplementedError('Given shape is not implemented.')
