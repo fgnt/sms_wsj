@@ -511,7 +511,7 @@ def _generate_rir_tran_vu_python(
     return rir
 
 
-def convolve(signal, impulse_response):
+def convolve(signal, impulse_response, truncate=False):
     """ Convolution of time signal with impulse response.
 
     Takes audio signals and the impulse responses according to their position
@@ -520,21 +520,11 @@ def convolve(signal, impulse_response):
     Convolution is conducted through frequency domain via FFT.
 
     Args:
-        signal: Time signal with shape (sources, samples) or (samples)
-        impulse_response: Shape (sources, sensors, samples) or
-                          (sensors, samples)
+        signal: Time signal with shape (sources, samples)
+        impulse_response: Shape (sources, sensors, samples)
 
-    Returns:
-
+    Returns: Convolution result with shape (sources, sensors, samples)
     """
-    if signal.ndim == 1:
-        assert impulse_response.ndim == 2
-        no_sample_dim = True
-        signal = signal[None, :]
-        impulse_response = impulse_response[None, ...]
-    else:
-        no_sample_dim = False
-
     sources, samples = signal.shape
     sources_, sensors, filter_length = impulse_response.shape
     assert sources == sources_
@@ -546,7 +536,4 @@ def convolve(signal, impulse_response):
                 signal[source_index, :],
                 impulse_response[source_index, target_index, :]
             )
-
-    if no_sample_dim:
-        x = np.squeeze(x, 0)
-    return x
+    return x[..., :samples] if truncate else x
