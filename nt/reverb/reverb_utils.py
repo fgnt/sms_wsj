@@ -59,6 +59,13 @@ def generate_rir(
     source_positions = np.array(source_positions)
     sensor_positions = np.array(sensor_positions)
 
+    if np.ndim(source_positions) == 1:
+        source_positions = np.reshape(source_positions, (-1, 1))
+    if np.ndim(room_dimensions) == 1:
+        room_dimensions = np.reshape(room_dimensions, (-1, 1))
+    if np.ndim(sensor_positions) == 1:
+        sensor_positions = np.reshape(sensor_positions, (-1, 1))
+
     assert room_dimensions.shape == (3, 1)
     assert source_positions.shape[0] == 3
     assert sensor_positions.shape[0] == 3
@@ -504,7 +511,7 @@ def _generate_rir_tran_vu_python(
     return rir
 
 
-def convolve(signal, impulse_response, truncate=False):
+def convolve(signal, impulse_response):
     """ Convolution of time signal with impulse response.
 
     Takes audio signals and the impulse responses according to their position
@@ -513,12 +520,21 @@ def convolve(signal, impulse_response, truncate=False):
     Convolution is conducted through frequency domain via FFT.
 
     Args:
-        signal: Time signal with shape (sources, samples)
-        impulse_response: Shape (sources, sensors, samples)
+        signal: Time signal with shape (sources, samples) or (samples)
+        impulse_response: Shape (sources, sensors, samples) or
+                          (sensors, samples)
 
-    Returns: Convolution result with shape (sources, sensors, samples)
+    Returns:
 
     """
+    if signal.ndim == 1:
+        assert impulse_response.ndim == 2
+        no_sample_dim = True
+        signal = signal[None, :]
+        impulse_response = impulse_response[None, ...]
+    else:
+        no_sample_dim = False
+
     sources, samples = signal.shape
     sources_, sensors, filter_length = impulse_response.shape
     assert sources == sources_
@@ -530,4 +546,7 @@ def convolve(signal, impulse_response, truncate=False):
                 signal[source_index, :],
                 impulse_response[source_index, target_index, :]
             )
-    return x[..., :samples] if truncate else x
+
+    if no_sample_dim:
+        x = np.squeeze(x, 0)
+    return x
