@@ -76,6 +76,11 @@ def generate_sensor_positions(
         to sensor positions.
     :return: Numpy array with shape (3, number_of_sensors).
     """
+
+    center = np.array(center)
+    if center.ndim == 1:
+        center = center[:, None]
+
     if shape == 'cube':
         b = scale / 2
         sensor_positions = np.array([
@@ -90,6 +95,9 @@ def generate_sensor_positions(
         ]).T
 
     elif shape == 'triangle':
+        assert number_of_sensors == 3, (
+            "triangle is only defined for 3 sensors",
+            number_of_sensors)
         sensor_positions = generate_sensor_positions(
             shape='circular', scale=scale, number_of_sensors=3
         )
@@ -97,7 +105,7 @@ def generate_sensor_positions(
     elif shape == 'linear':
         sensor_positions = np.zeros((3, number_of_sensors), dtype=np.float)
         sensor_positions[1, :] = scale * np.arange(number_of_sensors)
-        sensor_positions -= np.mean(sensor_positions, keepdims=True)
+        sensor_positions -= np.mean(sensor_positions, keepdims=True, axis=1)
 
     elif shape == 'circular':
         if number_of_sensors == 1:
@@ -316,8 +324,14 @@ def generate_uniformly_random_sources_and_sensors(
 
 
 def plot(room=None, sources=None, sensors=None, ax=None):
+    if np.ndim(room) == 1:
+        room = np.reshape(room, (-1, 1))
+    if np.ndim(sources) == 1:
+        sources = np.reshape(sources, (-1, 1))
+    if np.ndim(sensors) == 1:
+        sensors = np.reshape(sensors, (-1, 1))
     for parameter in (room, sources, sensors):
-        assert parameter is None or parameter.shape[0] == 3
+        assert parameter is None or np.shape(parameter)[0] == 3
 
     if ax is None:
         _, ax = plt.subplots()
@@ -327,6 +341,7 @@ def plot(room=None, sources=None, sensors=None, ax=None):
 
     if room is not None:
         room = np.asarray(room)
+        assert room.size == 3
         room = room.squeeze()
         ranges = np.asarray([0 * room, room]).T
         setup = {'alpha': 0.2, 'c': 'b'}
