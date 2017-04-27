@@ -1,12 +1,15 @@
 import re
 from os import listdir, path, walk
+import tempfile
+import sh
+
+from pathlib import Path
+from collections import defaultdict
+import concurrent.futures
 
 from nt.database.helper import dump_database_as_json
 from nt.io.data_dir import wsj
-import tempfile
-
-import sh
-from pathlib import Path
+from nt.io.audioread import read_nist_wsj
 
 
 def main():
@@ -17,14 +20,16 @@ def main():
     scenarios["test"].update(get_official_test_sets(main_path))
     scenarios["dev"].update(get_official_dev_sets(main_path))
 
+    annotations = create_annotations(scenarios, debug=1)
+
     transcriptions = get_transcriptions(main_path, main_path)
 
     data = {
-        'test': {'flists': {"wave": scenarios["test"]}},
-        'train': {'flists': {"wave": scenarios["train"]}},
-        'dev': {'flists': {"wave": scenarios["dev"]}},
+        'test': {'annotations': annotations['test'], 'flists': {"wave": scenarios["test"]}},
+        'train': {'annotations': annotations['train'], 'flists': {"wave": scenarios["train"]}},
+        'dev': {'annotations': annotations['dev'], 'flists': {"wave": scenarios["dev"]}},
         'orth': transcriptions,
-        'flists': (flists)
+        'flists': flists
     }
 
     # Creating the wsj.json file
@@ -275,6 +280,74 @@ def normalize_transcription(transcriptions):
     result = [line.split(maxsplit=1) for line in result.strip().split('\n')]
     result = {k: v for k, v in result}
     return result
+
+
+def create_annot_for_flist(ds, scenarios, debug=0):
+
+    i = 1
+
+    nsamples = dict()
+    stage = ds[0]
+    dataset = ds[1]
+
+    if dataset.startswith('official'):
+        if debug >= 1:
+            print('Creating annotations for {}\n'.format(dataset))
+
+        file_path = scenarios[stage][dataset]
+
+        for utt in file_path:
+            nsamples_list = list()
+            for feature_channel in file_path[utt].keys():
+                for channel in file_path[utt][feature_channel].keys():
+                    p = file_path[utt][feature_channel][channel]
+                    try:
+                        audio = read_nist_wsj(p)
+                        nsamples_list.append(len(audio))
+                    except OSError:  # Could not open file
+                        nsamples_list.append(0)
+            nsamples[utt] = max(nsamples_list)
+
+            if debug >= 2:
+                print('{}: {} / {}'.format(dataset, i, len(file_path)))
+                i += 1
+
+        if debug >= 1:
+            print('\n {} finished \n'.format(dataset))
+
+        return stage, dataset, nsamples
+
+    else:
+        return None
+
+
+def create_annotations(scenarios, debug=0):
+
+    annotations = {'train': defaultdict(lambda: defaultdict(dict)),
+                   'test': defaultdict(lambda: defaultdict(dict)),
+                   'dev': defaultdict(lambda: defaultdict(dict))}
+
+    if debug >= 1:
+        print('Creating annotations...\n')
+
+    datasets = [(stage, ds) for stage in list(scenarios.keys()) for ds in list(scenarios[stage].keys())]
+    print(datasets)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+
+        future_tasks = [executor.submit(create_annot_for_flist, ds, scenarios, debug) for ds in datasets]
+
+        for future in concurrent.futures.as_completed(future_tasks):
+            result = future.result()
+            if result is not None:
+                stage = result[0]
+                dataset = result[1]
+                nsamples = result[2]
+
+                for utt, length in nsamples.items():
+                    annotations[stage][dataset][utt]['nsamples'] = length
+
+    return annotations
 
 
 if __name__ == '__main__':
