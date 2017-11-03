@@ -527,7 +527,9 @@ def convolve(signal, impulse_response, truncate=False):
     """
     sources, samples = signal.shape
     sources_, sensors, filter_length = impulse_response.shape
-    assert sources == sources_
+    assert sources == sources_, \
+        f'signal.shape[sources={sources}] does not match ' \
+        f'impulse_response.shape[sources={sources_}]'
 
     x = np.zeros((sources, sensors, samples + filter_length - 1))
     for source_index in range(sources):
