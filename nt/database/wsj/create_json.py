@@ -21,7 +21,6 @@ def write_json(database_path, json_path):
 
 
 def create_database(wsj_path):
-
     official_train_sets = [
         ["13-34.1/wsj1/doc/indices/si_tr_s.ndx",
          "11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
@@ -160,6 +159,23 @@ def read_ndx(ndx_file, wsj_root, set_name, genders, transcript):
 
 
 def process_example_paths(example_paths, set_name, genders, transcript):
+    """
+    Creates an entry in keys.EXAMPLE for every example in `example_paths`
+
+    :param example_paths: List of paths to example .wv files
+    :type: List
+    :param set_name: Dataset name which accounts the examples
+    :type: String
+    :param genders: Mapping from speaker id to gender
+    :type: dict
+    :param transcript: Mapping from raw example id to dirty, clean and kaldi
+        transcription
+    :type: dict
+
+    :return _examples: Partial entries in keys.EXAMPLE for examples in
+        `set_name`
+    :type: dict
+    """
     _examples = dict()
     set_name = '_'.join(set_name.split('_')[1:])
 
@@ -196,8 +212,8 @@ def process_example_paths(example_paths, set_name, genders, transcript):
             },
             keys.SPEAKER_ID: speaker_id,
             keys.GENDER: gender,
-            keys.TRANSCRIPTION: transcript[raw_example_id]['clean word'],
-            keys.KALDI_TRANSCRIPTION: transcript[raw_example_id]['kaldi']
+            keys.TRANSCRIPTION: transcript['clean word'][raw_example_id],
+            keys.KALDI_TRANSCRIPTION: transcript['kaldi'][raw_example_id]
         }
 
         if example_id in _examples:
@@ -251,10 +267,9 @@ def normalize_transcription(transcriptions):
     We use the original Perl file, to make sure, that the cleanup is done
     exactly as it is done by Kaldi.
 
-    Args:
-        transcriptions: Dirty transcription dictionary.
+    :param transcriptions: Dirty transcription dictionary
 
-    Returns: Clean transcription dictionary.
+    :return result: Clean transcription dictionary
     """
     with tempfile.TemporaryDirectory() as temporary_directory:
         temporary_directory = os.path.abspath(temporary_directory)
@@ -290,7 +305,6 @@ def get_gender_mapping(wsj_root):
 
 
 if __name__ == '__main__':
-    # TODO: Run and fix errors
     parser = argparse.ArgumentParser()
     parser.add_argument('-db', '--database_path', type=str, default=wsj)
     parser.add_argument('-j', '--json_path', type=str, default='wsj.json')
