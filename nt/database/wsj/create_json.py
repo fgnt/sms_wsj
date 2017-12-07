@@ -34,15 +34,15 @@ def create_database(wsj_path):
     official_test_sets = [
         ["11-13.1/wsj0/doc/indices/test/nvp/si_et_20.ndx"],
         ["11-13.1/wsj0/doc/indices/test/nvp/si_et_05.ndx"],
-        ["13-32.1/wsj1/doc/indices/wsj1/eval/h1_p0.ndx"],
-        ["13-32.1/wsj1/doc/indices/wsj1/eval/h2_p0.ndx"]
+        # ["13-32.1/wsj1/doc/indices/wsj1/eval/h1_p0.ndx"],
+        # ["13-32.1/wsj1/doc/indices/wsj1/eval/h2_p0.ndx"]
     ]
 
     official_test_set_names = [
         "official_si_et_20",
         "official_si_et_05",
-        "official_si_et_h1/wsj64k",
-        "official_si_et_h2/wsj5k"
+        # "official_si_et_h1/wsj64k",
+        # "official_si_et_h2/wsj5k"
     ]
 
     official_dev_sets = [
@@ -300,7 +300,7 @@ def get_gender_mapping(wsj_root):
             for line in fid:
                 if not (line.startswith(';') or line.startswith('---')):
                     line = line.split()
-                    _spkr_gender_mapping[line[0]] = keys.MALE \
+                    _spkr_gender_mapping[line[0].lower()] = keys.MALE \
                         if line[1] == 'M' else keys.FEMALE
 
     return _spkr_gender_mapping
