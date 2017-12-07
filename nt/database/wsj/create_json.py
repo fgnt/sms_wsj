@@ -288,7 +288,9 @@ def normalize_transcription(transcriptions):
 
 def get_gender_mapping(wsj_root):
 
-    spkrinfo = glob.glob(os.path.join(wsj_root, '**/spkrinfo.txt'),
+    spkrinfo = glob.glob(os.path.join(wsj_root, '*/wsj?/doc/**/*spkrinfo.txt'),
+                         recursive=True) + \
+               glob.glob(os.path.join(wsj_root, 'kaldi_data/**/*spkrinfo.txt'),
                          recursive=True)
 
     _spkr_gender_mapping = dict()
