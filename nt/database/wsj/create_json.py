@@ -5,29 +5,11 @@ import argparse
 import tempfile
 import sh
 import re
-import inspect
+import soundfile as sf
 
 from nt.io.data_dir import wsj
 from nt.database import keys
-from nt.io.audioread import read_nist_wsj, getparams
-import nt.utils.process_caller as pc
-
-CURR_DIR = os.path.dirname(os.path.abspath(
-    inspect.getfile(inspect.currentframe())))
-UTILS_DIR = os.path.join(CURR_DIR.split('nt')[0], 'nt/io/utils')
-
-
-# `read_nist_wsj` currently only allows to call `audioread` but no other
-# functions from audioread.py like `get_params`
-def get_nist_params(path):
-    tmp_file = tempfile.NamedTemporaryFile(delete=False)
-    cmd = "{}/sph2pipe -f wav {path} {dest_file}".format(
-        UTILS_DIR, path=path, dest_file=tmp_file.name
-    )
-    pc.run_processes(cmd, ignore_return_code=False)
-    params = getparams(tmp_file.name)
-    os.remove(tmp_file.name)
-    return params
+from nt.io.audioread import read_nist_wsj
 
 
 def write_json(database_path, json_path):
@@ -214,8 +196,8 @@ def process_example_paths(example_paths, set_name, genders, transcript):
 
         channel = wav_file[-1]
         speaker_id = raw_example_id[0:3]
-        params = get_nist_params(path)
-        nsamples = params[3]
+        info = read_nist_wsj(path, audioread_function=sf.info, verbose=True)
+        nsamples = info.frames
         gender = genders[speaker_id]
 
         example = {
