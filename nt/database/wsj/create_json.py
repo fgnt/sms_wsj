@@ -6,57 +6,80 @@ import tempfile
 import sh
 import re
 import soundfile as sf
+import time
 
 from nt.io.data_dir import wsj
 from nt.database import keys
 from nt.io.audioread import read_nist_wsj
 
 
+def make_unique_examples(unique_examples, existing_examples, set_name):
+    example_ids = list(unique_examples.keys())
+    for ex_id in example_ids:
+        if ex_id in existing_examples:
+            ex_id_unique = "{}_{}".format(set_name, ex_id)
+            entry = unique_examples.pop(ex_id)
+            entry['example_id'] = ex_id_unique
+            unique_examples[ex_id_unique] = entry
+    return unique_examples
+
+
 def write_json(database_path, json_path):
+    """
+    Creates database structure and dumps it as JSON. 
+    Database creation and set naming is taking from kaldi:
+    KALDI_ROOT/egs/wsj/s5/local/wsj_data_prep.sh
+
+    :param database_path: Path to WSJ database
+    :param json_path: Path where JSON should be dumped
+
+    """
+    print("Start: {}".format(time.ctime()))
     database_path = os.path.abspath(database_path)
     json_path = os.path.abspath(json_path)
     database = create_database(database_path)
     os.makedirs(os.path.dirname(json_path), exist_ok=True)
     with open(json_path, 'w') as fid:
         json.dump(database, fid, sort_keys=True, indent=4, ensure_ascii=False)
+    print("Done: {}".format(time.ctime()))
 
 
 def create_database(wsj_path):
-    official_train_sets = [
+    train_sets = [
+        ["11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
         ["13-34.1/wsj1/doc/indices/si_tr_s.ndx",
-         "11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
-        ["11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"]
+         "11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"]
     ]
-    official_train_set_names = [
-        "official_si_tr_284",
-        "official_si_tr_84"
+    train_set_names = [
+        "train_si84",  # 7138 examples
+        "train_si284"  # 37416 examples
     ]
 
-    official_test_sets = [
+    test_sets = [
         ["11-13.1/wsj0/doc/indices/test/nvp/si_et_20.ndx"],
         ["11-13.1/wsj0/doc/indices/test/nvp/si_et_05.ndx"],
-        # ["13-32.1/wsj1/doc/indices/wsj1/eval/h1_p0.ndx"],
-        # ["13-32.1/wsj1/doc/indices/wsj1/eval/h2_p0.ndx"]
+        ["13-32.1/wsj1/doc/indices/wsj1/eval/h1_p0.ndx"],
+        ["13-32.1/wsj1/doc/indices/wsj1/eval/h2_p0.ndx"]
     ]
 
-    official_test_set_names = [
-        "official_si_et_20",
-        "official_si_et_05",
-        # "official_si_et_h1/wsj64k",
-        # "official_si_et_h2/wsj5k"
+    test_set_names = [
+        "test_eval92",  # 333 examples
+        "test_eval92_5k",  # 330 examples
+        "test_eval93",  # 213 examples
+        "test_eval93_5k"  # 213 examples, has actually 215?!
     ]
 
-    official_dev_sets = [
+    dev_sets = [
         ["13-34.1/wsj1/doc/indices/h1_p0.ndx"],
         ["13-34.1/wsj1/doc/indices/h2_p0.ndx"],
         ["13-16.1/wsj1/si_dt_20/"],
         ["13-16.1/wsj1/si_dt_05/"]
     ]
-    official_dev_set_names = [
-        "official_si_dt_20",
-        "official_si_dt_05",
-        "official_Dev-set_Hub_1",
-        "official_Dev-set_Hub_2"
+    dev_set_names = [
+        "test_dev_93",  # 503 examples
+        "test_dev_93_5k",  # 513 examples
+        "dev_dt_20",  # 503 examples
+        "dev_dt_05"  # 913 examples
     ]
 
     transcriptions = get_transcriptions(wsj_path, wsj_path)
@@ -66,8 +89,8 @@ def create_database(wsj_path):
     examples = dict()
 
     datasets_tr, examples_tr = \
-        create_official_datasets(official_train_sets,
-                                 official_train_set_names,
+        create_official_datasets(train_sets,
+                                 train_set_names,
                                  wsj_path, gender_mapping,
                                  transcriptions
                                  )
@@ -76,8 +99,8 @@ def create_database(wsj_path):
     examples.update(examples_tr)
 
     datasets_dt, examples_dt = \
-        create_official_datasets(official_dev_sets,
-                                 official_dev_set_names,
+        create_official_datasets(dev_sets,
+                                 dev_set_names,
                                  wsj_path, gender_mapping,
                                  transcriptions
                                  )
@@ -86,8 +109,8 @@ def create_database(wsj_path):
     examples.update(examples_dt)
 
     datasets_et, examples_et = \
-        create_official_datasets(official_test_sets,
-                                 official_test_set_names,
+        create_official_datasets(test_sets,
+                                 test_set_names,
                                  wsj_path, gender_mapping,
                                  transcriptions
                                  )
@@ -103,7 +126,8 @@ def create_database(wsj_path):
     return database
 
 
-def create_official_datasets(official_sets, official_names, wsj_root, genders,
+def create_official_datasets(official_sets, official_names, wsj_root,
+                             genders,
                              transcript):
 
     _examples = dict()
@@ -115,12 +139,14 @@ def create_official_datasets(official_sets, official_names, wsj_root, genders,
         for ods in set_list:
             set_path = os.path.join(wsj_root, ods)
             if set_path.endswith('.ndx'):
-                _example = read_ndx(set_path, wsj_root, set_name, genders,
+                _example = read_ndx(set_path, wsj_root,
+                                    genders,
                                     transcript)
             else:
-                wav_files = glob.glob(os.path.join(set_path, '*/*.wv?'))
-                _example = process_example_paths(wav_files, set_name, genders,
+                wav_files = glob.glob(os.path.join(set_path, '*/*.wv1'))
+                _example = process_example_paths(wav_files, genders,
                                                  transcript)
+            _example = make_unique_examples(_example, _examples, set_name)
             example_list += list(_example.keys())
             _examples.update(_example)
         _datasets[set_name] = sorted(example_list)
@@ -128,7 +154,7 @@ def create_official_datasets(official_sets, official_names, wsj_root, genders,
     return _datasets, _examples
 
 
-def read_ndx(ndx_file, wsj_root, set_name, genders, transcript):
+def read_ndx(ndx_file, wsj_root, genders, transcript):
     assert ndx_file.endswith('.ndx')
 
     with open(ndx_file) as fid:
@@ -138,8 +164,8 @@ def read_ndx(ndx_file, wsj_root, set_name, genders, transcript):
                      if not line.startswith(";")]
         else:
             lines = [line.rstrip() for line in fid
-                     if line.lower().rstrip().endswith(".wv1") or
-                     line.lower().rstrip().endswith(".wv2")]
+                     if line.lower().rstrip().endswith(".wv1")
+                     ]
 
     fixed_paths = list()
 
@@ -150,23 +176,23 @@ def read_ndx(ndx_file, wsj_root, set_name, genders, transcript):
         # slash
         audio_path = os.path.join(wsj_root, disk, wav_path)
         if "11-2.1/wsj0/si_tr_s/401" in audio_path:
-            continue
+            continue  # skip 401 subdirectory in train sets
+        audio_path.replace("13-32.1", "13-33.1")  # wrong disk-ids for
+        # test_eval93 and test_eval93_5k
         fixed_paths.append(audio_path)
 
-    _examples = process_example_paths(fixed_paths, set_name, genders,
+    _examples = process_example_paths(fixed_paths, genders,
                                       transcript)
 
     return _examples
 
 
-def process_example_paths(example_paths, set_name, genders, transcript):
+def process_example_paths(example_paths, genders, transcript):
     """
     Creates an entry in keys.EXAMPLE for every example in `example_paths`
 
     :param example_paths: List of paths to example .wv files
     :type: List
-    :param set_name: Dataset name which accounts the examples
-    :type: String
     :param genders: Mapping from speaker id to gender
     :type: dict
     :param transcript: Mapping from raw example id to dirty, clean and kaldi
@@ -178,24 +204,13 @@ def process_example_paths(example_paths, set_name, genders, transcript):
     :type: dict
     """
     _examples = dict()
-    set_name = '_'.join(set_name.split('_')[1:])
 
     for path in example_paths:
 
         wav_file = os.path.split(path)[-1]
-        raw_example_id = wav_file.split('.')[0]
+        example_id = wav_file.split('.')[0]
 
-        if '_tr_' or '_dt_' in set_name:
-            # ensure unique example ids in train sets because
-            # 'official_si_tr_284' contains all examples from
-            # 'official_si_tr_84'
-            # dev sets have overlapping examples
-            example_id = '{}_{}'.format(set_name, raw_example_id)
-        else:
-            example_id = raw_example_id
-
-        channel = wav_file[-1]
-        speaker_id = raw_example_id[0:3]
+        speaker_id = example_id[0:3]
         info = read_nist_wsj(path, audioread_function=sf.info, verbose=True)
         nsamples = info.frames
         gender = genders[speaker_id]
@@ -203,28 +218,18 @@ def process_example_paths(example_paths, set_name, genders, transcript):
         example = {
             keys.EXAMPLE_ID: example_id,
             keys.AUDIO_PATH: {
-                keys.OBSERVATION: {
-                    "{c}{no}".format(c=keys.CHANNEL,
-                                     no=channel): path
-                }
+                keys.OBSERVATION: path
             },
             keys.NUM_SAMPLES: {
                 keys.OBSERVATION: nsamples
             },
             keys.SPEAKER_ID: speaker_id,
             keys.GENDER: gender,
-            keys.TRANSCRIPTION: transcript['clean word'][raw_example_id],
-            keys.KALDI_TRANSCRIPTION: transcript['kaldi'][raw_example_id]
+            keys.TRANSCRIPTION: transcript['clean word'][example_id],
+            keys.KALDI_TRANSCRIPTION: transcript['kaldi'][example_id]
         }
 
-        if example_id in _examples:
-            # add second channel <example_id>.wv2 (or .wv1 if .wv2 was processed
-            # first)
-            _examples[example_id][keys.AUDIO_PATH][keys.OBSERVATION].update(
-                example[keys.AUDIO_PATH][keys.OBSERVATION]
-            )
-        else:
-            _examples[example_id] = example
+        _examples[example_id] = example
 
     return _examples
 
