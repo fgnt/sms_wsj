@@ -1,5 +1,4 @@
-import os
-import glob
+from pathlib import Path
 import json
 import argparse
 import tempfile
@@ -24,7 +23,7 @@ def make_unique_examples(unique_examples, existing_examples, set_name):
     return unique_examples
 
 
-def write_json(database_path, json_path):
+def write_json(database_path: Path, json_path: Path):
     """
     Creates database structure and dumps it as JSON. 
     Database creation and set naming is taking from kaldi:
@@ -35,16 +34,16 @@ def write_json(database_path, json_path):
 
     """
     print("Start: {}".format(time.ctime()))
-    database_path = os.path.abspath(database_path)
-    json_path = os.path.abspath(json_path)
+    database_path = Path(database_path).absolute()
+    json_path = Path(json_path).absolute()
     database = create_database(database_path)
-    os.makedirs(os.path.dirname(json_path), exist_ok=True)
+    Path.mkdir(json_path.parent, parents=True, exist_ok=True)
     with open(json_path, 'w') as fid:
         json.dump(database, fid, sort_keys=True, indent=4, ensure_ascii=False)
     print("Done: {}".format(time.ctime()))
 
 
-def create_database(wsj_path):
+def create_database(wsj_path: Path):
     train_sets = [
         ["11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
         ["13-34.1/wsj1/doc/indices/si_tr_s.ndx",
@@ -137,13 +136,13 @@ def create_official_datasets(official_sets, official_names, wsj_root,
         example_list = list()
         set_name = official_names[idx]
         for ods in set_list:
-            set_path = os.path.join(wsj_root, ods)
-            if set_path.endswith('.ndx'):
+            set_path = wsj_root / ods
+            if set_path.match('*.ndx'):
                 _example = read_ndx(set_path, wsj_root,
                                     genders,
                                     transcript)
             else:
-                wav_files = glob.glob(os.path.join(set_path, '*/*.wv1'))
+                wav_files = list(set_path.glob('*/*.wv1'))
                 _example = process_example_paths(wav_files, genders,
                                                  transcript)
             _example = make_unique_examples(_example, _examples, set_name)
@@ -154,12 +153,12 @@ def create_official_datasets(official_sets, official_names, wsj_root,
     return _datasets, _examples
 
 
-def read_ndx(ndx_file, wsj_root, genders, transcript):
-    assert ndx_file.endswith('.ndx')
+def read_ndx(ndx_file: Path, wsj_root, genders, transcript):
+    assert ndx_file.match('*.ndx')
 
     with open(ndx_file) as fid:
-        if ndx_file.endswith('si_et_20.ndx') or \
-                ndx_file.endswith('si_et_05.ndx'):
+        if ndx_file.match('*/si_et_20.ndx') or \
+                ndx_file.match('*/si_et_05.ndx'):
             lines = [line.rstrip() + ".wv1" for line in fid
                      if not line.startswith(";")]
         else:
@@ -172,14 +171,14 @@ def read_ndx(ndx_file, wsj_root, genders, transcript):
     for line in lines:
         disk, wav_path = line.split(':')
         disk = '{}-{}.{}'.format(*disk.split('_'))
+        disk = disk.replace('13-32.1', '13-33.1')  # wrong disk-ids for
+        # test_eval93 and test_eval93_5k
         wav_path = wav_path.lstrip(' /')  # remove leading whitespace and
         # slash
-        audio_path = os.path.join(wsj_root, disk, wav_path)
+        audio_path = str(wsj_root / disk / wav_path)
         if "11-2.1/wsj0/si_tr_s/401" in audio_path:
             continue  # skip 401 subdirectory in train sets
-        audio_path.replace("13-32.1", "13-33.1")  # wrong disk-ids for
-        # test_eval93 and test_eval93_5k
-        fixed_paths.append(audio_path)
+        fixed_paths.append(Path(audio_path))
 
     _examples = process_example_paths(fixed_paths, genders,
                                       transcript)
@@ -191,7 +190,7 @@ def process_example_paths(example_paths, genders, transcript):
     """
     Creates an entry in keys.EXAMPLE for every example in `example_paths`
 
-    :param example_paths: List of paths to example .wv files
+    :param example_paths: List of Paths to example .wv files
     :type: List
     :param genders: Mapping from speaker id to gender
     :type: dict
@@ -207,7 +206,7 @@ def process_example_paths(example_paths, genders, transcript):
 
     for path in example_paths:
 
-        wav_file = os.path.split(path)[-1]
+        wav_file = path.parts[-1]
         example_id = wav_file.split('.')[0]
 
         speaker_id = example_id[0:3]
@@ -218,7 +217,7 @@ def process_example_paths(example_paths, genders, transcript):
         example = {
             keys.EXAMPLE_ID: example_id,
             keys.AUDIO_PATH: {
-                keys.OBSERVATION: path
+                keys.OBSERVATION: str(path)
             },
             keys.NUM_SAMPLES: {
                 keys.OBSERVATION: nsamples
@@ -234,57 +233,55 @@ def process_example_paths(example_paths, genders, transcript):
     return _examples
 
 
-def get_transcriptions(root, wsj_root):
+def get_transcriptions(root: Path, wsj_root: Path):
     word = dict()
-    for subdir, _, files in os.walk(root):
-        dot_files = [file for file in files if file.endswith(".dot")]
-        ptx_files = [file for file in files if file.endswith(".ptx") and
-                     file.replace(".ptx", ".dot") not in dot_files]
 
-        for file in dot_files + ptx_files:
-            file_path = os.path.join(root, subdir, file)
-            with open(file_path) as fid:
-                matches = re.findall("^(.+)\s+\((\S+)\)$", fid.read(),
-                                     flags=re.M)
-            word.update({utt_id: trans for trans, utt_id in matches})
+    dot_files = list(root.rglob('*.dot'))
+    ptx_files = list(root.rglob('*.ptx'))
+    ptx_files = [ptx_file for ptx_file in ptx_files if Path(
+        str(ptx_file).replace('.ptx', '.dot')) not in dot_files]
+
+    for file_path in dot_files + ptx_files:
+        with open(file_path) as fid:
+            matches = re.findall("^(.+)\s+\((\S+)\)$", fid.read(),
+                                 flags=re.M)
+        word.update({utt_id: trans for trans, utt_id in matches})
 
     kaldi = dict()
-    kaldi_wsj_data_dir = os.path.join(wsj_root, "kaldi_data")
-    files = [os.path.join(kaldi_wsj_data_dir, file)
-             for file in os.listdir(kaldi_wsj_data_dir)
-             if os.path.isfile(os.path.join(kaldi_wsj_data_dir, file)) and
-             file.endswith(".txt")]
+    kaldi_wsj_data_dir = wsj_root / "kaldi_data"
+    files = list(kaldi_wsj_data_dir.glob('*.txt'))
     for file in files:
-        file_path = os.path.join(kaldi_wsj_data_dir, file)
+        file_path = kaldi_wsj_data_dir / file
         with open(file_path) as fid:
             matches = re.findall("^(\S+) (.+)$", fid.read(), flags=re.M)
         kaldi.update({utt_id: trans for utt_id, trans in matches})
 
     data_dict = dict()
     data_dict["word"] = word
-    data_dict["clean word"] = normalize_transcription(word)
+    data_dict["clean word"] = normalize_transcription(word, wsj_root)
     data_dict["kaldi"] = kaldi
     return data_dict
 
 
-def normalize_transcription(transcriptions):
+def normalize_transcription(transcriptions, wsj_root: Path):
     """ Passes the dirty transcription dict to a Kaldi Perl script for cleanup.
 
     We use the original Perl file, to make sure, that the cleanup is done
     exactly as it is done by Kaldi.
 
     :param transcriptions: Dirty transcription dictionary
+    :param wsj_root: Path to WSJ database
 
     :return result: Clean transcription dictionary
     """
     with tempfile.TemporaryDirectory() as temporary_directory:
-        temporary_directory = os.path.abspath(temporary_directory)
-        with open(os.path.join(temporary_directory, 'dirty.txt'), 'w') as f:
+        temporary_directory = Path(temporary_directory).absolute()
+        with open(temporary_directory / 'dirty.txt', 'w') as f:
             for key, value in transcriptions.items():
                 f.write('{} {}\n'.format(key, value))
         result = sh.perl(
-            sh.cat(os.path.join(temporary_directory, 'dirty.txt')),
-            wsj / 'kaldi_tools' / 'normalize_transcript.pl',
+            sh.cat(str(temporary_directory / 'dirty.txt')),
+            wsj_root / 'kaldi_tools' / 'normalize_transcript.pl',
             '<NOISE>'
         )
     result = [line.split(maxsplit=1) for line in result.strip().split('\n')]
@@ -292,12 +289,10 @@ def normalize_transcription(transcriptions):
     return result
 
 
-def get_gender_mapping(wsj_root):
+def get_gender_mapping(wsj_root: Path):
 
-    spkrinfo = glob.glob(os.path.join(wsj_root, '*/wsj?/doc/**/*spkrinfo.txt'),
-                         recursive=True) + \
-               glob.glob(os.path.join(wsj_root, 'kaldi_data/**/*spkrinfo.txt'),
-                         recursive=True)
+    spkrinfo = list(wsj_root.glob('*/wsj?/doc/**/*spkrinfo.txt')) + \
+               list(wsj_root.glob('kaldi_data/**/*spkrinfo.txt'))
 
     _spkr_gender_mapping = dict()
 
