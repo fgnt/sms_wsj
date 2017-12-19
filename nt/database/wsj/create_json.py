@@ -3,13 +3,20 @@ import argparse
 import tempfile
 import sh
 import re
-import soundfile as sf
 import time
 
 from nt.io.data_dir import wsj
 from nt.database import keys
-from nt.io.audioread import read_nist_wsj
 from nt.io.json_module import dump_json
+
+
+def read_nsamples(nist_path):
+
+    f = open(nist_path, 'rb')
+    header = f.read(1024).decode("utf-8")  # nist header is a multiple of 1024
+    # bytes
+    nsamples = re.search("sample_count -i (.+?)\n", header).group(1)
+    return int(nsamples)
 
 
 def create_database(wsj_path: Path):
@@ -169,8 +176,7 @@ def process_example_paths(example_paths, genders, transcript):
         example_id = wav_file.split('.')[0]
 
         speaker_id = example_id[0:3]
-        info = read_nist_wsj(path, audioread_function=sf.info, verbose=True)
-        nsamples = info.frames
+        nsamples = read_nsamples(path)
         gender = genders[speaker_id]
 
         example = {
