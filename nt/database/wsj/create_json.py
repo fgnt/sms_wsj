@@ -1,5 +1,4 @@
 from pathlib import Path
-import json
 import argparse
 import tempfile
 import sh
@@ -10,37 +9,7 @@ import time
 from nt.io.data_dir import wsj
 from nt.database import keys
 from nt.io.audioread import read_nist_wsj
-
-
-def make_unique_examples(unique_examples, existing_examples, set_name):
-    example_ids = list(unique_examples.keys())
-    for ex_id in example_ids:
-        if ex_id in existing_examples:
-            ex_id_unique = "{}_{}".format(set_name, ex_id)
-            entry = unique_examples.pop(ex_id)
-            entry['example_id'] = ex_id_unique
-            unique_examples[ex_id_unique] = entry
-    return unique_examples
-
-
-def write_json(database_path: Path, json_path: Path):
-    """
-    Creates database structure and dumps it as JSON. 
-    Database creation and set naming is taking from kaldi:
-    KALDI_ROOT/egs/wsj/s5/local/wsj_data_prep.sh
-
-    :param database_path: Path to WSJ database
-    :param json_path: Path where JSON should be dumped
-
-    """
-    print("Start: {}".format(time.ctime()))
-    database_path = Path(database_path).absolute()
-    json_path = Path(json_path).absolute()
-    database = create_database(database_path)
-    Path.mkdir(json_path.parent, parents=True, exist_ok=True)
-    with open(json_path, 'w') as fid:
-        json.dump(database, fid, sort_keys=True, indent=4, ensure_ascii=False)
-    print("Done: {}".format(time.ctime()))
+from nt.io.json_module import dump_json
 
 
 def create_database(wsj_path: Path):
@@ -84,42 +53,37 @@ def create_database(wsj_path: Path):
     transcriptions = get_transcriptions(wsj_path, wsj_path)
     gender_mapping = get_gender_mapping(wsj_path)
 
-    datasets = dict()
     examples = dict()
 
-    datasets_tr, examples_tr = \
+    examples_tr = \
         create_official_datasets(train_sets,
                                  train_set_names,
                                  wsj_path, gender_mapping,
                                  transcriptions
                                  )
 
-    datasets.update(datasets_tr)
     examples.update(examples_tr)
 
-    datasets_dt, examples_dt = \
+    examples_dt = \
         create_official_datasets(dev_sets,
                                  dev_set_names,
                                  wsj_path, gender_mapping,
                                  transcriptions
                                  )
 
-    datasets.update(datasets_dt)
     examples.update(examples_dt)
 
-    datasets_et, examples_et = \
+    examples_et = \
         create_official_datasets(test_sets,
                                  test_set_names,
                                  wsj_path, gender_mapping,
                                  transcriptions
                                  )
 
-    datasets.update(datasets_et)
     examples.update(examples_et)
 
     database = {
-        keys.DATASETS: datasets,
-        keys.EXAMPLES: examples
+        keys.DATASETS: examples,
     }
 
     return database
@@ -130,10 +94,8 @@ def create_official_datasets(official_sets, official_names, wsj_root,
                              transcript):
 
     _examples = dict()
-    _datasets = dict()
 
     for idx, set_list in enumerate(official_sets):
-        example_list = list()
         set_name = official_names[idx]
         for ods in set_list:
             set_path = wsj_root / ods
@@ -145,12 +107,9 @@ def create_official_datasets(official_sets, official_names, wsj_root,
                 wav_files = list(set_path.glob('*/*.wv1'))
                 _example = process_example_paths(wav_files, genders,
                                                  transcript)
-            _example = make_unique_examples(_example, _examples, set_name)
-            example_list += list(_example.keys())
-            _examples.update(_example)
-        _datasets[set_name] = sorted(example_list)
+            _examples[set_name] = _example
 
-    return _datasets, _examples
+    return _examples
 
 
 def read_ndx(ndx_file: Path, wsj_root, genders, transcript):
@@ -312,4 +271,7 @@ if __name__ == '__main__':
     parser.add_argument('-db', '--database_path', type=str, default=wsj)
     parser.add_argument('-j', '--json_path', type=str, default='wsj.json')
     args = parser.parse_args()
-    write_json(database_path=args.database_path, json_path=args.json_path)
+    print("Start: {}".format(time.ctime()))
+    json = create_database(args.database_path)
+    dump_json(json, args.json_path, indent=4)
+    print("Done: {}".format(time.ctime()))
