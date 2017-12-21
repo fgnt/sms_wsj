@@ -41,20 +41,16 @@ def create_database(wsj_path: Path):
         "test_eval92",  # 333 examples
         "test_eval92_5k",  # 330 examples
         "test_eval93",  # 213 examples
-        "test_eval93_5k"  # 213 examples, has actually 215?!
+        "test_eval93_5k"  # 215 examples
     ]
 
     dev_sets = [
         ["13-34.1/wsj1/doc/indices/h1_p0.ndx"],
         ["13-34.1/wsj1/doc/indices/h2_p0.ndx"],
-        ["13-16.1/wsj1/si_dt_20/"],
-        ["13-16.1/wsj1/si_dt_05/"]
     ]
     dev_set_names = [
-        "test_dev_93",  # 503 examples
-        "test_dev_93_5k",  # 513 examples
-        "dev_dt_20",  # 503 examples
-        "dev_dt_05"  # 913 examples
+        "cv_dev93",  # 503 examples
+        "cv_dev93_5k",  # 513 examples
     ]
 
     transcriptions = get_transcriptions(wsj_path, wsj_path)
@@ -104,6 +100,7 @@ def create_official_datasets(official_sets, official_names, wsj_root,
 
     for idx, set_list in enumerate(official_sets):
         set_name = official_names[idx]
+        _examples[set_name] = dict()
         for ods in set_list:
             set_path = wsj_root / ods
             if set_path.match('*.ndx'):
@@ -114,7 +111,7 @@ def create_official_datasets(official_sets, official_names, wsj_root,
                 wav_files = list(set_path.glob('*/*.wv1'))
                 _example = process_example_paths(wav_files, genders,
                                                  transcript)
-            _examples[set_name] = _example
+            _examples[set_name].update(_example)
 
     return _examples
 
