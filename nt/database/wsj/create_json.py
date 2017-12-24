@@ -1,5 +1,5 @@
 from pathlib import Path
-import argparse
+import click
 import tempfile
 import sh
 import re
@@ -7,7 +7,7 @@ import time
 
 from nt.io.data_dir import wsj
 from nt.database import keys
-from nt.io.json_module import dump_json
+from nt.database.helper import dump_database_as_json
 
 
 def read_nsamples(nist_path):
@@ -269,12 +269,23 @@ def get_gender_mapping(wsj_root: Path):
     return _spkr_gender_mapping
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-db', '--database_path', type=str, default=wsj)
-    parser.add_argument('-j', '--json_path', type=str, default='wsj.json')
-    args = parser.parse_args()
+@click.command()
+@click.option(
+    '--database_path',
+    default=wsj,
+    help='Path to database.'
+)
+@click.option(
+    '--json_path',
+    default='wsj.json',
+    help='Output path for the generated JSON-file'
+)
+
+def main(database_path, json_path):
     print("Start: {}".format(time.ctime()))
-    json = create_database(args.database_path)
-    dump_json(json, args.json_path, indent=4)
+    json = create_database(database_path)
+    dump_database_as_json(json_path, json)
     print("Done: {}".format(time.ctime()))
+
+if __name__ == '__main__':
+    main()
