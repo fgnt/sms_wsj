@@ -7,7 +7,7 @@ import time
 
 from nt.io.data_dir import wsj
 from nt.database import keys
-from nt.database.helper import dump_database_as_json
+from nt.database.helper import dump_database_as_json, click_common_options
 
 
 def read_nsamples(nist_path):
@@ -270,17 +270,7 @@ def get_gender_mapping(wsj_root: Path):
 
 
 @click.command()
-@click.option(
-    '--database_path',
-    default=wsj,
-    help='Path to database.'
-)
-@click.option(
-    '--json_path',
-    default='wsj.json',
-    help='Output path for the generated JSON-file'
-)
-
+@click_common_options(default_json_path='wsj.json', default_database_path=wsj)
 def main(database_path, json_path):
     print("Start: {}".format(time.ctime()))
     json = create_database(database_path)
