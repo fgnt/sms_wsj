@@ -3,23 +3,30 @@ import click
 import tempfile
 import sh
 import re
-import time
+import soundfile as sf
 
 from nt.io.data_dir import wsj
 from nt.database import keys
 from nt.database.helper import dump_database_as_json, click_common_options
 
 
-def read_nsamples(nist_path):
+def read_nsamples(audio_path):
 
-    f = open(nist_path, 'rb')
-    header = f.read(1024).decode("utf-8")  # nist header is a multiple of 1024
-    # bytes
-    nsamples = re.search("sample_count -i (.+?)\n", header).group(1)
-    return int(nsamples)
+    if audio_path.suffix == '.wv1':
+        f = open(audio_path, 'rb')
+        header = f.read(1024).decode("utf-8")  # nist header is a multiple of
+        # 1024 bytes
+        nsamples = int(re.search("sample_count -i (.+?)\n", header).group(1))
+    else:
+        info = sf.info(str(audio_path), verbose=True)
+        nsamples = info.frames
+    return nsamples
 
 
-def create_database(wsj_path: Path):
+def create_database(wsj_path, as_wav=False):
+
+    wsj_path = Path(wsj_path)
+
     train_sets = [
         ["11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
         ["13-34.1/wsj1/doc/indices/si_tr_s.ndx",
@@ -61,7 +68,9 @@ def create_database(wsj_path: Path):
     examples_tr = \
         create_official_datasets(train_sets,
                                  train_set_names,
-                                 wsj_path, gender_mapping,
+                                 wsj_path,
+                                 as_wav,
+                                 gender_mapping,
                                  transcriptions
                                  )
 
@@ -70,7 +79,8 @@ def create_database(wsj_path: Path):
     examples_dt = \
         create_official_datasets(dev_sets,
                                  dev_set_names,
-                                 wsj_path, gender_mapping,
+                                 wsj_path,
+                                 as_wav, gender_mapping,
                                  transcriptions
                                  )
 
@@ -79,7 +89,9 @@ def create_database(wsj_path: Path):
     examples_et = \
         create_official_datasets(test_sets,
                                  test_set_names,
-                                 wsj_path, gender_mapping,
+                                 wsj_path,
+                                 as_wav,
+                                 gender_mapping,
                                  transcriptions
                                  )
 
@@ -93,6 +105,7 @@ def create_database(wsj_path: Path):
 
 
 def create_official_datasets(official_sets, official_names, wsj_root,
+                             as_wav,
                              genders,
                              transcript):
 
@@ -105,10 +118,14 @@ def create_official_datasets(official_sets, official_names, wsj_root,
             set_path = wsj_root / ods
             if set_path.match('*.ndx'):
                 _example = read_ndx(set_path, wsj_root,
+                                    as_wav,
                                     genders,
                                     transcript)
             else:
-                wav_files = list(set_path.glob('*/*.wv1'))
+                if as_wav:
+                    wav_files = list(set_path.glob('*/*.wav'))
+                else:
+                    wav_files = list(set_path.glob('*/*.wv1'))
                 _example = process_example_paths(wav_files, genders,
                                                  transcript)
             _examples[set_name].update(_example)
@@ -116,7 +133,8 @@ def create_official_datasets(official_sets, official_names, wsj_root,
     return _examples
 
 
-def read_ndx(ndx_file: Path, wsj_root, genders, transcript):
+def read_ndx(ndx_file: Path, wsj_root, as_wav,
+             genders, transcript):
     assert ndx_file.match('*.ndx')
 
     with open(ndx_file) as fid:
@@ -138,10 +156,12 @@ def read_ndx(ndx_file: Path, wsj_root, genders, transcript):
         # test_eval93 and test_eval93_5k
         wav_path = wav_path.lstrip(' /')  # remove leading whitespace and
         # slash
-        audio_path = str(wsj_root / disk / wav_path)
-        if "11-2.1/wsj0/si_tr_s/401" in audio_path:
+        audio_path = wsj_root / disk / wav_path
+        if as_wav:
+            audio_path = Path(f'{audio_path.parent / audio_path.stem}.wav')
+        if "11-2.1/wsj0/si_tr_s/401" in str(audio_path):
             continue  # skip 401 subdirectory in train sets
-        fixed_paths.append(Path(audio_path))
+        fixed_paths.append(audio_path)
 
     _examples = process_example_paths(fixed_paths, genders,
                                       transcript)
@@ -271,11 +291,12 @@ def get_gender_mapping(wsj_root: Path):
 
 @click.command()
 @click_common_options(default_json_path='wsj.json', default_database_path=wsj)
-def main(database_path, json_path):
-    print("Start: {}".format(time.ctime()))
-    json = create_database(database_path)
+@click.option('--wav', is_flag=True,
+              help='Store wav paths, otherwise nist paths')
+def main(database_path, json_path, wav):
+    json = create_database(database_path, wav)
     dump_database_as_json(json_path, json)
-    print("Done: {}".format(time.ctime()))
+
 
 if __name__ == '__main__':
     main()
