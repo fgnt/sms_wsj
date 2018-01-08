@@ -292,7 +292,7 @@ def get_gender_mapping(wsj_root: Path):
 @click.command()
 @click_common_options(default_json_path='wsj.json', default_database_path=wsj)
 @click.option('--wav', is_flag=True,
-              help='Store wav paths, otherwise nist paths')
+              help='Store wav paths in json file, otherwise nist paths')
 def main(database_path, json_path, wav):
     json = create_database(database_path, wav)
     dump_database_as_json(json_path, json)
