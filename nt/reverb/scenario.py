@@ -13,6 +13,9 @@ Try it with the following code:
 """
 
 import numpy as np
+
+from nt.visualization import matplotlib_fix
+
 import matplotlib.pyplot as plt
 import random
 import itertools
