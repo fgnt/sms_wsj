@@ -2,13 +2,15 @@
 Offers methods for calculating room impulse responses and convolutions of these
 with audio signals.
 """
+import itertools
+
+import numpy as np
+import scipy
 
 import nt.reverb.CalcRIR_Simple_C as tranVuRIR
-import numpy
-import numpy as np
-import nt.reverb.scenario as scenario
-import scipy
 import nt.reverb.rirgen
+import nt.reverb.scenario as scenario
+
 
 eps = 1e-60
 window_length = 256
@@ -217,7 +219,7 @@ def _generate_RIR(roomDimension,
     >>> sampleRate = 16000
     >>> filterLength = 2**13
     >>> T60 = 0.3
-    >>> pyRIR = generate_RIR(roomDim,sources,mics,sampleRate, filterLength,T60)
+    >>> pyRIR = _generate_RIR(roomDim, sources, mics, sampleRate, filterLength, T60)
     """
 
     # These are lists of possible picks
@@ -250,9 +252,9 @@ def _generate_RIR(roomDimension,
                  in sensorPositions):
         raise Exception("Sensor positions aren't lists of positive 3-element-"
                         "lists or inside room dimensions!")
-    if not numpy.isscalar(samplingRate):
+    if not np.isscalar(samplingRate):
         raise Exception("sampling rate isn't scalar!")
-    if not numpy.isscalar(filterLength):
+    if not np.isscalar(filterLength):
         raise Exception("Filter length isn't scalar!")
     if type(soundDecayTime) == str:
         raise Exception("sound decay time should be numeric!")
@@ -262,7 +264,7 @@ def _generate_RIR(roomDimension,
                         algorithmList)
     if not any(sensorDirectivity == key for key in directivityList):
         raise Exception("sensor directivity " + sensorDirectivity + " unknown!")
-    if not numpy.isscalar(soundvelocity):
+    if not np.isscalar(soundvelocity):
         raise Exception("sound velocity isn't scalar!")
 
     # Give optional arguments default values
@@ -276,21 +278,21 @@ def _generate_RIR(roomDimension,
 
     alpha = directivityList[sensorDirectivity]
 
-    rir = numpy.zeros((filterLength, numSensors, numSources))
+    rir = np.zeros((filterLength, numSensors, numSources))
 
     # todo: Mehr Algorithmen in Betracht ziehen
     if algorithm == "TranVu":
         # TranVU method
         noiseFloor = -60
-        rir = tranVuRIR.calc(numpy.asarray(roomDimension, dtype=numpy.float64),
-                             numpy.asarray(sourcePositions,
-                                           dtype=numpy.float64),
-                             numpy.asarray(sensorPositions,
-                                           dtype=numpy.float64),
+        rir = tranVuRIR.calc(np.asarray(roomDimension, dtype=np.float64),
+                             np.asarray(sourcePositions,
+                                           dtype=np.float64),
+                             np.asarray(sensorPositions,
+                                           dtype=np.float64),
                              samplingRate,
                              filterLength, soundDecayTime * 1000, noiseFloor,
-                             numpy.asarray(sensorOrientations,
-                                           dtype=numpy.float64),
+                             np.asarray(sensorOrientations,
+                                           dtype=np.float64),
                              alpha, soundvelocity)
     else:
         raise NotImplementedError(
@@ -519,23 +521,61 @@ def convolve(signal, impulse_response, truncate=False):
     to correspond to the number of sources in the given RIR.
     Convolution is conducted through frequency domain via FFT.
 
+    x = h conv s
+
     Args:
-        signal: Time signal with shape (sources, samples)
-        impulse_response: Shape (sources, sensors, samples)
+        signal: Time signal with shape (..., samples)
+        impulse_response: Shape (..., sensors, filter_length)
 
-    Returns: Convolution result with shape (sources, sensors, samples)
+    Alternative args:
+        signal: Time signal with shape (samples,)
+        impulse_response: Shape (filter_length,)
+
+    Returns: Convolution result with shape (..., sensors, length) or (length,)
+
+    >>> signal = np.asarray([1, 2, 3])
+    >>> impulse_response = np.asarray([1, 1])
+    >>> convolve(signal, impulse_response).tolist()
+    [1, 3, 5, 3]
+
+    >>> K, T, D, filter_length = 2, 12, 3, 5
+    >>> signal = np.random.normal(size=(K, T))
+    >>> impulse_response = np.random.normal(size=(K, D, filter_length))
+    >>> convolve(signal, impulse_response).shape
+    (2, 3, 16)
+
+    >>> signal = np.random.normal(size=(T,))
+    >>> impulse_response = np.random.normal(size=(D, filter_length))
+    >>> convolve(signal, impulse_response).shape
+    (3, 16)
     """
-    sources, samples = signal.shape
-    sources_, sensors, filter_length = impulse_response.shape
-    assert sources == sources_, \
-        f'signal.shape[sources={sources}] does not match ' \
-        f'impulse_response.shape[sources={sources_}]'
+    signal = np.array(signal)
+    impulse_response = np.array(impulse_response)
 
-    x = np.zeros((sources, sensors, samples + filter_length - 1))
-    for source_index in range(sources):
+    if impulse_response.ndim == 1:
+        x = convolve(signal, impulse_response[None, ...], truncate=truncate)
+        x = np.squeeze(x, axis=0)
+        return x
+
+    *independent, samples = signal.shape
+    *independent_, sensors, filter_length = impulse_response.shape
+    assert independent == independent_, \
+        f'signal.shape {signal.shape} does not match ' \
+        f'impulse_response.shape {impulse_response.shape}'
+
+    slices = [range(s) for s in independent]
+
+    x_shape = (*independent, sensors, samples + filter_length - 1)
+    x = np.zeros(x_shape, dtype=signal.dtype)
+
+    for indices in itertools.product(*slices):
         for target_index in range(sensors):
-            x[source_index, target_index, :] = scipy.signal.fftconvolve(
-                signal[source_index, :],
-                impulse_response[source_index, target_index, :]
+            x[(*indices, target_index, slice(None))] = scipy.signal.fftconvolve(
+                signal[(*indices, slice(None))],
+                impulse_response[(*indices, target_index, slice(None))]
             )
     return x[..., :samples] if truncate else x
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()
