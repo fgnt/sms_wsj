@@ -22,6 +22,7 @@ import itertools
 from nt.visualization.new_cm import viridis_hex
 from nt.utils.deprecated import deprecated
 from nt.math.rotation import rot_x, rot_y, rot_z
+from nt.math.directional import minus as directional_minus
 
 ################################################################################
 # Register Axes3D as a 'projection' object available for use just like any axes
@@ -29,7 +30,7 @@ from nt.math.rotation import rot_x, rot_y, rot_z
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def sample_from_random_box(center, edge_lengths):
+def sample_from_random_box(center, edge_lengths, rng=np.random):
     """ Sample from a random box to get somewhat random locations.
 
     >>> points = np.asarray([sample_from_random_box(
@@ -51,7 +52,7 @@ def sample_from_random_box(center, edge_lengths):
     """
     center = np.asarray(center)
     edge_lengths = np.asarray(edge_lengths)
-    return center + np.random.uniform(
+    return center + rng.uniform(
         low=-edge_lengths / 2,
         high=edge_lengths / 2
     )
@@ -62,7 +63,9 @@ def generate_sensor_positions(
         center=np.zeros((3, 1), dtype=np.float),
         scale=0.01,
         number_of_sensors=None,
-        jitter=None
+        jitter=None,
+        rng=np.random,
+        rotate_x=0, rotate_y=0, rotate_z=0
 ):
     """ Generate different sensor configurations.
 
@@ -102,7 +105,7 @@ def generate_sensor_positions(
             "triangle is only defined for 3 sensors",
             number_of_sensors)
         sensor_positions = generate_sensor_positions(
-            shape='circular', scale=scale, number_of_sensors=3
+            shape='circular', scale=scale, number_of_sensors=3, rng=rng
         )
 
     elif shape == 'linear':
@@ -137,15 +140,16 @@ def generate_sensor_positions(
                 [0, -0.02, 0, 0, 0, 0]
             ]
         )
-        sensor_positions = rot_x(np.random.uniform(0, 2 * np.pi)) @ sensor_positions
-        sensor_positions = rot_y(np.random.uniform(0, 2 * np.pi)) @ sensor_positions
-        sensor_positions = rot_z(np.random.uniform(0, 2 * np.pi)) @ sensor_positions
 
     else:
         raise NotImplementedError('Given shape is not implemented.')
 
+    sensor_positions = rot_x(rotate_x) @ sensor_positions
+    sensor_positions = rot_y(rotate_y) @ sensor_positions
+    sensor_positions = rot_z(rotate_z) @ sensor_positions
+
     if jitter is not None:
-        sensor_positions += np.random.normal(
+        sensor_positions += rng.normal(
             0., jitter, size=sensor_positions.shape
         )
 
@@ -175,7 +179,10 @@ def generate_random_source_positions(
         center=np.zeros((3, 1)),
         sources=1,
         distance_interval=(1, 2),
-        dims=2
+        dims=2,
+        minimum_angular_distance=None,
+        maximum_angular_distance=None,
+        rng=np.random
 ):
     """ Generates random positions on a hollow sphere or circle.
 
@@ -183,14 +190,54 @@ def generate_random_source_positions(
     inner and outer radius according to distance_interval.
 
     The idea is to sample from an angular centric Gaussian distribution.
+
+    Params:
+        center
+        sources
+        distance_interval
+        dims
+        minimum_angular_distance: In randiant or None.
+        maximum_angular_distance: In randiant or None.
+        rng: Random number generator, if you need to set the seed.
     """
-    x = np.random.normal(size=(3, sources))
-    if dims == 2:
-        x[2, :] = 0
+    enforce_angular_constrains = (
+        minimum_angular_distance is not None or
+        maximum_angular_distance is not None
+    )
+
+    if not dims == 2 and enforce_angular_constrains:
+        raise NotImplementedError(
+            'Only implemented distance constraints for 2D.'
+        )
+
+    accept = False
+    while not accept:
+        x = rng.normal(size=(3, sources))
+        if dims == 2:
+            x[2, :] = 0
+
+        if enforce_angular_constrains:
+            if not sources == 2:
+                raise NotImplementedError
+            angle = np.arctan2(x[1, :], x[0, :])
+            difference = directional_minus(angle[None, :], angle[:, None])
+            difference = difference[np.triu_indices_from(difference, k=1)]
+            distance = np.abs(difference)
+            if (
+                minimum_angular_distance is not None and
+                minimum_angular_distance > np.min(distance)
+            ):
+                continue
+            if (
+                maximum_angular_distance is not None and
+                maximum_angular_distance < np.max(distance)
+            ):
+                continue
+        accept = True
 
     x /= np.linalg.norm(x, axis=0)
 
-    radius = np.random.uniform(
+    radius = rng.uniform(
         distance_interval[0] ** dims,
         distance_interval[1] ** dims,
         size=(1, sources)
@@ -289,7 +336,8 @@ def is_inside_room(dimensions, x):
 def generate_uniformly_random_sources_and_sensors(
         dimensions,
         sources,
-        sensors
+        sensors,
+        rng=np.random
 ):
     """
     Returns two lists with random sources and sensors
@@ -314,14 +362,14 @@ def generate_uniformly_random_sources_and_sensors(
     sensor_list = []
 
     for _ in range(sources):
-        x = random.uniform(10 ** -3, dimensions[0])
-        y = random.uniform(10 ** -3, dimensions[1])
-        z = random.uniform(10 ** -3, dimensions[2])
+        x = rng.uniform(10 ** -3, dimensions[0])
+        y = rng.uniform(10 ** -3, dimensions[1])
+        z = rng.uniform(10 ** -3, dimensions[2])
         source_list.append([x, y, z])
     for _ in range(sensors):
-        x = random.uniform(10 ** -3, dimensions[0])
-        y = random.uniform(10 ** -3, dimensions[1])
-        z = random.uniform(10 ** -3, dimensions[2])
+        x = rng.uniform(10 ** -3, dimensions[0])
+        y = rng.uniform(10 ** -3, dimensions[1])
+        z = rng.uniform(10 ** -3, dimensions[2])
         sensor_list.append([x, y, z])
     return source_list, sensor_list
 
