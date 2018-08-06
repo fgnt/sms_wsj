@@ -595,7 +595,12 @@ def get_rir_start_sample(h, level_ratio=1e-1):
         h: Room impulse response with Shape (num_samples,)
         level_ratio: Ratio between start value and max value.
     """
-    assert h.ndim == 1, h.shape
+    if h.ndim > 1:
+        h = np.reshape(h, (-1, h.shape[-1]))
+        return np.min(
+            [get_rir_start_sample(h_, level_ratio=level_ratio) for h_ in h]
+        )
+
     abs_h = np.abs(h)
     max_index = np.argmax(abs_h)
     max_abs_value = abs_h[max_index]
