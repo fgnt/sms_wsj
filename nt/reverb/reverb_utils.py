@@ -526,6 +526,7 @@ def convolve(signal, impulse_response, truncate=False):
     Args:
         signal: Time signal with shape (..., samples)
         impulse_response: Shape (..., sensors, filter_length)
+        truncate: Truncates result to input signal length if True.
 
     Alternative args:
         signal: Time signal with shape (samples,)
