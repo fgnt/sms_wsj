@@ -595,8 +595,12 @@ def get_rir_start_sample(h, level_ratio=1e-1):
     Params:
         h: Room impulse response with Shape (num_samples,)
         level_ratio: Ratio between start value and max value.
+
+    >>> get_rir_start_sample(np.array([0, 0, 1, 0.5, 0.1]))
+    2
     """
     if h.ndim > 1:
+        assert h.shape[0] < 20, h.shape
         h = np.reshape(h, (-1, h.shape[-1]))
         return np.min(
             [get_rir_start_sample(h_, level_ratio=level_ratio) for h_ in h]
@@ -605,7 +609,7 @@ def get_rir_start_sample(h, level_ratio=1e-1):
     abs_h = np.abs(h)
     max_index = np.argmax(abs_h)
     max_abs_value = abs_h[max_index]
-    larger_than_threshold = abs_h[:max_index] > level_ratio * max_abs_value
+    larger_than_threshold = abs_h[:max_index + 1] > level_ratio * max_abs_value
 
     # Finds first occurrence of max
     rir_start_sample = np.argmax(larger_than_threshold)
