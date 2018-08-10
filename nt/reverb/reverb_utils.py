@@ -599,6 +599,7 @@ def get_rir_start_sample(h, level_ratio=1e-1):
     >>> get_rir_start_sample(np.array([0, 0, 1, 0.5, 0.1]))
     2
     """
+    assert level_ratio < 1, level_ratio
     if h.ndim > 1:
         assert h.shape[0] < 20, h.shape
         h = np.reshape(h, (-1, h.shape[-1]))
@@ -609,6 +610,7 @@ def get_rir_start_sample(h, level_ratio=1e-1):
     abs_h = np.abs(h)
     max_index = np.argmax(abs_h)
     max_abs_value = abs_h[max_index]
+    # +1 because python excludes the last value
     larger_than_threshold = abs_h[:max_index + 1] > level_ratio * max_abs_value
 
     # Finds first occurrence of max
