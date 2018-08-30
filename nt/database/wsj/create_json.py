@@ -7,7 +7,12 @@ import soundfile as sf
 
 from nt.io.data_dir import wsj
 from nt.database import keys
-from nt.database.helper import dump_database_as_json, click_common_options
+from nt.database.helper import (
+    dump_database_as_json,
+    click_common_options,
+    check_audio_files_exist
+    )
+
 
 
 def read_nsamples(audio_path):
@@ -295,6 +300,9 @@ def get_gender_mapping(wsj_root: Path):
               help='Store wav paths in json file, otherwise nist paths')
 def main(database_path, json_path, wav):
     json = create_database(database_path, wav)
+    print("Check that all wav files in the json exist.")
+    check_audio_files_exist(json, speedup="thread")
+    print("Finished check.")
     dump_database_as_json(json_path, json)
 
 
