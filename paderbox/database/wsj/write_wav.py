@@ -4,9 +4,9 @@ import click
 import time
 import logging
 
-from nt.io.data_dir import wsj
-from nt.io.audioread import read_nist_wsj
-from nt.io.audiowrite import audiowrite
+from paderbox.io.data_dir import wsj
+from paderbox.io.audioread import read_nist_wsj
+from paderbox.io.audiowrite import audiowrite
 
 
 def write_wavs(dst_dir, wsj_root: Path):
