@@ -1,11 +1,11 @@
 """Call instructions:
 
 # When you do not have MPI:
-python -m nt.database.wsj_bss.create_files with database_path=/Users/lukas/Downloads/temp_wsj_bss debug=True
-python -m nt.database.wsj_bss.create_files with database_path=temp_wsj_bss debug=True
+python -m paderbox.database.wsj_bss.create_files with database_path=/Users/lukas/Downloads/temp_wsj_bss debug=True
+python -m paderbox.database.wsj_bss.create_files with database_path=temp_wsj_bss debug=True
 
 # When you have MPI:
-mpiexec -np 3 python -m nt.database.wsj_bss.create_files with database_path=temp_wsj_bss debug=True
+mpiexec -np 3 python -m paderbox.database.wsj_bss.create_files with database_path=temp_wsj_bss debug=True
 
 # When on PC2:
 # Multiply your needs with mpiprocs.
@@ -21,7 +21,7 @@ ccsalloc \
     -t 6h \
     -N create_files \
     cbj.ompi -- \
-    python -m nt.database.wsj_bss.create_files with database_path=$TARGET_PATH
+    python -m paderbox.database.wsj_bss.create_files with database_path=$TARGET_PATH
 
 # Synchronize the files:
 rsync \

@@ -1,10 +1,10 @@
 """
 NT:
-python -m nt.database.wsj_bss.create_json
+python -m paderbox.database.wsj_bss.create_json
 scp wsj_bss.json jenkins@ntjenkins:/net/vol/jenkins/jsons/
 
 PC2:
-python -m nt.database.wsj_bss.create_json \
+python -m paderbox.database.wsj_bss.create_json \
     --json-path=$NT_DATABASE_JSONS_DIR/wsj_bss.json
 """
 from paderbox.database.wsj import PUNCTUATION_SYMBOLS
