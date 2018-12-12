@@ -3,11 +3,11 @@ from pathlib import Path
 
 import numpy as np
 
-from nt.database import JsonDatabase
-from nt.database import HybridASRKaldiDatabaseTemplate
-from nt.io.data_dir import kaldi_root
-from nt.io.data_dir import database_jsons
-from nt.io import audioread
+from paderbox.database import JsonDatabase
+from paderbox.database import HybridASRKaldiDatabaseTemplate
+from paderbox.io.data_dir import kaldi_root
+from paderbox.io.data_dir import database_jsons
+from paderbox.io import audioread
 
 JSON_PATH = database_jsons / "wsj_bss.json"
 # JSON_PATH = Path(

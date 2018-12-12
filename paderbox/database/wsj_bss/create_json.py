@@ -7,21 +7,21 @@ PC2:
 python -m nt.database.wsj_bss.create_json \
     --json-path=$NT_DATABASE_JSONS_DIR/wsj_bss.json
 """
-from nt.database.wsj import PUNCTUATION_SYMBOLS
+from paderbox.database.wsj import PUNCTUATION_SYMBOLS
 from collections import defaultdict
 from pathlib import Path
 import numpy as np
 import click
 from copy import copy
-from nt.database.helper import (
+from paderbox.database.helper import (
     dump_database_as_json,
     click_common_options,
     check_audio_files_exist
 )
-from nt.database.keys import *
-from nt.database.wsj import WSJ_8kHz
-from nt.io.data_dir import wsj_bss
-from nt.database import JsonDatabase
+from paderbox.database.keys import *
+from paderbox.database.wsj import WSJ_8kHz
+from paderbox.io.data_dir import wsj_bss
+from paderbox.database import JsonDatabase
 
 
 @click.command()

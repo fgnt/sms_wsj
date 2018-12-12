@@ -42,18 +42,18 @@ from pathlib import Path
 import numpy as np
 from sacred import Experiment
 
-from nt.io import dump_audio
-from nt.io import dump_json
-from nt.reverb.reverb_utils import generate_rir
-from nt.reverb.scenario import generate_random_source_positions
-from nt.reverb.scenario import generate_sensor_positions
-from nt.reverb.scenario import sample_from_random_box
-from nt.utils.mpi import COMM
-from nt.utils.mpi import IS_MASTER
-from nt.utils.mpi import RANK
-from nt.utils.mpi import SIZE
-from nt.utils.mpi import map_unordered
-from nt.database.keys import *
+from paderbox.io import dump_audio
+from paderbox.io import dump_json
+from paderbox.reverb.reverb_utils import generate_rir
+from paderbox.reverb.scenario import generate_random_source_positions
+from paderbox.reverb.scenario import generate_sensor_positions
+from paderbox.reverb.scenario import sample_from_random_box
+from paderbox.utils.mpi import COMM
+from paderbox.utils.mpi import IS_MASTER
+from paderbox.utils.mpi import RANK
+from paderbox.utils.mpi import SIZE
+from paderbox.utils.mpi import map_unordered
+from paderbox.database.keys import *
 
 experiment = Experiment(Path(__file__).stem)
 
