@@ -4,7 +4,7 @@ Try it with the following code:
 
 >>> import numpy as np
 >>> from mpl_toolkits.mplot3d import proj3d
->>> import nt.reverb.scenario as scenario
+>>> import paderbox.reverb.scenario as scenario
 >>> src = scenario.generate_random_source_positions(dims=2, sources=1000)
 >>> src[1, :] = np.abs(src[1, :])
 >>> mic = scenario.generate_sensor_positions(shape='linear', scale=0.1, number_of_sensors=6)
@@ -14,15 +14,15 @@ Try it with the following code:
 
 import numpy as np
 
-from nt.visualization import matplotlib_fix
+from paderbox.visualization import matplotlib_fix
 
 import matplotlib.pyplot as plt
 import random
 import itertools
-from nt.visualization.new_cm import viridis_hex
-from nt.utils.deprecated import deprecated
-from nt.math.rotation import rot_x, rot_y, rot_z
-from nt.math.directional import minus as directional_minus
+from paderbox.visualization.new_cm import viridis_hex
+from paderbox.utils.deprecated import deprecated
+from paderbox.math.rotation import rot_x, rot_y, rot_z
+from paderbox.math.directional import minus as directional_minus
 
 ################################################################################
 # Register Axes3D as a 'projection' object available for use just like any axes
@@ -352,7 +352,7 @@ def generate_uniformly_random_sources_and_sensors(
     >>> room = (4.5, 5, 3)
     >>> sources = generate_random_source_positions()
     >>> sensors = generate_sensor_positions(shape='triangle', scale=0.1)
-    >>> from nt.visualization import context_manager
+    >>> from paderbox.visualization import context_manager
     >>> with context_manager():
     ...     simple_plot(room, sources, sensors)
     >>> plt.show()
