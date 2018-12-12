@@ -5,9 +5,9 @@ import sh
 import re
 import soundfile as sf
 
-from nt.io.data_dir import wsj
-from nt.database import keys
-from nt.database.helper import (
+from paderbox.io.data_dir import wsj
+from paderbox.database import keys
+from paderbox.database.helper import (
     dump_database_as_json,
     click_common_options,
     check_audio_files_exist
