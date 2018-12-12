@@ -7,9 +7,9 @@ import itertools
 import numpy as np
 import scipy
 
-import nt.reverb.CalcRIR_Simple_C as tranVuRIR
-import nt.reverb.rirgen
-import nt.reverb.scenario as scenario
+import paderbox.reverb.CalcRIR_Simple_C as tranVuRIR
+import paderbox.reverb.rirgen
+import paderbox.reverb.scenario as scenario
 
 
 eps = 1e-60
@@ -154,7 +154,7 @@ def generate_rir(
             dtype=np.float
         )
         for k in range(number_of_sources):
-            temp = nt.reverb.rirgen.generate_rir(
+            temp = paderbox.reverb.rirgen.generate_rir(
                 room_measures=room_dimensions[:, 0],
                 source_position=source_positions[:, k],
                 receiver_positions=sensor_positions.T,
