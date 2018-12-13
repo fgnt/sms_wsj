@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 
 from paderbox.database import JsonDatabase
-from paderbox.database import HybridASRKaldiDatabaseTemplate
+from paderbox.database.database import HybridASRKaldiDatabaseTemplate
 from paderbox.io.data_dir import kaldi_root
 from paderbox.io.data_dir import database_jsons
 from paderbox.io import audioread
