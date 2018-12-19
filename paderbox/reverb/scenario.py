@@ -352,8 +352,8 @@ def generate_uniformly_random_sources_and_sensors(
     >>> room = (4.5, 5, 3)
     >>> sources = generate_random_source_positions()
     >>> sensors = generate_sensor_positions(shape='triangle', scale=0.1)
-    >>> from paderbox.visualization import context_manager
-    >>> with context_manager():
+    >>> from paderbox.visualization import figure_context
+    >>> with figure_context():
     ...     simple_plot(room, sources, sensors)
     >>> plt.show()
 
