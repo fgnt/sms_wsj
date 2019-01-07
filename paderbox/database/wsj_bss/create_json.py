@@ -7,7 +7,7 @@ PC2:
 python -m paderbox.database.wsj_bss.create_json \
     --json-path=$NT_DATABASE_JSONS_DIR/wsj_bss.json
 """
-from paderbox.database.wsj import PUNCTUATION_SYMBOLS
+from paderbox.database.wsj.database import PUNCTUATION_SYMBOLS
 from collections import defaultdict
 from pathlib import Path
 import numpy as np
@@ -19,14 +19,17 @@ from paderbox.database.helper import (
     check_audio_files_exist
 )
 from paderbox.database.keys import *
-from paderbox.database.wsj import WSJ_8kHz
+from paderbox.database.wsj import WSJ_8kHz, WSJ
 from paderbox.io.data_dir import wsj_bss
 from paderbox.database import JsonDatabase
 
 
 @click.command()
 @click_common_options("wsj_bss.json", wsj_bss)
-def main(json_path, database_path):
+@click.option('--sample_rate', '-sr', default='8k',
+              help='Sample rate to use.',
+              type=click.Choice(['8k', '16k']))
+def main(json_path, database_path, sample_rate):
     json_path = Path(json_path)
     if json_path.is_file():
         raise FileExistsError(json_path)
@@ -38,7 +41,14 @@ def main(json_path, database_path):
     )
 
     rir_db = JsonDatabase(database_path / "scenarios.json")
-    source_db = WSJ_8kHz()
+
+    if sample_rate == '16k':
+        source_db = WSJ()
+    elif sample_rate == '8k':
+        source_db = WSJ_8kHz()
+    else:
+        raise ValueError(f'Unknown sample rate: {sample_rate}')
+
     target_db = dict()
     target_db[DATASETS] = defaultdict(dict)
 
@@ -112,10 +122,20 @@ def get_randomized_example(
 
     # This way, at least the first speaker can have proper alignments, all other
     # speakers can not be used for ASR.
-    example[NUM_SAMPLES] = {
-        OBSERVATION: source_examples[0][NUM_SAMPLES],
-        SPEECH_SOURCE: [ex[NUM_SAMPLES] for ex in source_examples]
-    }
+    if isinstance(source_examples[0][NUM_SAMPLES], dict) \
+            and OBSERVATION in source_examples[0][NUM_SAMPLES]:
+        # 16k case
+        example[NUM_SAMPLES] = {
+            OBSERVATION: source_examples[0][NUM_SAMPLES][OBSERVATION],
+            SPEECH_SOURCE: [ex[NUM_SAMPLES][OBSERVATION] for ex in
+                            source_examples]
+        }
+    else:
+        # 8k case
+        example[NUM_SAMPLES] = {
+            OBSERVATION: source_examples[0][NUM_SAMPLES],
+            SPEECH_SOURCE: [ex[NUM_SAMPLES] for ex in source_examples]
+        }
     example["offset"] = [0]
     for k in range(1, example[NUM_SPEAKERS]):
         excess_samples = (
