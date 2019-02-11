@@ -21,7 +21,8 @@ JSON_PATH = database_jsons / "wsj_bss.json"
 
 __all__ = [
     'WsjBss',
-    'WsjBssKaldiDatabase'
+    'WsjBssKaldiDatabase',
+    'scenario_map_fn',
 ]
 
 
