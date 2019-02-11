@@ -252,8 +252,8 @@ def extract_piece(x, offset, target_length):
 def scenario_map_fn(
         example,
         *,
-        mode,
-        channel_mode,
+        mode=None,
+        channel_mode='all',
         truncate_rir,
         snr_range,
         rir_type
@@ -286,24 +286,24 @@ def scenario_map_fn(
     else:
         raise ValueError(rir_type)
 
-    # Estimate start sample first, to make it indepnendent of channel_mode
+    # Estimate start sample first, to make it independent of channel_mode
     rir_start_sample = get_rir_start_sample(h)
 
-    # print(f'h {h.shape} (beginning)')
-    # print(f'channel_mode {channel_mode}')
-    # print(f'mode {mode}')
-    if channel_mode[mode] == "deterministic":
+    if isinstance(channel_mode, dict):
+        channel_mode = channel_mode[mode]
+
+    if channel_mode == "deterministic":
         channels = [0]
         h = h[:, channels, :]
-    elif channel_mode[mode] == "random":
+    elif channel_mode == "random":
         channels = np.random.randint(0, h.shape[1], size=(1,))
         h = h[:, channels, :]
-    elif channel_mode[mode] == "all":
+    elif channel_mode == "all":
         pass
-    elif channel_mode[mode] == "deterministic_2":
+    elif channel_mode == "deterministic_2":
         channels = [0, 1]
         h = h[:, channels, :]
-    elif channel_mode[mode] == "random_2":
+    elif channel_mode == "random_2":
         channels = np.random.randint(0, h.shape[1], size=(2,))
         h = h[:, channels, :]
     else:
