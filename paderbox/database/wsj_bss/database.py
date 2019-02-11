@@ -286,6 +286,9 @@ def scenario_map_fn(
     else:
         raise ValueError(rir_type)
 
+    # Estimate start sample first, to make it indepnendent of channel_mode
+    rir_start_sample = get_rir_start_sample(h)
+
     # print(f'h {h.shape} (beginning)')
     # print(f'channel_mode {channel_mode}')
     # print(f'mode {mode}')
@@ -307,7 +310,6 @@ def scenario_map_fn(
         raise ValueError(channel_mode[mode])
     _, D, rir_length = h.shape
 
-    rir_start_sample = get_rir_start_sample(h)
     if truncate_rir:
         rir_stop_sample = rir_start_sample + int(SAMPLE_RATE * 0.05)
         h[..., rir_stop_sample:] = 0
