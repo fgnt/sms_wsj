@@ -254,9 +254,9 @@ def scenario_map_fn(
         *,
         mode=None,
         channel_mode='all',
-        truncate_rir,
-        snr_range,
-        rir_type
+        truncate_rir=False,
+        snr_range: tuple,
+        rir_type='image_method'
 ):
     """
     This will care for convolution with RIR and also generate noise.
@@ -266,10 +266,13 @@ def scenario_map_fn(
 
     Args:
         example: Example dictionary.
-        mode: 'train', 'eval', or 'predict'
-        channel_mode:
+        mode: 'train', 'eval', or 'predict', is deprecated. You can use an
+            external code to do this. It is here for legacy code.
+        channel_mode: Is deprecated. You can use an
+            external code to do this. It is here for legacy code.
         truncate_rir:
-        snr_range:
+        snr_range: Lukas used (20, 30) here.
+            This will make your reviewer angry.
         rir_type:
             image_method: Will be the provided pre-generated RIRs.
             mird: Will be random selections from the MIRD database.
