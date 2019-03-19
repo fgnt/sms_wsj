@@ -69,36 +69,33 @@ def create_database(wsj_path, as_wav=False):
 
     examples = dict()
 
-    examples_tr = \
-        create_official_datasets(train_sets,
-                                 train_set_names,
-                                 wsj_path,
-                                 as_wav,
-                                 gender_mapping,
-                                 transcriptions
-                                 )
-
+    examples_tr = create_official_datasets(
+        train_sets,
+        train_set_names,
+        wsj_path,
+        as_wav,
+        gender_mapping,
+        transcriptions
+    )
     examples.update(examples_tr)
 
-    examples_dt = \
-        create_official_datasets(dev_sets,
-                                 dev_set_names,
-                                 wsj_path,
-                                 as_wav, gender_mapping,
-                                 transcriptions
-                                 )
-
+    examples_dt = create_official_datasets(
+        dev_sets,
+        dev_set_names,
+        wsj_path,
+        as_wav, gender_mapping,
+        transcriptions
+    )
     examples.update(examples_dt)
 
-    examples_et = \
-        create_official_datasets(test_sets,
-                                 test_set_names,
-                                 wsj_path,
-                                 as_wav,
-                                 gender_mapping,
-                                 transcriptions
-                                 )
-
+    examples_et = create_official_datasets(
+        test_sets,
+        test_set_names,
+        wsj_path,
+        as_wav,
+        gender_mapping,
+        transcriptions
+    )
     examples.update(examples_et)
 
     database = {
@@ -108,10 +105,9 @@ def create_database(wsj_path, as_wav=False):
     return database
 
 
-def create_official_datasets(official_sets, official_names, wsj_root,
-                             as_wav,
-                             genders,
-                             transcript):
+def create_official_datasets(
+        official_sets, official_names, wsj_root, as_wav, genders, transcript
+):
 
     _examples = dict()
 
@@ -121,17 +117,17 @@ def create_official_datasets(official_sets, official_names, wsj_root,
         for ods in set_list:
             set_path = wsj_root / ods
             if set_path.match('*.ndx'):
-                _example = read_ndx(set_path, wsj_root,
-                                    as_wav,
-                                    genders,
-                                    transcript)
+                _example = read_ndx(
+                    set_path, wsj_root, as_wav, genders, transcript
+                )
             else:
                 if as_wav:
                     wav_files = list(set_path.glob('*/*.wav'))
                 else:
                     wav_files = list(set_path.glob('*/*.wv1'))
-                _example = process_example_paths(wav_files, genders,
-                                                 transcript)
+                _example = process_example_paths(
+                    wav_files, genders, transcript
+                )
             _examples[set_name].update(_example)
 
     return _examples
@@ -156,8 +152,9 @@ def read_ndx(ndx_file: Path, wsj_root, as_wav,
     for line in lines:
         disk, wav_path = line.split(':')
         disk = '{}-{}.{}'.format(*disk.split('_'))
-        disk = disk.replace('13-32.1', '13-33.1')  # wrong disk-ids for
-        # test_eval93 and test_eval93_5k
+
+        # wrong disk-ids for test_eval93 and test_eval93_5k
+        disk = disk.replace('13-32.1', '13-33.1')
         wav_path = wav_path.lstrip(' /')  # remove leading whitespace and
         # slash
         audio_path = wsj_root / disk / wav_path
@@ -167,8 +164,7 @@ def read_ndx(ndx_file: Path, wsj_root, as_wav,
             continue  # skip 401 subdirectory in train sets
         fixed_paths.append(audio_path)
 
-    _examples = process_example_paths(fixed_paths, genders,
-                                      transcript)
+    _examples = process_example_paths(fixed_paths, genders, transcript)
 
     return _examples
 
@@ -229,8 +225,7 @@ def get_transcriptions(root: Path, wsj_root: Path):
 
     for file_path in dot_files + ptx_files:
         with open(file_path) as fid:
-            matches = re.findall("^(.+)\s+\((\S+)\)$", fid.read(),
-                                 flags=re.M)
+            matches = re.findall("^(.+)\s+\((\S+)\)$", fid.read(), flags=re.M)
         word.update({utt_id: trans for trans, utt_id in matches})
 
     kaldi = dict()
@@ -295,8 +290,11 @@ def get_gender_mapping(wsj_root: Path):
 
 @click.command()
 @click_common_options(default_json_path='wsj.json', default_database_path=wsj)
-@click.option('--wav', is_flag=True,
-              help='Store wav paths in json file, otherwise nist paths')
+@click.option(
+    '--wav',
+    is_flag=True,
+    help='Store wav paths in json file, otherwise nist paths'
+)
 def main(database_path, json_path, wav):
     json = create_database(database_path, wav)
     print("Check that all wav files in the json exist.")
