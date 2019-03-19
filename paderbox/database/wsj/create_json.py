@@ -14,7 +14,6 @@ from paderbox.database.helper import (
     )
 
 
-
 def read_nsamples(audio_path):
 
     if audio_path.suffix == '.wv1':
@@ -163,7 +162,7 @@ def read_ndx(ndx_file: Path, wsj_root, as_wav,
         # slash
         audio_path = wsj_root / disk / wav_path
         if as_wav:
-            audio_path = Path(f'{audio_path.parent / audio_path.stem}.wav')
+            audio_path = audio_path.with_suffix('.wav')
         if "11-2.1/wsj0/si_tr_s/401" in str(audio_path):
             continue  # skip 401 subdirectory in train sets
         fixed_paths.append(audio_path)
@@ -238,8 +237,7 @@ def get_transcriptions(root: Path, wsj_root: Path):
     kaldi_wsj_data_dir = wsj_root / "kaldi_data"
     files = list(kaldi_wsj_data_dir.glob('*.txt'))
     for file in files:
-        file_path = kaldi_wsj_data_dir / file
-        with open(file_path) as fid:
+        with open(file) as fid:
             matches = re.findall("^(\S+) (.+)$", fid.read(), flags=re.M)
         kaldi.update({utt_id: trans for utt_id, trans in matches})
 
@@ -261,6 +259,7 @@ def normalize_transcription(transcriptions, wsj_root: Path):
 
     :return result: Clean transcription dictionary
     """
+    assert len(transcriptions) > 0, 'No transcriptions to clean up.'
     with tempfile.TemporaryDirectory() as temporary_directory:
         temporary_directory = Path(temporary_directory).absolute()
         with open(temporary_directory / 'dirty.txt', 'w') as f:
