@@ -266,7 +266,10 @@ def scenario_map_fn(
     _, D, rir_length = h.shape
 
     if truncate_rir:
-        rir_stop_sample = rir_start_sample + int(SAMPLE_RATE * 0.05)
+        # TODO: SAMPLE_RATE not defined
+        # rir_stop_sample = rir_start_sample + int(SAMPLE_RATE * 0.05)
+        rir_stop_sample = rir_start_sample + int(8000 * 0.05)
+
         h[..., rir_stop_sample:] = 0
     # print(f'h {h.shape}')
 
