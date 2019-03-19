@@ -27,13 +27,6 @@ __all__ = [
 
 
 class WsjBss(JsonDatabase):
-    rate_in_audio = 16000
-    rate_in_rir = 8000
-    rate_out = 8000
-    assert rate_in_audio % rate_out == 0
-    factor = rate_in_audio // rate_out
-
-    # TODO: Implement `build_select_channels_map_fn`? See KaldiHybridASRProvider
     def __init__(
             self,
             json_path: [str, Path]=JSON_PATH,
@@ -69,48 +62,6 @@ class WsjBss(JsonDatabase):
     @property
     def datasets_test(self):
         return self._datasets_test
-
-    @property
-    def read_fn(self):
-        def fn(x):
-            x, sample_rate = audioread.audioread(x)
-
-            if x.ndim == 1 and sample_rate == self.rate_in_audio:
-                x = x.astype(np.float32)
-                command = (
-                    f'sox -N -V1 -t f32 -r {self.rate_in_audio} -c 1 - '
-                    f'-t f32 -r {self.rate_out} -c 1 -'
-                )
-                process = subprocess.run(
-                    command,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    input=x.tobytes(order="f")
-                )
-                x_resample = np.fromstring(process.stdout, dtype=np.float32)
-                assert x_resample.size > 0, (
-                    'The command did not yield any output:\n'
-                    f'x.shape: {x.shape}\n'
-                    f'x_resampled.shape: {x_resample.shape}\n'
-                    f'command: {command}\n'
-                    f'stdout: {process.stdout.decode()}\n'
-                    f'stderr: {process.stderr.decode()}\n'
-                )
-                return x_resample
-            if x.ndim == 2 and sample_rate == self.rate_in_rir == self.rate_out:
-                return x
-            else:
-                raise RuntimeError(
-                    f'Unexpected file found: {x}\n'
-                    f'x.shape: {x.shape}\n'
-                    f'sample_rate: {sample_rate}\n'
-                    f'self.rate_in: {self.rate_in_audio}\n'
-                    f'self.rate_in: {self.rate_in_rir}\n'
-                    f'self.rate_out: {self.rate_out}\n'
-                )
-
-        return fn
 
 
 class WsjBssKaldiDatabase(HybridASRKaldiDatabaseTemplate):

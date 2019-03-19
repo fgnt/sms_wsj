@@ -35,8 +35,6 @@ def main(json_path, database_path):
         train_si284=dict(source_dataset_name="train_si284"),
         cv_dev93=dict(source_dataset_name="cv_dev93"),
         test_eval92=dict(source_dataset_name="test_eval92"),
-        # test_eval92_narrow=dict(source_dataset_name="test_eval92"),
-        # test_eval92_wide=dict(source_dataset_name="test_eval92"),
     )
 
     rir_db = JsonDatabase(database_path / "scenarios.json")
