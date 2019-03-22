@@ -271,7 +271,6 @@ def scenario_map_fn(
         rir_stop_sample = rir_start_sample + int(8000 * 0.05)
 
         h[..., rir_stop_sample:] = 0
-    # print(f'h {h.shape}')
 
     log_weights = example[LOG_WEIGHTS]
 
@@ -284,7 +283,6 @@ def scenario_map_fn(
 
     for x_, T_ in zip(x, example[NUM_SAMPLES][SPEECH_SOURCE]):
         assert x_.shape == (D, T_ + rir_length - 1)
-    # print(f'x_ {x_.shape}')
 
     # This is Jahn's heuristic to be able to still use WSJ alignments.
     offset = [offset_ - rir_start_sample for offset_ in example['offset']]
@@ -293,7 +291,9 @@ def scenario_map_fn(
     x = np.stack(x, axis=0)
     assert x.shape == (K, D, T), x.shape
 
-    x /= np.maximum(np.std(x, axis=-1, keepdims=True), np.finfo(x.dtype).tiny)
+    # Rescale such that invasive SIR is as close as possible to `log_weights`.
+    std = np.std(x, axis=(-2, -1), keepdims=True)
+    x /= np.maximum(std, np.finfo(x.dtype).tiny)
     x *= 10 ** (np.asarray(log_weights)[:, None, None] / 20)
 
     example[AUDIO_DATA][SPEECH_IMAGE] = x
