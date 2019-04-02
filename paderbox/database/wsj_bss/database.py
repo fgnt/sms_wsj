@@ -183,6 +183,8 @@ def extract_piece(x, offset, target_length):
     Args:
         x:
         offset:
+            If negative, cut left side.
+            If positive: pad left side.
         target_length:
 
     Returns:
