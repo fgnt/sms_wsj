@@ -285,7 +285,7 @@ def scenario_map_fn(
     h = example[AUDIO_DATA][RIR]  # Shape (K, D, T)
 
     # Estimate start sample first, to make it independent of channel_mode
-    rir_start_sample = get_rir_start_sample(h)
+    rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
 
     _, D, rir_length = h.shape
 
@@ -309,7 +309,10 @@ def scenario_map_fn(
             assert x_.shape == (D, T_ + rir_length - 1), (x_.shape, D, T_ + rir_length - 1)
 
         # This is Jahn's heuristic to be able to still use WSJ alignments.
-        offset = [offset_ - rir_start_sample for offset_ in example['offset']]
+        offset = [
+            offset_ - rir_start_sample_
+            for offset_, rir_start_sample_ in zip(example['offset'], rir_start_sample)
+        ]
 
         x = [extract_piece(x_, offset_, T) for x_, offset_ in zip(x, offset)]
         x = np.stack(x, axis=0)
@@ -332,14 +335,17 @@ def scenario_map_fn(
 
     if add_speech_reverberation_direct:
         h_early = h.copy()
-        h_early[..., rir_stop_sample:] = 0
+        # Replace this with advanced indexing
+        for i, h_k in enumerate(h_early):
+            h_early[..., rir_stop_sample[i]:] = 0
         x_early = get_convolved_signals(h_early)
         x_early *= scale
         example[AUDIO_DATA][SPEECH_REVERBERATION_DIRECT] = x_early
 
     if add_speech_reverberation_tail:
         h_tail = h.copy()
-        h_tail[..., :rir_stop_sample] = 0
+        for i, h_k in enumerate(h_tail):
+            h_tail[..., :rir_stop_sample[i]] = 0
         x_tail = get_convolved_signals(h_tail)
         x_tail *= scale
         example[AUDIO_DATA][SPEECH_REVERBERATION_TAIL] = x_tail
