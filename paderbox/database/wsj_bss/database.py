@@ -7,7 +7,6 @@ from paderbox.database import JsonDatabase
 from paderbox.database.database import HybridASRKaldiDatabaseTemplate
 from paderbox.io.data_dir import kaldi_root
 from paderbox.io.data_dir import database_jsons
-from paderbox.io import audioread
 from paderbox.database.keys import *
 import hashlib
 from paderbox.utils.numpy_utils import pad_axis
@@ -206,11 +205,11 @@ def extract_piece(x, offset, target_length):
 def scenario_map_fn(
         example,
         *,
-        mode=None,
-        channel_mode='all',
-        truncate_rir=False,
         snr_range: tuple,
-        rir_type='image_method'
+
+        sync_speech_source=True,
+        add_speech_reverberation_direct=True,
+        add_speech_reverberation_tail=True,
 ):
     """
     This will care for convolution with RIR and also generate noise.
@@ -220,59 +219,81 @@ def scenario_map_fn(
 
     Args:
         example: Example dictionary.
-        mode: 'train', 'eval', or 'predict', is deprecated. You can use an
-            external code to do this. It is here for legacy code.
-        channel_mode: Is deprecated. You can use an
-            external code to do this. It is here for legacy code.
-        truncate_rir:
         snr_range: Lukas used (20, 30) here.
             This will make your reviewer angry.
-        rir_type:
-            image_method: Will be the provided pre-generated RIRs.
-            mird: Will be random selections from the MIRD database.
+        sync_speech_source: pad and/or cut the source signal to match the
+            length of the observations. Considers the offset.
+        add_speech_reverberation_direct:
+            Calculate the speech_reverberation_direct signal.
+        add_speech_reverberation_tail:
+            Calculate the speech_reverberation_tail signal.
 
     Returns:
 
+    >>> import functools
+    >>> import paderbox as pb
+    >>> dataset = 'cv_dev93'
+    >>> db = pb.database.wsj_bss.WsjBss()
+    >>> ds = db.get_iterator_by_names(dataset)
+    >>> ds = ds.map(pb.database.iterator.AudioReader(
+    ...     audio_keys=['speech_source', 'rir'],
+    ...     read_fn=db.read_fn,
+    ... ))
+    >>> ds = ds.map(functools.partial(
+    ...     pb.database.wsj_bss.scenario_map_fn,
+    ...     snr_range=(20, 30),  # Too high, reviewer won't like this
+    ...     add_speech_reverberation_direct=True,
+    ...     add_speech_reverberation_tail=True,
+    ...     sync_speech_source=True,
+    ... ))
+    >>> example = ds[0]
+    >>> pb.notebook.pprint(example)
+    {'audio_path': {'rir': ['/net/fastdb/wsj_bss/cv_dev93/0/h_0.wav',
+       '/net/fastdb/wsj_bss/cv_dev93/0/h_1.wav'],
+      'speech_source': ['/net/fastdb/wsj_8k/13-16.1/wsj1/si_dt_20/4k0/4k0c0301.wav',
+       '/net/fastdb/wsj_8k/13-16.1/wsj1/si_dt_20/4k6/4k6c030t.wav']},
+     'dataset': 'cv_dev93',
+     'example_id': '4k0c0301_4k6c030t_0',
+     'gender': ['male', 'male'],
+     'kaldi_transcription': ['SAATCHI OFFICIALS SAID THE MANAGEMENT RE:STRUCTURING MIGHT ACCELERATE ITS EFFORTS TO PERSUADE CLIENTS TO USE THE FIRM AS A ONE STOP SHOP FOR BUSINESS SERVICES',
+      "THEY HAVE SPENT SEVEN YEARS AND MORE THAN THREE HUNDRED MILLION DOLLARS IN U. S. AID BUILDING THE AREA'S BIGGEST INSURGENT FORCE"],
+     'log_weights': [1.2027951449295022, -1.2027951449295022],
+     'num_samples': {'observation': 103650, 'speech_source': [103650, 56335]},
+     'num_speakers': 2,
+     'offset': [0, 17423],
+     'room_dimensions': [[8.169], [5.905], [3.073]],
+     'sensor_position': [[3.899, 3.8, 3.759, 3.817, 3.916, 3.957],
+      [3.199, 3.189, 3.098, 3.017, 3.027, 3.118],
+      [1.413, 1.418, 1.423, 1.423, 1.417, 1.413]],
+     'sound_decay_time': 0.354,
+     'source_id': ['4k0c0301', '4k6c030t'],
+     'source_position': [[2.443, 2.71], [3.104, 2.135], [1.557, 1.557]],
+     'speaker_id': ['4k0', '4k6'],
+     'audio_data': {'speech_source': ndarray(shape=(2, 103650), dtype=float64),
+      'rir': ndarray(shape=(2, 6, 8192), dtype=float64),
+      'speech_image': ndarray(shape=(2, 6, 103650), dtype=float64),
+      'speech_reverberation_direct': ndarray(shape=(2, 6, 103650), dtype=float64),
+      'speech_reverberation_tail': ndarray(shape=(2, 6, 103650), dtype=float64),
+      'noise_image': ndarray(shape=(6, 103650), dtype=float64),
+      'observation': ndarray(shape=(6, 103650), dtype=float64)},
+     'snr': 29.749852569493584}
+    >>> speech_image = example['audio_data']['speech_reverberation_direct'] + example['audio_data']['speech_reverberation_tail']
+    >>> np.testing.assert_allclose(speech_image, example['audio_data']['speech_image'], atol=1e-10)
+    >>> 10 * np.log10(np.mean(example['audio_data']['speech_image']**2, axis=(-2, -1)))
+    array([ 1.20279517, -1.20279514])
     """
-    if rir_type == 'image_method':
-        h = example[AUDIO_DATA][RIR]  # Shape (K, D, T)
-    elif rir_type == 'mird':
-        # TODO: Meta information is wrong, since we do not load MIRD meta info
-        # TODO: It is also a shame, that we load the wrong RIRs first.
-        h = get_valid_mird_rirs(rng=get_rng('', example[EXAMPLE_ID]))
-    else:
-        raise ValueError(rir_type)
+    h = example[AUDIO_DATA][RIR]  # Shape (K, D, T)
 
     # Estimate start sample first, to make it independent of channel_mode
     rir_start_sample = get_rir_start_sample(h)
 
-    if isinstance(channel_mode, dict):
-        channel_mode = channel_mode[mode]
-
-    if channel_mode == "deterministic":
-        channels = [0]
-        h = h[:, channels, :]
-    elif channel_mode == "random":
-        channels = np.random.randint(0, h.shape[1], size=(1,))
-        h = h[:, channels, :]
-    elif channel_mode == "all":
-        pass
-    elif channel_mode == "deterministic_2":
-        channels = [0, 1]
-        h = h[:, channels, :]
-    elif channel_mode == "random_2":
-        channels = np.random.randint(0, h.shape[1], size=(2,))
-        h = h[:, channels, :]
-    else:
-        raise ValueError(channel_mode[mode])
     _, D, rir_length = h.shape
 
-    if truncate_rir:
-        # TODO: SAMPLE_RATE not defined
-        # rir_stop_sample = rir_start_sample + int(SAMPLE_RATE * 0.05)
-        rir_stop_sample = rir_start_sample + int(8000 * 0.05)
-
-        h[..., rir_stop_sample:] = 0
+    # TODO: SAMPLE_RATE not defined
+    # rir_stop_sample = rir_start_sample + int(SAMPLE_RATE * 0.05)
+    # Use 50 milliseconds as early rir part, excluding the propagation delay
+    #    (i.e. "rir_start_sample")
+    rir_stop_sample = rir_start_sample + int(8000 * 0.05)
 
     log_weights = example[LOG_WEIGHTS]
 
@@ -281,33 +302,68 @@ def scenario_map_fn(
     T = example[NUM_SAMPLES][OBSERVATION]
     s = example[AUDIO_DATA][SPEECH_SOURCE]
 
-    x = [convolve(s_, h_, truncate=False) for s_, h_ in zip(s, h)]
+    def get_convolved_signals(h):
+        x = [convolve(s_, h_, truncate=False) for s_, h_ in zip(s, h)]
 
-    for x_, T_ in zip(x, example[NUM_SAMPLES][SPEECH_SOURCE]):
-        assert x_.shape == (D, T_ + rir_length - 1)
+        for x_, T_ in zip(x, example[NUM_SAMPLES][SPEECH_SOURCE]):
+            assert x_.shape == (D, T_ + rir_length - 1), (x_.shape, D, T_ + rir_length - 1)
 
-    # This is Jahn's heuristic to be able to still use WSJ alignments.
-    offset = [offset_ - rir_start_sample for offset_ in example['offset']]
+        # This is Jahn's heuristic to be able to still use WSJ alignments.
+        offset = [offset_ - rir_start_sample for offset_ in example['offset']]
 
-    x = [extract_piece(x_, offset_, T) for x_, offset_ in zip(x, offset)]
-    x = np.stack(x, axis=0)
-    assert x.shape == (K, D, T), x.shape
+        x = [extract_piece(x_, offset_, T) for x_, offset_ in zip(x, offset)]
+        x = np.stack(x, axis=0)
+        assert x.shape == (K, D, T), x.shape
+        return x
+
+    x = get_convolved_signals(h)
+
+    # Note: scale depends on channel mode
+    std = np.maximum(
+        np.std(x, axis=(-2, -1), keepdims=True),
+        np.finfo(x.dtype).tiny,
+    )
 
     # Rescale such that invasive SIR is as close as possible to `log_weights`.
-    std = np.std(x, axis=(-2, -1), keepdims=True)
-    x /= np.maximum(std, np.finfo(x.dtype).tiny)
-    x *= 10 ** (np.asarray(log_weights)[:, None, None] / 20)
+    scale = (10 ** (np.asarray(log_weights)[:, None, None] / 20)) / std
 
+    x *= scale
     example[AUDIO_DATA][SPEECH_IMAGE] = x
+
+    if add_speech_reverberation_direct:
+        h_early = h.copy()
+        h_early[..., rir_stop_sample:] = 0
+        x_early = get_convolved_signals(h_early)
+        x_early *= scale
+        example[AUDIO_DATA][SPEECH_REVERBERATION_DIRECT] = x_early
+
+    if add_speech_reverberation_tail:
+        h_tail = h.copy()
+        h_tail[..., :rir_stop_sample] = 0
+        x_tail = get_convolved_signals(h_tail)
+        x_tail *= scale
+        example[AUDIO_DATA][SPEECH_REVERBERATION_TAIL] = x_tail
+
+    if sync_speech_source:
+        example[AUDIO_DATA][SPEECH_SOURCE] = np.array([
+            extract_piece(x_, offset_, T)
+            for x_, offset_ in zip(
+                example[AUDIO_DATA][SPEECH_SOURCE],
+                example['offset'],
+            )
+        ])
+
     clean_mix = np.sum(x, axis=0)
 
     rng = _example_id_to_rng(example[EXAMPLE_ID])
     snr = rng.uniform(*snr_range)
     example["snr"] = snr
 
-    # TODO: Maybe does not yield same noise depending on `channel_mode`
     rng = _example_id_to_rng(example[EXAMPLE_ID])
     ng = NoiseGeneratorWhite()
+
+    # Should the SNR be defined of "reverberated vs noise" or
+    # "early reverberated vs noise"?
     n = ng.get_noise_for_signal(clean_mix, snr=snr, rng_state=rng)
     example[AUDIO_DATA][NOISE_IMAGE] = n
     example[AUDIO_DATA][OBSERVATION] = clean_mix + n
