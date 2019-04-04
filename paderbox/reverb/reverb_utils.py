@@ -6,6 +6,7 @@ import itertools
 
 import numpy as np
 import scipy
+import scipy.signal
 
 import paderbox.reverb.CalcRIR_Simple_C as tranVuRIR
 import paderbox.reverb.rirgen
@@ -536,8 +537,8 @@ def convolve(signal, impulse_response, truncate=False):
 
     >>> signal = np.asarray([1, 2, 3])
     >>> impulse_response = np.asarray([1, 1])
-    >>> convolve(signal, impulse_response).tolist()
-    [1, 3, 5, 3]
+    >>> print(convolve(signal, impulse_response))
+    [1. 3. 5. 3.]
 
     >>> K, T, D, filter_length = 2, 12, 3, 5
     >>> signal = np.random.normal(size=(K, T))
@@ -564,17 +565,24 @@ def convolve(signal, impulse_response, truncate=False):
         f'signal.shape {signal.shape} does not match ' \
         f'impulse_response.shape {impulse_response.shape}'
 
-    slices = [range(s) for s in independent]
+    # slices = [range(s) for s in independent]
 
-    x_shape = (*independent, sensors, samples + filter_length - 1)
-    x = np.zeros(x_shape, dtype=signal.dtype)
+    # x_shape = (*independent, sensors, samples + filter_length - 1)
+    # x = np.zeros(x_shape, dtype=signal.dtype)
+    #
+    # for indices in itertools.product(*slices):
+    #     for target_index in range(sensors):
+    #         x[(*indices, target_index, slice(None))] = scipy.signal.fftconvolve(
+    #             signal[(*indices, slice(None))],
+    #             impulse_response[(*indices, target_index, slice(None))]
+    #         )
 
-    for indices in itertools.product(*slices):
-        for target_index in range(sensors):
-            x[(*indices, target_index, slice(None))] = scipy.signal.fftconvolve(
-                signal[(*indices, slice(None))],
-                impulse_response[(*indices, target_index, slice(None))]
-            )
+    x = scipy.signal.fftconvolve(
+        signal[..., None, :],
+        impulse_response,
+        axes=-1
+    )
+
     return x[..., :samples] if truncate else x
 
 
