@@ -1,4 +1,3 @@
-import subprocess
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +25,56 @@ __all__ = [
 
 
 class WsjBss(JsonDatabase):
+    """
+    For the simulated database, we artificially generated 30000, 500 and 1500
+    six-channel mixtures with a sampling rate of 8 kHz with source signals
+    obtained from three non-overlapping WSJ sets (train: si284, develop: dev93,
+    test: eval92.
+
+    We padded or cut the second speaker to match the length of the first
+    speaker. Room impulse responses were generated with the Image Method, where
+    the room dimensions, the position of the circular array with radius 10 cm
+    and the position of two concurring speakers were randomly sampled. The
+    minimum angular distance was set to 15 degree. The reverberation time (T60)
+    was uniformly sampled between 200 and 500 ms. White Gaussian noise with 20
+    to 30 dB SNR was added to the mixture. We here deviated from the file lists
+    provided by since the speakers of their training set and development set
+    overlap and although their training set consists of 20000 mixtures it only
+    includes 6842 unique utterances from si84 which turned out to be
+    insufficient when training an acoustic model on that list.
+
+    v1:
+    At the time of creating v1, there was no publicly available simulated
+    database for multi-channel BSS. We did not build this on `merl_mixtures`,
+    because `merl_mixtures` did not have enough variability in the underlying
+    speech data to train a good ASR system. This database is closer to the
+    single speaker WSJ database and therefore allows to use the WSJ recipes in
+    Kaldi more easily.
+
+    There currently exists a spatialized (reverberated) version of
+    `merl_mixtures` at [1].
+
+    v2:
+    In v1 the channels were normalized independently. This led to a spatial
+    distortion. Now all channels are normalized with the same value. This
+    implies, that you need to load all channels to have deterministic output.
+    This is crucial for development and test.
+
+    The start sample is now calculated per speaker. In v1 the propagation delay
+    was calculated for all speakers and therefore the propagation delay was too
+    small for the furthest speaker. Now, it is more likely that you can use
+    clean speech alignments to train an ASR system on this database.
+
+    In v1 you were able to truncate the RIR to obtain, e.g., early alignments.
+    Now, v2 calculates the early image (direct) and the tail image which allows
+    to even train a system to predict the early arriving speech.
+
+    The SNR was changed from 20-30 dB to 15-25 dB to address the critique of
+    a reviewer. We decided to keep it somewhat high since the noise type is
+    AWGN and is not very realistic anyway.
+
+    [1] http://www.merl.com/demos/deep-clustering
+    """
     def __init__(
             self,
             json_path: [str, Path]=JSON_PATH,
