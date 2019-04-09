@@ -99,7 +99,7 @@ def get_randomized_example(
 
     example[SPEAKER_ID] = [ex[SPEAKER_ID] for ex in source_examples]
     if len(set(example[SPEAKER_ID])) < example[NUM_SPEAKERS]:
-        return  # Rejection sampling
+        return  # asserts that no speaker_id is used twice
 
     example["source_id"] = [ex[EXAMPLE_ID] for ex in source_examples]
 
