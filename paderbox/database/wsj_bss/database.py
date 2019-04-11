@@ -4,6 +4,7 @@ import numpy as np
 
 from paderbox.database import JsonDatabase
 from paderbox.database.database import HybridASRKaldiDatabaseTemplate
+from paderbox.database.database import HybridASRJSONDatabaseTemplate
 from paderbox.io.data_dir import kaldi_root
 from paderbox.io.data_dir import database_jsons
 from paderbox.database.keys import *
@@ -24,7 +25,7 @@ __all__ = [
 ]
 
 
-class WsjBss(JsonDatabase):
+class WsjBss(HybridASRJSONDatabaseTemplate):
     """
     For the simulated database, we artificially generated 30000, 500 and 1500
     six-channel mixtures with a sampling rate of 8 kHz with source signals
@@ -82,7 +83,7 @@ class WsjBss(JsonDatabase):
             datasets_eval=None,
             datasets_test=None,
     ):
-        super().__init__(json_path=json_path)
+        super().__init__(json_path=json_path, lfr=False)
 
         if datasets_train is None:
             self._datasets_train = 'train_si284'
@@ -111,6 +112,40 @@ class WsjBss(JsonDatabase):
     def datasets_test(self):
         return self._datasets_test
 
+    @property
+    def lang_path(self):
+        return kaldi_root / 'egs' / 'wsj_8k' / 's5' / 'data' / 'lang'
+
+    @property
+    def hclg_path_ffr(self):
+        """Path to HCLG directory created by Kaldi."""
+        return kaldi_root / 'egs' / 'wsj_8k' / 's5' / 'exp' \
+            / 'tri4b' / 'graph_tgpr'
+
+    @property
+    def hclg_path_lfr(self):
+        """Path to HCLG directory created by Kaldi."""
+        return kaldi_root / 'egs' / 'wsj_8k' / 's5' / 'exp' \
+            / 'tri4b_ali_si284_lfr' / 'graph_tgpr'
+
+    @property
+    def ali_path_train_ffr(self):
+        """Path containing the kaldi alignments for train data."""
+        return kaldi_root / 'egs' / 'wsj_8k' / 's5' / 'exp' / 'tri4b_ali_si284'
+
+    @property
+    def ali_path_eval_ffr(self):
+        """Path containing the kaldi alignments for dev data."""
+        return kaldi_root / 'egs' / 'wsj_8k' / 's5' / 'exp' / 'tri4b_ali_test_dev93'
+
+    @property
+    def example_id_map_fn(self):
+        # provides a function to map example_id to kaldi wsj_8kHz ids
+        def _map_example_id(example):
+            example_id = example[EXAMPLE_ID].split('_')[0]
+            return example_id
+
+        return _map_example_id
 
 class WsjBssKaldiDatabase(HybridASRKaldiDatabaseTemplate):
     rate_in = 8000
