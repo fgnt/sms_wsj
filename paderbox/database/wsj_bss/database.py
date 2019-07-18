@@ -147,6 +147,7 @@ class WsjBss(HybridASRJSONDatabaseTemplate):
 
         return _map_example_id
 
+
 class WsjBssKaldiDatabase(HybridASRKaldiDatabaseTemplate):
     rate_in = 8000
     rate_out = 8000
