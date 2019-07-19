@@ -1,0 +1,1 @@
+def create_data_dir(storage_dir, json, db='wsj_8k'):
