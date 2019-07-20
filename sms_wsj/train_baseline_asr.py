@@ -6,7 +6,7 @@ from sms_wsj.utils.process_caller import run_process
 
 
 from sms_wsj.kaldi.utils import create_data_dir, create_kaldi_dir
-from paderbox.database import JsonDatabase
+from sms_wsj.database import JsonDatabase
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])
 assert kaldi_root.exists(), (
@@ -41,14 +41,14 @@ def run(_config, egs_path, json_path, stage):
     if stage <= 0:
         create_kaldi_dir(sms_kaldi_dir)
     if stage <= 1:
-        create_data_dir(sms_kaldi_dir, sms_db, db_name='wsj_db')
-    run_process([
-        f'{sms_kaldi_dir}/get_model.bash',
-        '--dest_dir', f'{sms_kaldi_dir}',
-        '--train_set', str(sms_db.datasets_train[0]),
-        '--dev_sets', str(sms_db.datasets_eval[0]),
-        '--num_jobs', str(_config["num_jobs"])],
-        cwd=str(sms_kaldi_dir),
-        stdout=None, stderr=None
-    )
+        create_data_dir(sms_kaldi_dir, sms_db, data_type='wsj_8k')
+    if stage <= 2:
+        print('Start training tri3 model on wsj_8k')
+        run_process([
+            f'{sms_kaldi_dir}/get_tri3_model.bash',
+            '--dest_dir', f'{sms_kaldi_dir}',
+            '--num_jobs', str(_config["num_jobs"])],
+            cwd=str(sms_kaldi_dir),
+            stdout=None, stderr=None
+        )
 
