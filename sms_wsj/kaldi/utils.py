@@ -18,9 +18,10 @@ kaldi_root = Path(os.environ['KALDI_ROOT'])
 SAMPLE_RATE = 8000
 
 REQUIRED_FILES = []
-REQUIRED_DIRS = ['data/lang', 'data/local', 'local', 'steps', 'utils']
+REQUIRED_DIRS = ['data/lang', 'data/local',
+                 'local', 'steps', 'utils']
 REQUIRED_SCRIPTS = ['get_tri3_model.bash']
-DIRS_WITH_CHANGEABLE_FILES = ['conf']
+DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr']
 
 
 
