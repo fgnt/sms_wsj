@@ -71,7 +71,7 @@ steps/train_mono.sh --boost-silence 1.25 --nj 10 --cmd "$train_cmd" \
 steps/align_si.sh --boost-silence 1.25 --nj 10 --cmd "$train_cmd" \
       data/$dataset/train_si84_half data/lang exp/$dataset/mono0a exp/$dataset/mono0a_ali || exit 1;
                 
-utils/mkgraph.sh data/lang exp/$dataset/mono0a exp/$dataset/mono0a/graph_nosp_tgpr || exit 1;
+utils/mkgraph.sh data/lang_test_tgpr exp/$dataset/mono0a exp/$dataset/mono0a/graph_tgpr || exit 1;
 
 
 ################################################################################
@@ -84,7 +84,7 @@ steps/train_deltas.sh --boost-silence 1.25 --cmd "$train_cmd" 2000 10000 \
 steps/align_si.sh --nj 10 --cmd "$train_cmd" \
       data/$dataset/train_si84 data/lang exp/$dataset/tri1 exp/$dataset/tri1_ali_si84 || exit 1;
 
-utils/mkgraph.sh data/lang exp/$dataset/tri1 exp/$dataset/tri1/graph_nosp_tgpr || exit 1;
+utils/mkgraph.sh data/lang_test_tgpr exp/$dataset/tri1 exp/$dataset/tri1/graph_tgpr || exit 1;
 
 
 ################################################################################
@@ -99,7 +99,7 @@ steps/train_lda_mllt.sh --cmd "$train_cmd" \
 steps/align_si.sh  --nj 10 --cmd "$train_cmd" \
       data/$dataset/train_si284 data/lang exp/$dataset/tri2b exp/$dataset/tri2b_ali_si284  || exit 1;
 
-utils/mkgraph.sh data/lang exp/$dataset/tri2b exp/$dataset/tri2b/graph_nosp_tgpr || exit 1;
+utils/mkgraph.sh data/lang_test_tgpr exp/$dataset/tri2b exp/$dataset/tri2b/graph_tgpr || exit 1;
 
 
 ################################################################################
@@ -110,7 +110,7 @@ steps/train_sat.sh --cmd "$train_cmd" 4200 40000 \
       data/$dataset/train_si284 data/lang exp/$dataset/tri2b_ali_si284 exp/$dataset/tri3b || exit 1;
 
 
-utils/mkgraph.sh data/lang exp/$dataset/tri3b exp/$dataset/tri3b/graph_nosp_tgpr || exit 1;
+utils/mkgraph.sh data/lang_test_tgpr exp/$dataset/tri3b exp/$dataset/tri3b/graph_tgpr || exit 1;
 
 
 ################################################################################
@@ -125,6 +125,6 @@ steps/align_fmllr.sh --nj 30 --cmd "$train_cmd" \
   data/$dataset/train_si284 data/lang exp/tri4b exp/$dataset/tri4b_ali_si284 || exit 1;
 
 steps/align_fmllr.sh --nj 10 --cmd "$train_cmd" \
-  data/$dataset/test_dev93 data/lang exp/$dataset/tri4b exp/tri4b_ali_test_dev93 || exit 1;
+  data/$dataset/cv_dev93 data/lang exp/$dataset/tri4b exp/tri4b_ali_cv_dev93 || exit 1;
 
 ################################################################################
