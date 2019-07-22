@@ -61,14 +61,14 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
         # Ignore .wv2 files since they are not referenced in our database
         # anyway
         wsj_nist_files = list(wsj_root.rglob("*.wv1"))
-        logging.info(f"About to write {len(written_files)} wav files.")
+        logging.info(f"About to write {len(wsj_nist_files)} wav files.")
     else:
         wsj_nist_files = None
 
     wsj_nist_files = bcast(wsj_nist_files)
 
     for nist_file in tqdm(wsj_nist_files[RANK::SIZE], disable=not IS_MASTER):
-        nist_file: Path
+        assert isinstance(nist_file, Path), nist_file
         signal = read_nist_wsj(nist_file, expected_sample_rate=16000)[0]
 
         target = dst_dir / nist_file.with_suffix('.wav').relative_to(wsj_root)
@@ -78,9 +78,9 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
         audiowrite(signal, target, sample_rate=sample_rate)
 
     if IS_MASTER:
-        created_files = list(wsj_root.rglob("*.wav"))
-        logging.info(f"Written {len(written_files)} wav files.")
-        assert len(wsj_nist_files) == len(created_files)
+        created_files = list(dst_dir.rglob("*.wav"))
+        logging.info(f"Written {len(created_files)} wav files.")
+        assert len(wsj_nist_files) == len(created_files), (len(wsj_nist_files), len(created_files))
 
 
 if __name__ == '__main__':
