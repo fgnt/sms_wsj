@@ -6,6 +6,7 @@ from sms_wsj.utils.process_caller import run_process
 
 
 from sms_wsj.kaldi.utils import create_data_dir, create_kaldi_dir
+from sms_wsj.kaldi.utils import get_alignments
 from sms_wsj.database import JsonDatabase
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])
@@ -51,4 +52,11 @@ def run(_config, egs_path, json_path, stage):
             cwd=str(sms_kaldi_dir),
             stdout=None, stderr=None
         )
+    if stage <= 3:
+        create_data_dir(sms_kaldi_dir, sms_db, data_type='sms_early')
+    if stage <= 4:
+        get_alignments(sms_kaldi_dir, 'sms_early',
+                       num_jobs=_config['num_jobs'])
+    if stage <=5:
+        create_data_dir(sms_kaldi_dir, sms_db, data_type='observation')
 
