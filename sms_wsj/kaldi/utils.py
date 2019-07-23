@@ -1,9 +1,8 @@
 import os
 from pathlib import Path
 import shutil
-from sms_wsj.kaldi.io import dump_keyed_lines
+from paderbox.kaldi.io import dump_keyed_lines
 from sms_wsj import git_root
-import stat
 import stat
 from collections import defaultdict
 
@@ -115,3 +114,5 @@ def create_data_dir(
         assert len(dictionary) > 0, (dataset_name, name)
         dump_keyed_lines(dictionary, path / 'spk2gender')
 
+def get_alignments():
+    pass

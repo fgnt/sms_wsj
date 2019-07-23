@@ -2,12 +2,12 @@ import sacred
 import os
 
 from pathlib import Path
-from sms_wsj.utils.process_caller import run_process
+from paderbox.utils.process_caller import run_process
 
 
 from sms_wsj.kaldi.utils import create_data_dir, create_kaldi_dir
 from sms_wsj.kaldi.utils import get_alignments
-from sms_wsj.database import JsonDatabase
+from paderbox.database import JsonDatabase
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])
 assert kaldi_root.exists(), (

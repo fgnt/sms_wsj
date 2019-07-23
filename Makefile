@@ -3,7 +3,8 @@ WSJ_DIR ?= /net/fastdb/wsj
 SMS_WSJ_DIR ?= cache
 RIR_DIR = $(SMS_WSJ_DIR)/rirs
 JSON_PATH ?= cache
-WSJ_8k_DIR ?= (SMS_WSJ_DIR)/wsj_8k
+export NT_DATABASE_JSONS_DIR=$(JSON_PATH)
+WSJ_8k_DIR ?= $(SMS_WSJ_DIR)/wsj_8k
 on_the_fly = False # if True the reverberated data will be calculated on the fly and not saved to SMS_WSJ_DIR
 num_jobs = 16
 
@@ -12,7 +13,7 @@ cache:
 
 wsj_8k: $(SMS_WSJ_DIR)
 	echo `type python`
-	mpiexec -n ${num_jobs} python -m sms_wsj.wsj.write_resampled_wav --dst-dir $(WSJ_8k_DIR) --wsj-root $(WSJ_DIR)
+	mpiexec -n ${num_jobs} python -m paderbox.database.wsj.write_wav --dst-dir $(WSJ_8k_DIR) --wsj-root $(WSJ_DIR) --sample_rate 8000
 
 wsj.json: $(WSJ_8k_DIR)
 	echo creating $(WSJ_8k_DIR)
@@ -26,7 +27,7 @@ rirs:
 
 sms_wsj.json: $(SMS_WSJ_DIR)/wsj_8k $(RIR_DIR)
 	echo creating $(JSON_PATH)/sms_wsj.json
-	python -m sms_wsj.create_json -j $(JSON_PATH)/sms_wsj.json -db $(RIR_DIR) --wsj-json-path $(WSJ_8k_DIR)
+	python -m sms_wsj.create_json -j $(JSON_PATH)/sms_wsj.json -db $(RIR_DIR) --sample_rate 8k
 
 sms_wsj: $(JSON_PATH)/sms_wsj.json
-	echo creating $(SMS_WSJ_DIR)/wsj_8k
+	echo creating $(SMS_WSJ_DIR) files
