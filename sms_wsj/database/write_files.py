@@ -10,7 +10,7 @@ import click
 import logging
 from pathlib import Path
 from paderbox.database import keys as K
-from paderbox.database.helper import click_convert_to_path
+from paderbox.database.helper import click_convert_to_path, dump_database_as_json
 from paderbox.database.wsj_bss.database import scenario_map_fn
 from paderbox.database.iterator import AudioReader
 from tqdm import tqdm
@@ -25,6 +25,11 @@ type_mapper = {K.SPEECH_SOURCE: 'clean',
                K.SPEECH_REVERBERATION_TAIL: 'tail',
                K.NOISE_IMAGE: 'noise',
                K.OBSERVATION: 'observation'}
+appendix_mapper = {K.SPEECH_SOURCE: ['_0', '_1'],
+                   K.SPEECH_REVERBERATION_DIRECT: ['_0', '_1'],
+                   K.SPEECH_REVERBERATION_TAIL: ['_0', '_1'],
+                   K.NOISE_IMAGE: [''],
+                   K.OBSERVATION: ['']}
 snr_range = (20, 30)
 
 def normalize_audio(d: dict):
@@ -51,10 +56,7 @@ def normalize_audio(d: dict):
     }
 
 
-def write_wavs(dst_dir, json_path, write_all=False):
-
-
-    db = JsonDatabase(json_path)
+def write_wavs(dst_dir, ds, write_all=False):
     if write_all:
         if IS_MASTER:
             [(dst_dir / data_type).mkdir(exist_ok=False)
@@ -74,8 +76,7 @@ def write_wavs(dst_dir, json_path, write_all=False):
             add_speech_reverberation_direct=False,
             add_speech_reverberation_tail=False
         )
-    ds = db.get_dataset(['train_si284', 'cv_dev93', 'test_eval92']).\
-        map(AudioReader(audio_keys=[K.RIR, K.SPEECH_SOURCE])).map(map_fn)
+    ds = ds.map(AudioReader(audio_keys=[K.RIR, K.SPEECH_SOURCE])).map(map_fn)
 
     for example in tqdm(ds[RANK::SIZE], disable=not IS_MASTER):
         audio_dict = example[K.AUDIO_DATA]
@@ -90,14 +91,9 @@ def write_wavs(dst_dir, json_path, write_all=False):
             path = dst_dir / type_mapper[key]
             if key in [K.OBSERVATION, K.NOISE_IMAGE]:
                 value = value[None]
-                appendix = ['']
-            elif key in [K.SPEECH_SOURCE, K.SPEECH_REVERBERATION_TAIL, K.SPEECH_REVERBERATION_DIRECT]:
-                appendix = ['_0', '_1']
-            else:
-                raise ValueError('Unexpected key in audio dict', key)
-            for idx, speaker in enumerate(value):
-                signal = value[idx]
-                audio_path = str(path / (example_id + appendix[idx] + '.wav'))
+            for idx, signal in enumerate(value):
+                filename = example_id + appendix_mapper[key][idx] + '.wav'
+                audio_path = str(path / filename)
                 with soundfile.SoundFile(
                         audio_path, subtype='FLOAT', mode='w', samplerate=8000,
                         channels=1 if signal.ndim == 1 else signal.shape[0]
@@ -110,6 +106,29 @@ def write_wavs(dst_dir, json_path, write_all=False):
             assert len(created_files) == (3 * 2 + 2) * len(ds), len(created_files)
         else:
             assert len(created_files) == len(ds), len(created_files)
+
+def create_json(dst_dir, ds, write_all):
+    json_dict = dict()
+
+    for ex in ds:
+        ex_id = ex[K.EXAMPLE_ID]
+        if write_all:
+            ex[K.AUDIO_PATH].update({
+                key: dst_dir / data_type / (ex_id + appendix + '.wav')
+                for key, data_type in type_mapper
+                for appendix in appendix_mapper[key]
+            })
+        else:
+            ex[K.AUDIO_PATH].update({
+                'observation': dst_dir / 'observation' / (ex_id + '.wav')
+            })
+        del ex[ex_id]
+        json_dict[ex_id] = ex
+    return json_dict
+
+
+
+
 
 
 if __name__ == '__main__':
@@ -130,18 +149,35 @@ if __name__ == '__main__':
         type=click.Path(dir_okay=False),
         callback=click_convert_to_path,
     )
-    @click.option('--write-all',
-                  is_flag=True,
-                  help='Flag indicating whether to write everything to'
-                       ' dst_dir or just the observation')
-    def main(dst_dir, json_path, write_all):
+    @click.option(
+        '--write-all',
+        is_flag=True,
+        help='Flag indicating whether to write everything to dst_dir or '
+             'just the observation'
+    )
+    @click.option(
+        '--overwrite-json',
+        is_flag=True,
+        help='Flag indication whether to overwrite the old json with a new '
+             'one with updated paths'
+    )
+    def main(dst_dir, json_path, write_all, overwrite_json):
         logging.info(f"Start - {time.ctime()}")
 
         dst_dir = Path(dst_dir).expanduser().resolve()
         assert dst_dir.is_dir(), dst_dir
         json_path = Path(json_path).expanduser().resolve()
+        assert json_path.is_file(), json_path
 
+        db = JsonDatabase(json_path)
+        ds = db.get_dataset(['train_si284', 'cv_dev93', 'test_eval92'])
         write_wavs(dst_dir, json_path, write_all=write_all)
-        logging.info(f"Done - {time.ctime()}")
 
+        if overwrite_json and IS_MASTER:
+            print(f'Creating a new json and saving it to {json_path}')
+            new_json = create_json(dst_dir, ds, write_all)
+            new_json[K.DATASETS] = db.database_dict[K.DATASETS]
+            dump_database_as_json(json_path, new_json)
+
+        logging.info(f"Done - {time.ctime()}")
     main()
