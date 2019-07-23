@@ -103,7 +103,6 @@ def write_wavs(dst_dir, json_path, write_all=False):
                         channels=1 if signal.ndim == 1 else signal.shape[0]
                 ) as f:
                     f.write(signal.T)
-        break
     if IS_MASTER:
         created_files = list(dst_dir.rglob("*.wav"))
         logging.info(f"Written {len(created_files)} wav files.")
