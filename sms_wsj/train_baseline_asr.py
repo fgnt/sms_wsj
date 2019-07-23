@@ -30,8 +30,13 @@ def config():
     num_jobs = os.cpu_count()
     stage = 0
     # ToDo: change to kaldi_root/egs/ if no egs_path is defined?
-    assert egs_path is not None, 'The directory where all asr training related data is stored has to be defined, use "with storage_dir=/path/to/storage/dir"'
-    assert json_path is not None, 'The path to the json describing the SMS-WSJ database has to be defined, use "with json_path=/path/to/json/sms_wsj.json" (for creating the json use ...)'
+    assert egs_path is not None, \
+        'The directory where all asr training related data is stored has' \
+        ' to be defined, use "with storage_dir=/path/to/storage/dir"'
+    assert json_path is not None, \
+        'The path to the json describing the SMS-WSJ database has to be' \
+        ' defined, use "with json_path=/path/to/json/sms_wsj.json"' \
+        ' (for creating the json use ...)'
 
 
 @ex.automain
