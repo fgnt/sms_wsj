@@ -31,3 +31,4 @@ sms_wsj.json: $(SMS_WSJ_DIR)/wsj_8k $(RIR_DIR)
 
 sms_wsj: $(JSON_PATH)/sms_wsj.json
 	echo creating $(SMS_WSJ_DIR) files
+	mpiexec -np $(num_jobs) python -m sms_wsj.database.write_files --dst-dir $(RIR_DIR) --json-path $(JSON_PATH)/sms_wsj.json --write-all
