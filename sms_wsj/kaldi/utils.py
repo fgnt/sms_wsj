@@ -1,10 +1,11 @@
 import os
-from pathlib import Path
 import shutil
-from paderbox.kaldi.io import dump_keyed_lines
-from sms_wsj import git_root
 import stat
 from collections import defaultdict
+from pathlib import Path
+
+from paderbox.kaldi.io import dump_keyed_lines
+from sms_wsj import git_root
 
 DB2AudioKeyMapper = dict(
     wsj_8k='speech_source',

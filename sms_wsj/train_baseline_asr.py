@@ -1,13 +1,11 @@
-import sacred
 import os
-
 from pathlib import Path
+
+import sacred
+from paderbox.database import JsonDatabase
 from paderbox.utils.process_caller import run_process
-
-
 from sms_wsj.kaldi.utils import create_data_dir, create_kaldi_dir
 from sms_wsj.kaldi.utils import get_alignments
-from paderbox.database import JsonDatabase
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])
 assert kaldi_root.exists(), (
@@ -23,6 +21,7 @@ assert (kaldi_root / 'src' / 'base' / '.depend.mk').exists(), (
     ' kaldi for further information on how to install it'
 )
 ex = sacred.Experiment('Kaldi ASR baseline training')
+
 
 @ex.config
 def config():
@@ -57,6 +56,5 @@ def run(_config, egs_path, json_path, stage):
     if stage <= 4:
         get_alignments(sms_kaldi_dir, 'sms_early',
                        num_jobs=_config['num_jobs'])
-    if stage <=5:
+    if stage <= 5:
         create_data_dir(sms_kaldi_dir, sms_db, data_type='observation')
-

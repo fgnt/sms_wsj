@@ -5,20 +5,22 @@ python -m paderbox.database.wsj.write_wav --dst-dir /destination/dir --json-path
 mpiexec -np 20 python -m paderbox.database.wsj.write_wav --dst-dir /destination/dir --json-path /path/to/sms_wsj.json --write-all
 
 """
-from paderbox.database import JsonDatabase
-import click
 import logging
-from pathlib import Path
-from paderbox.database import keys as K
-from paderbox.database.helper import click_convert_to_path, dump_database_as_json
-from paderbox.database.wsj_bss.database import scenario_map_fn
-from paderbox.database.iterator import AudioReader
-from tqdm import tqdm
-from paderbox.utils.mpi import COMM, RANK, SIZE, MASTER, IS_MASTER, bcast, barrier
-import soundfile
 import time
 from functools import partial
+from pathlib import Path
+
+import click
 import numpy as np
+import soundfile
+from paderbox.database import JsonDatabase
+from paderbox.database import keys as K
+from paderbox.database.helper import click_convert_to_path
+from paderbox.database.helper import  dump_database_as_json
+from paderbox.database.iterator import AudioReader
+from paderbox.database.wsj_bss.database import scenario_map_fn
+from paderbox.utils.mpi import RANK, SIZE, IS_MASTER
+from tqdm import tqdm
 
 type_mapper = {K.SPEECH_SOURCE: 'clean',
                K.SPEECH_REVERBERATION_DIRECT: 'early',
@@ -31,6 +33,7 @@ appendix_mapper = {K.SPEECH_SOURCE: ['_0', '_1'],
                    K.NOISE_IMAGE: [''],
                    K.OBSERVATION: ['']}
 snr_range = (20, 30)
+
 
 def normalize_audio(d: dict):
     """
@@ -103,9 +106,11 @@ def write_wavs(dst_dir, ds, write_all=False):
         created_files = list(dst_dir.rglob("*.wav"))
         logging.info(f"Written {len(created_files)} wav files.")
         if write_all:
-            assert len(created_files) == (3 * 2 + 2) * len(ds), len(created_files)
+            assert len(created_files) == (3 * 2 + 2) * len(ds), len(
+                created_files)
         else:
             assert len(created_files) == len(ds), len(created_files)
+
 
 def create_json(dst_dir, ds, write_all):
     json_dict = dict()
@@ -127,15 +132,12 @@ def create_json(dst_dir, ds, write_all):
     return json_dict
 
 
-
-
-
-
 if __name__ == '__main__':
     logging.basicConfig(
         format='%(levelname)s: %(message)s',
         level=logging.INFO
     )
+
 
     @click.command()
     @click.option(
@@ -180,4 +182,6 @@ if __name__ == '__main__':
             dump_database_as_json(json_path, new_json)
 
         logging.info(f"Done - {time.ctime()}")
+
+
     main()
