@@ -59,9 +59,22 @@ def run(_config, egs_path, json_path, stage, kaldi_cmd, num_jobs):
             stdout=None, stderr=None
         )
     if stage <= 3:
-        create_data_dir(sms_kaldi_dir, sms_db, data_type='sms_early')
+        create_data_dir(sms_kaldi_dir, sms_db, data_type='sms_early',
+                        ref_channels=[0, 1, 2, 3, 4, 5])
     if stage <= 4:
         get_alignments(sms_kaldi_dir, kaldi_cmd=kaldi_cmd,
                        data_type='sms_early', num_jobs=num_jobs)
     if stage <= 5:
-        create_data_dir(sms_kaldi_dir, sms_db, data_type='observation')
+        create_data_dir(sms_kaldi_dir, sms_db, data_type='sms',
+                        ref_channels=[0, 1, 2, 3, 4, 5])
+
+    if stage <=6:
+        print('Start training nnet3 model on sms_wsj')
+        run_process([
+            f'{sms_kaldi_dir}/get_nnet3_model.bash',
+            '--dest_dir', f'{sms_kaldi_dir}',
+            '--num_jobs', str(num_jobs),
+            '--train_cmd', kaldi_cmd],
+            cwd=str(sms_kaldi_dir),
+            stdout=None, stderr=None
+        )
