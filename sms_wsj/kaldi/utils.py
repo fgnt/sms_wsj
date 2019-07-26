@@ -5,6 +5,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from paderbox.kaldi.io import dump_keyed_lines
+from paderbox.utils.process_caller import run_process
 from sms_wsj import git_root
 
 DB2AudioKeyMapper = dict(
@@ -115,5 +116,62 @@ def create_data_dir(
         assert len(dictionary) > 0, (dataset_name, name)
         dump_keyed_lines(dictionary, path / 'spk2gender')
 
-def get_alignments():
-    pass
+
+def calculate_mfccs(base_dir, dataset, num_jobs=20, config='mfcc.conf',
+                    recalc=False, kaldi_cmd='run.pl'):
+    """
+    :param base_dir: kaldi egs directory with steps and utils dir
+    :param dataset: name of folder in data
+    :param num_jobs: number of parallel jobs
+    :param config: mfcc config
+    :param recalc: recalc feats if already calculated
+    :param kaldi_cmd:
+    :return:
+    """
+    base_dir = base_dir.expanduser().resolve()
+
+    if isinstance(dataset, str):
+        dataset = base_dir / 'data' / dataset
+    assert dataset.exists(), dataset
+    if not (dataset / 'feats.scp').exists() or recalc:
+        run_process([
+            'steps/make_mfcc.sh', '--nj', str(num_jobs),
+            '--mfcc-config', f'{base_dir}/conf/{config}',
+            '--cmd', f'{kaldi_cmd}', f'{dataset}',
+            f'{dataset}/make_mfcc', f'{dataset}/mfcc'],
+            cwd=str(base_dir), stdout=None, stderr=None
+        )
+
+    if not (dataset / 'cmvn.scp').exists() or recalc:
+        run_process([
+            f'steps/compute_cmvn_stats.sh',
+            f'{dataset}', f'{dataset}/make_mfcc', f'{dataset}/mfcc'],
+            cwd=str(base_dir), stdout=None, stderr=None
+        )
+    run_process([
+        f'utils/fix_data_dir.sh', f'{dataset}'],
+        cwd=str(base_dir), stdout=None, stderr=None
+    )
+
+
+def get_alignments(egs_dir, num_jobs, kaldi_cmd='run.pl',
+                   data_type='sms_early', dataset_names=None):
+    if dataset_names is None:
+        dataset_names = ('train_si284', 'cv_dev93')
+
+    for dataset in dataset_names:
+        if not (egs_dir / 'data' / data_type / dataset / 'fetas.scp').exists():
+            calculate_mfccs(egs_dir, egs_dir / data_type / dataset_names,
+                            num_jobs=num_jobs, kaldi_cmd=kaldi_cmd)
+        run_process([
+            f'{egs_dir}/steps/align_fmllr.sh',
+            '--cmd', kaldi_cmd,
+            '--nj', str(num_jobs),
+            f'{egs_dir}/data/{data_type}/{dataset}',
+            f'{egs_dir}/data/lang',
+            f'{egs_dir}/exp/{data_type}/tri4b',
+            f'{egs_dir}/exp/{data_type}/tri4b_ali_{dataset}'
+        ],
+            cwd=str(egs_dir),
+            stdout=None, stderr=None
+        )

@@ -29,6 +29,7 @@ def config():
     json_path = None
     num_jobs = os.cpu_count()
     stage = 0
+    kaldi_cmd = 'run.pl'
     # ToDo: change to kaldi_root/egs/ if no egs_path is defined?
     assert egs_path is not None, \
         'The directory where all asr training related data is stored has' \
@@ -40,7 +41,7 @@ def config():
 
 
 @ex.automain
-def run(_config, egs_path, json_path, stage):
+def run(_config, egs_path, json_path, stage, kaldi_cmd, num_jobs):
     sms_db = JsonDatabase(json_path)
     sms_kaldi_dir = Path(egs_path).resolve().expanduser() / 'sms_wsj' / 's5'
     if stage <= 0:
@@ -52,14 +53,15 @@ def run(_config, egs_path, json_path, stage):
         run_process([
             f'{sms_kaldi_dir}/get_tri3_model.bash',
             '--dest_dir', f'{sms_kaldi_dir}',
-            '--num_jobs', str(_config["num_jobs"])],
+            '--num_jobs', str(num_jobs),
+            '--train_cmd', kaldi_cmd],
             cwd=str(sms_kaldi_dir),
             stdout=None, stderr=None
         )
     if stage <= 3:
         create_data_dir(sms_kaldi_dir, sms_db, data_type='sms_early')
     if stage <= 4:
-        get_alignments(sms_kaldi_dir, 'sms_early',
-                       num_jobs=_config['num_jobs'])
+        get_alignments(sms_kaldi_dir, kaldi_cmd=kaldi_cmd,
+                       data_type='sms_early', num_jobs=num_jobs)
     if stage <= 5:
         create_data_dir(sms_kaldi_dir, sms_db, data_type='observation')
