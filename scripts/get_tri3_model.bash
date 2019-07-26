@@ -5,12 +5,9 @@ set -e
 dest_dir=
 num_jobs=16
 dataset=wsj_8k
+train_cmd=run.pl
 
 . ${KALDI_ROOT}/egs/wsj/s5/utils/parse_options.sh
-
-echo $train_set
-echo $dev_sets
-echo $dest_dir
 
 cd ${dest_dir}
 
@@ -18,8 +15,7 @@ green='\033[0;32m'
 NC='\033[0m' # No Color
 trap 'echo -e "${green}$ $BASH_COMMAND ${NC}"' DEBUG
 
-export train_cmd=run.pl
-export decode_cmd="run.pl --mem 2G"
+decode_cmd=$train_cmd
 
 [ -f $KALDI_ROOT/tools/env.sh ] && . $KALDI_ROOT/tools/env.sh
 export PATH=$PWD/utils/:$KALDI_ROOT/tools/openfst/bin:$PWD:$PATH
@@ -119,10 +115,10 @@ utils/mkgraph.sh data/lang_test_tgpr exp/$dataset/tri3b exp/$dataset/tri3b/graph
 # Features: MFCC
 ################################################################################
 steps/train_sat.sh  --cmd "$train_cmd" 4200 40000 \
-      data/$dataset/train_si284 data/lang exp/$dataset/tri3b exp/tri4b || exit 1;
+      data/$dataset/train_si284 data/lang exp/$dataset/tri3b exp/$dataset/tri4b || exit 1;
 
 steps/align_fmllr.sh --nj 30 --cmd "$train_cmd" \
-  data/$dataset/train_si284 data/lang exp/tri4b exp/$dataset/tri4b_ali_si284 || exit 1;
+  data/$dataset/train_si284 data/lang exp/$dataset/tri4b exp/$dataset/tri4b_ali_si284 || exit 1;
 
 steps/align_fmllr.sh --nj 10 --cmd "$train_cmd" \
   data/$dataset/cv_dev93 data/lang exp/$dataset/tri4b exp/tri4b_ali_cv_dev93 || exit 1;
