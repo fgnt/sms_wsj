@@ -59,7 +59,7 @@ def create_kaldi_dir(egs_path):
 
 def create_data_dir(
         kaldi_dir, db, dataset_names=None,
-        data_type ='wsj_8k', target_speaker=0, ref_channel=0
+        data_type='wsj_8k', target_speaker=0, ref_channels=0
 ):
     """
 
@@ -75,7 +75,8 @@ def create_data_dir(
     data_dir = kaldi_dir / 'data' / data_type
     data_dir.mkdir(exist_ok=False, parents=False)
     audio_key = DB2AudioKeyMapper[data_type]
-
+    if not isinstance(ref_channels, (list, tuple)):
+        ref_channels = [ref_channels]
     example_id_to_wav = dict()
     example_id_to_speaker = dict()
     example_id_to_trans = dict()
@@ -87,23 +88,25 @@ def create_data_dir(
         dataset_names = ('train_si284', 'cv_dev93')
     dataset = db.get_dataset(dataset_names)
     for example in dataset:
-        example_id = example['example_id']
-        dataset_name = example['dataset']
-        wav = example['audio_path'][audio_key][target_speaker]
-        wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_channel + 1} |'
-        example_id_to_wav[example_id] = wav_command
-        try:
-            speaker = example['kaldi_transcription'][target_speaker]
-            example_id_to_trans[example_id] = speaker
-        except KeyError as e:
-            raise e
-        speaker_id = example['speaker_id'][target_speaker]
-        example_id_to_speaker[example_id] = speaker_id
-        gender = example['gender'][target_speaker]
-        speaker_to_gender[dataset_name][speaker_id] = gender
-        num_samples = example['num_samples']['observation']
-        example_id_to_duration[example_id] = f"{num_samples/ SAMPLE_RATE:.2f}"
-        dataset_to_example_id[dataset_name].append(example_id)
+        for ref_ch in ref_channels:
+            example_id = example['example_id']
+            dataset_name = example['dataset']
+            wav = example['audio_path'][audio_key][target_speaker]
+            wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
+            example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
+            example_id_to_wav[example_id] = wav_command
+            try:
+                speaker = example['kaldi_transcription'][target_speaker]
+                example_id_to_trans[example_id] = speaker
+            except KeyError as e:
+                raise e
+            speaker_id = example['speaker_id'][target_speaker]
+            example_id_to_speaker[example_id] = speaker_id
+            gender = example['gender'][target_speaker]
+            speaker_to_gender[dataset_name][speaker_id] = gender
+            num_samples = example['num_samples']['observation']
+            example_id_to_duration[example_id] = f"{num_samples/ SAMPLE_RATE:.2f}"
+            dataset_to_example_id[dataset_name].append(example_id)
 
     assert len(example_id_to_speaker) > 0, dataset
     for dataset_name in dataset_names:
@@ -123,11 +126,16 @@ def create_data_dir(
         dictionary = speaker_to_gender[dataset_name]
         assert len(dictionary) > 0, (dataset_name, name)
         dump_keyed_lines(dictionary, path / 'spk2gender')
+        run_process([
+            f'utils/fix_data_dir.sh', f'{path}'],
+            cwd=str(kaldi_dir), stdout=None, stderr=None
+        )
 
 
 def calculate_mfccs(base_dir, dataset, num_jobs=20, config='mfcc.conf',
                     recalc=False, kaldi_cmd='run.pl'):
     """
+
     :param base_dir: kaldi egs directory with steps and utils dir
     :param dataset: name of folder in data
     :param num_jobs: number of parallel jobs
