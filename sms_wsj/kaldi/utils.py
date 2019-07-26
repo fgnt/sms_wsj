@@ -22,7 +22,8 @@ REQUIRED_FILES = []
 REQUIRED_DIRS = ['data/lang', 'data/local',
                  'local', 'steps', 'utils']
 REQUIRED_SCRIPTS = ['get_tri3_model.bash', 'path.sh', 'cmd.sh']
-DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr']
+DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr',
+                              'data/lang_test_tg']
 
 
 
@@ -167,14 +168,15 @@ def get_alignments(egs_dir, num_jobs, kaldi_cmd='run.pl',
         dataset_names = ('train_si284', 'cv_dev93')
 
     for dataset in dataset_names:
-        if not (egs_dir / 'data' / data_type / dataset / 'fetas.scp').exists():
-            calculate_mfccs(egs_dir, egs_dir / data_type / dataset_names,
-                            num_jobs=num_jobs, kaldi_cmd=kaldi_cmd)
+        dataset_dir = egs_dir / 'data' / data_type / dataset
+        if not (dataset_dir / 'feats.scp').exists():
+            calculate_mfccs(egs_dir, dataset_dir, num_jobs=num_jobs,
+                            kaldi_cmd=kaldi_cmd)
         run_process([
             f'{egs_dir}/steps/align_fmllr.sh',
             '--cmd', kaldi_cmd,
             '--nj', str(num_jobs),
-            f'{egs_dir}/data/{data_type}/{dataset}',
+            f'{dataset_dir}',
             f'{egs_dir}/data/lang',
             f'{egs_dir}/exp/{data_type}/tri4b',
             f'{egs_dir}/exp/{data_type}/tri4b_ali_{dataset}'
