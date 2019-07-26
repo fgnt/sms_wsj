@@ -21,7 +21,7 @@ SAMPLE_RATE = 8000
 REQUIRED_FILES = []
 REQUIRED_DIRS = ['data/lang', 'data/local',
                  'local', 'steps', 'utils']
-REQUIRED_SCRIPTS = ['get_tri3_model.bash']
+REQUIRED_SCRIPTS = ['get_tri3_model.bash', 'path.sh', 'cmd.sh']
 DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr']
 
 
@@ -58,14 +58,16 @@ def create_kaldi_dir(egs_path):
 
 def create_data_dir(
         kaldi_dir, db, dataset_names=None,
-        data_type ='wsj_8k', target_speaker=0
+        data_type ='wsj_8k', target_speaker=0, ref_channel=0
 ):
     """
 
     :param kaldi_dir:
     :param db:
-    :param dataset_name:
+    :param dataset_names:
     :param data_type:
+    :param target_speaker:
+    :param ref_channel:
     :return:
     """
     print(f'Create data dir for {data_type} data')
@@ -86,15 +88,20 @@ def create_data_dir(
     for example in dataset:
         example_id = example['example_id']
         dataset_name = example['dataset']
-        example_id_to_wav[example_id] = example['audio_path'][audio_key][target_speaker]
+        wav = example['audio_path'][audio_key][target_speaker]
+        wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_channel + 1} |'
+        example_id_to_wav[example_id] = wav_command
         try:
-            example_id_to_trans[example_id] = example['kaldi_transcription'][target_speaker]
+            speaker = example['kaldi_transcription'][target_speaker]
+            example_id_to_trans[example_id] = speaker
         except KeyError as e:
             raise e
         speaker_id = example['speaker_id'][target_speaker]
         example_id_to_speaker[example_id] = speaker_id
-        speaker_to_gender[dataset_name][speaker_id] = example['gender'][target_speaker]
-        example_id_to_duration[example_id] = f"{example['num_samples']['observation'] / SAMPLE_RATE:.2f}"
+        gender = example['gender'][target_speaker]
+        speaker_to_gender[dataset_name][speaker_id] = gender
+        num_samples = example['num_samples']['observation']
+        example_id_to_duration[example_id] = f"{num_samples/ SAMPLE_RATE:.2f}"
         dataset_to_example_id[dataset_name].append(example_id)
 
     assert len(example_id_to_speaker) > 0, dataset
