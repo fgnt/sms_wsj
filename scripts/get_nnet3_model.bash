@@ -3,11 +3,15 @@
 set -e
 
 dest_dir=
-num_jobs=16
+nj=16
 dataset=sms
-train_cmd=run.pl
-gmm=wsj_8k/tri4b
-stage=0
+train_set=train_si284
+cv_sets=cv_dev93
+
+gmm=tri4b
+gmm_data_type=wsj_8k
+ali_data_type=sms_early
+stage=5
 
 num_threads_ubm=32
 nnet3_affix=       # affix for exp dirs, e.g. it was _cleaned in tedlium.
@@ -36,8 +40,6 @@ remove_egs=true
 . ./path.sh
 . ${KALDI_ROOT}/egs/wsj/s5/utils/parse_options.sh
 
-cd ${dest_dir}
-
 green='\033[0;32m'
 NC='\033[0m' # No Color
 trap 'echo -e "${green}$ $BASH_COMMAND ${NC}"' DEBUG
@@ -50,132 +52,22 @@ where "nvcc" is installed.
 EOF
 fi
 
-
-train_set=train_si284
-cv_sets=cv_dev93
-
-decode_cmd=$train_cmd
-nj_train=$num_jobs
-nj_decode=$num_jobs
-
-for x in ${train_set} $cv_sets ; do
-    utils/fix_data_dir.sh data/$dataset/$x
-done
-
-
-################################################################################
-# Extract MFCC features
-#############################################################################
-
-# Now make MFCC features.
-# mfccdir should be some place with a largish disk where you
-# want to store MFCC features.
-export mfccdir=mfcc
-
-for x in ${train_set} $cv_sets ; do
-    steps/make_mfcc.sh --nj 20 --cmd "$train_cmd" \
-                        data/$dataset/$x exp/$dataset/make_mfcc/$x $mfccdir
-    steps/compute_cmvn_stats.sh data/$dataset/$x exp/$dataset/make_mfcc/$x $mfccdir
-    utils/fix_data_dir.sh data/$dataset/$x
-done
-
-################################################################################
-# cleanup data
-#############################################################################
-# ToDo: should we use kaldi clean up?
-#steps/cleanup/clean_and_segment_data.sh --nj 64 --cmd run.pl \
-#    --segmentation-opts "--min-segment-length 0.3 --min-new-segment-length 0.6" \
-#    data/${dataset}/$train_set data/lang exp/$gmm exp/{dataset}/tri4b_cleaned \
-#    data/${dataset}/${train_set}_cleaned
-
-################################################################################
-# Estimate ivectors
-#############################################################################
-# The iVector-extraction and feature-dumping parts are the same as the standard
-# nnet3 setup, and you can skip them by setting "--stage 11" if you have already
-# run those things.
-local/nnet3/run_ivector_common.sh \
-            --stage $stage --nj $nj \
-            --train-set $train_set --gmm $gmm \
-            --num-threads-ubm $num_threads_ubm \
-            --nnet3-affix "$nnet3_affix" || exit 1;
-
-                                  
-                                  
-                                  
-gmm_dir=exp/${gmm}
-ali_dir=exp/${gmm}_ali_${train_set}_sp
-lat_dir=exp/chain${nnet3_affix}/${gmm}_${train_set}_sp_lats
-dir=exp/chain${nnet3_affix}/tdnn${affix}_sp
-train_data_dir=data/${train_set}_sp_hires
-train_ivector_dir=exp/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires
-lores_train_data_dir=data/${train_set}_sp
-
-# note: you don't necessarily have to change the treedir name
-# each time you do a new experiment-- only if you change the
-# configuration in a way that affects the tree.
-tree_dir=exp/chain${nnet3_affix}/tree_a_sp
+gmm_dir=exp/$gmm_data_type/${gmm}
+ali_dir=exp/$ali_data_type/${gmm}_ali_${train_set}_sp
+lat_dir=exp/$dataset/chain${nnet3_affix}/${gmm}_${train_set}_sp_lats
+dir=exp/$dataset/chain${nnet3_affix}/tdnn${affix}_sp
+train_data_dir=data/$dataset/${train_set}_sp_hires
+train_ivector_dir=exp/$dataset/nnet3${nnet3_affix}/ivectors_${train_set}_sp_hires
+lores_train_data_dir=data/$ali_data_type/${train_set}_sp
+tree_dir=exp/$dataset/chain${nnet3_affix}/tree_a_sp
 # the 'lang' directory is created by this script.
 # If you create such a directory with a non-standard topology
 # you should probably name it differently.
 lang=data/lang_chain
-
-for f in $train_data_dir/feats.scp $train_ivector_dir/ivector_online.scp \
-    $lores_train_data_dir/feats.scp $gmm_dir/final.mdl \
-    $ali_dir/ali.1.gz $gmm_dir/final.mdl; do
-  [ ! -f $f ] && echo "$0: expected file $f to exist" && exit 1
-done
-
-
-if [ $stage -le 12 ]; then
-  echo "$0: creating lang directory $lang with chain-type topology"
-  # Create a version of the lang/ directory that has one state per phone in the
-  # topo file. [note, it really has two states.. the first one is only repeated
-  # once, the second one has zero or more repeats.]
-  if [ -d $lang ]; then
-    if [ $lang/L.fst -nt data/lang/L.fst ]; then
-      echo "$0: $lang already exists, not overwriting it; continuing"
-    else
-      echo "$0: $lang already exists and seems to be older than data/lang..."
-      echo " ... not sure what to do.  Exiting."
-      exit 1;
-    fi
-  else
-    cp -r data/lang $lang
-    silphonelist=$(cat $lang/phones/silence.csl) || exit 1;
-    nonsilphonelist=$(cat $lang/phones/nonsilence.csl) || exit 1;
-    # Use our special topology... note that later on may have to tune this
-    # topology.
-    steps/nnet3/chain/gen_topo.py $nonsilphonelist $silphonelist >$lang/topo
-  fi
-fi
-
-if [ $stage -le 13 ]; then
-  # Get the alignments as lattices (gives the chain training more freedom).
-  # use the same num-jobs as the alignments
-  steps/align_fmllr_lats.sh --nj 100 --cmd "$train_cmd" ${lores_train_data_dir} \
-    data/lang $gmm_dir $lat_dir
-  rm $lat_dir/fsts.*.gz # save space
-fi
-
-if [ $stage -le 14 ]; then
-  # Build a tree using our new topology.  We know we have alignments for the
-  # speed-perturbed data (local/nnet3/run_ivector_common.sh made them), so use
-  # those.  The num-leaves is always somewhat less than the num-leaves from
-  # the GMM baseline.
-   if [ -f $tree_dir/final.mdl ]; then
-     echo "$0: $tree_dir/final.mdl already exists, refusing to overwrite it."
-     exit 1;
-  fi
-  steps/nnet3/chain/build_tree.sh \
-    --frame-subsampling-factor 3 \
-    --context-opts "--context-width=2 --central-position=1" \
-    --cmd "$train_cmd" 3500 ${lores_train_data_dir} \
-    $lang $ali_dir $tree_dir
-fi
-
-
-if [ $stage -le 15 ]; then
+################################################################################
+# Define config
+#############################################################################
+if [ $stage -le 17 ]; then
   mkdir -p $dir
   echo "$0: creating neural net configs using the xconfig parser";
 
@@ -223,12 +115,10 @@ EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
 fi
 
-
-if [ $stage -le 16 ]; then
-  if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $dir/egs/storage ]; then
-    utils/create_split_dir.pl \
-     /export/b0{3,4,5,6}/$USER/kaldi-data/egs/wsj-$(date +'%m_%d_%H_%M')/s5/$dir/egs/storage $dir/egs/storage
-  fi
+################################################################################
+# Train network
+#############################################################################
+if [ $stage -le 18 ]; then
 
   steps/nnet3/chain/train.py --stage=$train_stage \
     --cmd="$decode_cmd" \
@@ -265,7 +155,10 @@ if [ $stage -le 16 ]; then
     --dir=$dir  || exit 1;
 fi
 
-if [ $stage -le 17 ]; then
+################################################################################
+# Decode on the dev set with lm rescoring
+#############################################################################
+if [ $stage -le 19 ]; then
   # The reason we are using data/lang here, instead of $lang, is just to
   # emphasize that it's not actually important to give mkgraph.sh the
   # lang directory with the matched topology (since it gets the
@@ -296,19 +189,17 @@ if [ $stage -le 18 ]; then
           --frames-per-chunk $frames_per_chunk \
           --nj $nspk --cmd "$decode_cmd"  --num-threads 4 \
           --online-ivector-dir exp/nnet3${nnet3_affix}/ivectors_${data}_hires \
-          $tree_dir/graph_${lmtype} data/${data}_hires ${dir}/decode_${lmtype}_${data_affix} || exit 1
+          $tree_dir/graph_${lmtype} data/$dataset/${data}_hires ${dir}/decode_${lmtype}_${data_affix} || exit 1
       done
       steps/lmrescore.sh \
         --self-loop-scale 1.0 \
         --cmd "$decode_cmd" data/lang_test_{tgpr,tg} \
-        data/${data}_hires ${dir}/decode_{tgpr,tg}_${data_affix} || exit 1
+        data/$dataset/${data}_hires ${dir}/decode_{tgpr,tg}_${data_affix} || exit 1
       steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
         data/lang_test_bd_{tgpr,fgconst} \
-       data/${data}_hires ${dir}/decode_${lmtype}_${data_affix}{,_fg} || exit 1
+       data/$dataset/${data}_hires ${dir}/decode_${lmtype}_${data_affix}{,_fg} || exit 1
     ) || touch $dir/.error &
   done
   wait
   [ -f $dir/.error ] && echo "$0: there was a problem while decoding" && exit 1
 fi
-                                  
-                                  
