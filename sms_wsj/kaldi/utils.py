@@ -21,13 +21,12 @@ SAMPLE_RATE = 8000
 REQUIRED_FILES = []
 REQUIRED_DIRS = ['data/lang', 'data/local',
                  'local', 'steps', 'utils']
-REQUIRED_SCRIPTS = ['get_tri3_model.bash', 'path.sh', 'cmd.sh']
 DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr',
                               'data/lang_test_tg']
 
 
 
-def create_kaldi_dir(egs_path):
+def create_kaldi_dir(egs_path, kaldi_cmd='run.pl'):
     """
 
     :param egs_path:
@@ -43,13 +42,17 @@ def create_kaldi_dir(egs_path):
         os.symlink(org_dir / dirs, egs_path / dirs)
     for dirs in DIRS_WITH_CHANGEABLE_FILES:
         shutil.copytree(org_dir / dirs, egs_path/ dirs)
-    for script_name in REQUIRED_SCRIPTS:
-        shutil.copyfile(git_root / 'scripts' / script_name,
-                        egs_path / script_name)
+    for script in (git_root / 'scripts').glob('*'):
+        if script.name in ['path.sh', 'cmd.sh']:
+            new_script_path = egs_path / script.name
+        else:
+            (egs_path / 'local_sms').mkdir(exist_ok=True)
+            new_script_path = egs_path / 'local_sms' / script.name
+
+        shutil.copyfile(script, new_script_path)
         # make script executable
-        file = egs_path / script_name
-        st = os.stat(file)
-        os.chmod(file, st.st_mode | stat.S_IEXEC)
+        st = os.stat(new_script_path)
+        os.chmod(new_script_path, st.st_mode | stat.S_IEXEC)
 
     if SAMPLE_RATE != 16000:
         for file in ['mfcc.conf', 'mfcc_hires.conf']:
@@ -122,6 +125,8 @@ def create_data_dir(
                           if key in dataset_to_example_id[dataset_name]}
 
             assert len(dictionary) > 0, (dataset_name, name)
+            if name == 'utt2dur':
+                dump_keyed_lines(dictionary, path / 'reco2dur')
             dump_keyed_lines(dictionary, path / name)
         dictionary = speaker_to_gender[dataset_name]
         assert len(dictionary) > 0, (dataset_name, name)
@@ -171,9 +176,12 @@ def calculate_mfccs(base_dir, dataset, num_jobs=20, config='mfcc.conf',
 
 
 def get_alignments(egs_dir, num_jobs, kaldi_cmd='run.pl',
-                   data_type='sms_early', dataset_names=None):
+                   gmm_data_type=None, data_type='sms_early',
+                   dataset_names=None):
     if dataset_names is None:
         dataset_names = ('train_si284', 'cv_dev93')
+    if gmm_data_type is None:
+        gmm_data_type = data_type
 
     for dataset in dataset_names:
         dataset_dir = egs_dir / 'data' / data_type / dataset
@@ -186,7 +194,7 @@ def get_alignments(egs_dir, num_jobs, kaldi_cmd='run.pl',
             '--nj', str(num_jobs),
             f'{dataset_dir}',
             f'{egs_dir}/data/lang',
-            f'{egs_dir}/exp/{data_type}/tri4b',
+            f'{egs_dir}/exp/{gmm_data_type}/tri4b',
             f'{egs_dir}/exp/{data_type}/tri4b_ali_{dataset}'
         ],
             cwd=str(egs_dir),
