@@ -11,13 +11,15 @@ from functools import partial
 from pathlib import Path
 
 import json
-import click
+import sacred
 import numpy as np
 import soundfile
 from lazy_dataset.database import JsonDatabase
-from paderbox.database.helper import click_convert_to_path
 from sms_wsj.database.utils import scenario_map_fn
 import dlp_mpi
+
+
+ex = sacred.Experiment('Write WSJ BSS files')
 
 type_mapper = {'speech_reverberation_early': 'early',
                'speech_reverberation_tail': 'tail',
@@ -26,23 +28,23 @@ type_mapper = {'speech_reverberation_early': 'early',
 
 
 def audio_read(example):
-        """
-        :param example: example dict
-        :return: example dict with audio_data added
-        """
-        audio_keys = ['rir', 'speech_source']
-        keys = list(example['audio_path'].keys())
-        for audio_key in audio_keys:
-            assert audio_key in keys, (
-                f'Trying to read {audio_key} but only {keys} are available'
-            )
-            audio_data = list()
-            for wav_file in example['audio_path'][audio_key]:
+    """
+    :param example: example dict
+    :return: example dict with audio_data added
+    """
+    audio_keys = ['rir', 'speech_source']
+    keys = list(example['audio_path'].keys())
+    for audio_key in audio_keys:
+        assert audio_key in keys, (
+            f'Trying to read {audio_key} but only {keys} are available'
+        )
+        audio_data = list()
+        for wav_file in example['audio_path'][audio_key]:
 
-                with soundfile.SoundFile(wav_file, mode='r') as f:
-                    audio_data.append(f.read())
-            example['audio_data'][audio_key] = np.array(audio_data)
-        return example
+            with soundfile.SoundFile(wav_file, mode='r') as f:
+                audio_data.append(f.read())
+        example['audio_data'][audio_key] = np.array(audio_data)
+    return example
 
 
 def write_wavs(dst_dir, db, write_all=False):
@@ -129,70 +131,47 @@ def create_json(dst_dir, db, write_all):
     return json_dict
 
 
-if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(levelname)s: %(message)s',
-        level=logging.INFO
-    )
+@ex.config
+def config():
+    dst_dir = None
+    json_path = None
+    sample_rate = 16000
+    write_all = True
+    new_json_path = None
+    assert dst_dir is not None, 'You have to specify a destination dir'
+    assert json_path is not None, 'You have to specify a path to sms_wsj.json'
+    json_path = Path(json_path).expanduser().resolve()
+    dst_dir = Path(dst_dir).expanduser().resolve()
+    assert json_path.exists(), json_path
+    assert dst_dir.exists(), dst_dir
+    if new_json_path is None:
+        print('No new json path was specified, so no json is written for the'
+              'created wav files')
+@ex.automain
+def main(dst_dir, json_path, write_all, new_json_path):
+    logging.info(f"Start - {time.ctime()}")
 
+    dst_dir = Path(dst_dir).expanduser().resolve()
+    assert dst_dir.is_dir(), dst_dir
+    json_path = Path(json_path).expanduser().resolve()
+    assert json_path.is_file(), json_path
 
-    @click.command()
-    @click.option(
-        '-d', '--dst-dir',
-        help="Directory which will store the converted WSJ wav files",
-        type=click.Path(writable=True)
-    )
-    @click.option(
-        '--json-path', '-j',
-        help=f'Path to sms_wsj.json',
-        type=click.Path(dir_okay=False),
-        callback=click_convert_to_path,
-    )
-    @click.option(
-        '--write-all',
-        is_flag=True,
-        help='Flag indicating whether to write everything to dst_dir or '
-             'just the observation'
-    )
-    @click.option(
-        '--overwrite-json',
-        is_flag=True,
-        help='Flag indication whether to overwrite the old json with a new '
-             'one with updated paths'
-    )
-    def main(dst_dir, json_path, write_all, overwrite_json):
-        logging.info(f"Start - {time.ctime()}")
-
-        dst_dir = Path(dst_dir).expanduser().resolve()
-        assert dst_dir.is_dir(), dst_dir
-        json_path = Path(json_path).expanduser().resolve()
-        assert json_path.is_file(), json_path
-
-        db = JsonDatabase(json_path)
-        if not any([(dst_dir / data_type).exists() for data_type in type_mapper.keys()]):
-            write_wavs(dst_dir, db, write_all=write_all)
+    db = JsonDatabase(json_path)
+    if not any([(dst_dir / data_type).exists() for data_type in type_mapper.keys()]):
+        write_wavs(dst_dir, db, write_all=write_all)
+    else:
+        num_wav_files = len(list(dst_dir.rglob("*.wav")))
+        if write_all and  num_wav_files == (2 * 2 + 2) * 32000:
+            print('Wav files seem to exist. They are not overwritten.')
+        elif not write_all and num_wav_files == 32000:
+            print('Wav files seem to exist. They are not overwritten.')
         else:
-            num_wav_files = len(list(dst_dir.rglob("*.wav")))
-            if write_all and  num_wav_files == (2 * 2 + 2) * 32000:
-                print('Wav files seem to exist. They are not overwritten.')
-            elif not write_all and num_wav_files == 32000:
-                print('Wav files seem to exist. They are not overwritten.')
-            else:
-                raise ValueError(
-                    'Not all wav files exist. However, the directory structure'
-                    ' already exists.')
+            raise ValueError(
+                'Not all wav files exist. However, the directory structure'
+                ' already exists.')
 
-        if dlp_mpi.IS_MASTER and overwrite_json:
-            print(f'Creating a new json and saving it to {json_path}')
-            updated_json = create_json(dst_dir, db, write_all)
-            json.dump(
-                updated_json,
-                json_path,
-                create_path=True,
-                indent=4,
-                ensure_ascii=False,
-            )
-
-        logging.info(f"Done - {time.ctime()}")
-
-    main()
+    if dlp_mpi.IS_MASTER and new_json_path:
+        print(f'Creating a new json and saving it to {json_path}')
+        updated_json = create_json(dst_dir, db, write_all)
+        json.dump(updated_json, new_json_path, create_path=True,
+            indent=4, ensure_ascii=False)
