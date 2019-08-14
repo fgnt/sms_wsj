@@ -5,13 +5,16 @@ from collections import defaultdict
 from pathlib import Path
 
 from paderbox.kaldi.io import dump_keyed_lines
+from paderbox.database import JsonDatabase
 from paderbox.utils.process_caller import run_process
 from sms_wsj import git_root
 
 DB2AudioKeyMapper = dict(
     wsj_8k='speech_source',
     sms_early='speech_reverberation_direct',
-    sms='observation'
+    sms='observation',
+    noise='noise_image',
+    sms_late='speech_reverberation_tail'
 )
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])
@@ -26,7 +29,7 @@ DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr',
 
 
 
-def create_kaldi_dir(egs_path, kaldi_cmd='run.pl'):
+def create_kaldi_dir(egs_path, org_dir=None):
     """
 
     :param egs_path:
@@ -34,8 +37,8 @@ def create_kaldi_dir(egs_path, kaldi_cmd='run.pl'):
     """
     print(f'Create {egs_path} directory')
     (egs_path / 'data').mkdir(exist_ok=False, parents=True)
-
-    org_dir = (egs_path / '..' / '..' / 'wsj' / 's5').resolve()
+    if org_dir is None:
+        org_dir = (egs_path / '..' / '..' / 'wsj' / 's5').resolve()
     for file in REQUIRED_FILES:
         os.symlink(org_dir / file, egs_path/ file)
     for dirs in REQUIRED_DIRS:
@@ -61,7 +64,7 @@ def create_kaldi_dir(egs_path, kaldi_cmd='run.pl'):
 
 
 def create_data_dir(
-        kaldi_dir, db, dataset_names=None,
+        kaldi_dir, db=None, json_path=None, dataset_names=None,
         data_type='wsj_8k', target_speaker=0, ref_channels=0
 ):
     """
@@ -74,10 +77,24 @@ def create_data_dir(
     :param ref_channel:
     :return:
     """
-    print(f'Create data dir for {data_type} data')
+    print(f'Create data dir for {data_type}/{dataset_names} data')
+
+    if data_type == 'sms_single_speaker':
+        audio_key = [DB2AudioKeyMapper[data]
+                     for data in ['sms_early', 'sms_late', 'noise']]
+    elif data_type == 'sms_image':
+        audio_key = [DB2AudioKeyMapper[data]
+                     for data in ['sms_early', 'sms_late']]
+    else:
+        audio_key = DB2AudioKeyMapper[data_type]
+    assert not (db is None and json_path is None), (db, json_path)
+    if db is None:
+        assert json_path is not None, json_path
+        db = JsonDatabase(json_path)
+
     data_dir = kaldi_dir / 'data' / data_type
-    data_dir.mkdir(exist_ok=False, parents=False)
-    audio_key = DB2AudioKeyMapper[data_type]
+    data_dir.mkdir(exist_ok=True, parents=False)
+
     if not isinstance(ref_channels, (list, tuple)):
         ref_channels = [ref_channels]
     example_id_to_wav = dict()
@@ -88,14 +105,26 @@ def create_data_dir(
     dataset_to_example_id = defaultdict(list)
 
     if dataset_names is None:
-        dataset_names = ('train_si284', 'cv_dev93')
+        dataset_names = ('train_si284', 'cv_dev93', 'test_eval92')
+    elif isinstance(dataset_names, str):
+        dataset_names = [dataset_names]
+    assert not any([
+        (data_dir / dataset_name).exists() for dataset_name in dataset_names])
     dataset = db.get_dataset(dataset_names)
     for example in dataset:
         for ref_ch in ref_channels:
             example_id = example['example_id']
             dataset_name = example['dataset']
-            wav = example['audio_path'][audio_key][target_speaker]
-            wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
+            if isinstance(audio_key, (list, tuple)):
+                mix_command = 'sox -m -v 1 ' + ' -v 1 '.join(
+                    [str(example['audio_path'][audio][target_speaker])
+                     for audio in audio_key]
+                )
+                wav_command = f'{mix_command} -t wav - | sox -t wav -' \
+                    f' -t wav -b 16 - remix {ref_ch + 1} |'
+            else:
+                wav = example['audio_path'][audio_key][target_speaker]
+                wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
             example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
             example_id_to_wav[example_id] = wav_command
             try:
@@ -114,7 +143,7 @@ def create_data_dir(
     assert len(example_id_to_speaker) > 0, dataset
     for dataset_name in dataset_names:
         path = data_dir / dataset_name
-        path.mkdir(exist_ok=True, parents=False)
+        path.mkdir(exist_ok=False, parents=False)
         for name, dictionary in (
                 ("utt2spk", example_id_to_speaker),
                 ("text", example_id_to_trans),
@@ -173,6 +202,52 @@ def calculate_mfccs(base_dir, dataset, num_jobs=20, config='mfcc.conf',
         f'utils/fix_data_dir.sh', f'{dataset}'],
         cwd=str(base_dir), stdout=None, stderr=None
     )
+
+
+def calculate_ivectors(ivector_dir, dest_dir, org_dir, train_affix,
+                       dataset_dir, extractor_dir, dataype='sms', num_jobs=8,
+                       kaldi_cmd='run.pl'):
+    '''
+
+    :param ivector_dir: ivector directory may be a string, bool or Path
+    :param base_dir: kaldi egs directory with steps and utils dir
+    :param train_affix: dataset specifier (dataset name without train or dev)
+    :param dataset_dir: kaldi dataset dir
+    :param extractor_dir: directory of the ivector extractor (may be None)
+    :param num_jobs: number of parallel jobs
+    :return:
+    '''
+    dest_dir = dest_dir.expanduser().resolve()
+
+    if isinstance(ivector_dir, str):
+        ivector_dir = dest_dir / 'exp' / dataype / (
+                'nnet3_' + train_affix) / ivector_dir
+    elif ivector_dir is True:
+        ivector_dir = dest_dir / 'exp' / dataype / (
+                'nnet3_' + train_affix) / (
+            f'ivectors_{dataset_dir.parent.name}_{dataset_dir.name}')
+    elif isinstance(ivector_dir, Path):
+        ivector_dir = ivector_dir
+    else:
+        raise ValueError(f'ivector_dir {ivector_dir} has to be either'
+                         f' a Path, a string or bolean')
+    if not ivector_dir.exists():
+        if extractor_dir is None:
+            extractor_dir = org_dir / f'exp/{dataype}/' \
+                f'nnet3_{train_affix}/extractor'
+        else:
+            if isinstance(extractor_dir, str):
+                extractor_dir = org_dir / f'exp/{dataype}/{extractor_dir}'
+        assert extractor_dir.exists(), extractor_dir
+        print(f'Directory {ivector_dir} not found, estimating ivectors')
+        run_process([
+            'steps/online/nnet2/extract_ivectors_online.sh',
+            '--cmd', f'{kaldi_cmd}', '--nj', f'{num_jobs}', f'{dataset_dir}',
+            f'{extractor_dir}', str(ivector_dir)],
+            cwd=str(dest_dir),
+            stdout=None, stderr=None
+        )
+    return ivector_dir
 
 
 def get_alignments(egs_dir, num_jobs, kaldi_cmd='run.pl',
