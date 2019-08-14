@@ -10,33 +10,48 @@ import time
 from functools import partial
 from pathlib import Path
 
+import json
 import click
 import numpy as np
 import soundfile
-from paderbox.database import JsonDatabase
-from paderbox.database import keys as K
+from lazy_dataset.database import JsonDatabase
 from paderbox.database.helper import click_convert_to_path
-from paderbox.database.helper import  dump_database_as_json
-from paderbox.database.iterator import AudioReader
-from paderbox.database.wsj_bss.database import scenario_map_fn
+from sms_wsj.database.utils import scenario_map_fn
 import dlp_mpi
 
-type_mapper = {K.SPEECH_SOURCE: 'clean',
-               K.SPEECH_REVERBERATION_DIRECT: 'early',
-               K.SPEECH_REVERBERATION_TAIL: 'tail',
-               K.NOISE_IMAGE: 'noise',
-               K.OBSERVATION: 'observation'}
+type_mapper = {'speech_reverberation_early': 'early',
+               'speech_reverberation_tail': 'tail',
+               'noise_image': 'noise',
+               'observation': 'observation'}
 
-snr_range = (20, 30)
+
+def audio_read(example):
+        """
+        :param example: example dict
+        :return: example dict with audio_data added
+        """
+        audio_keys = ['rir', 'speech_source']
+        keys = list(example['audio_path'].keys())
+        for audio_key in audio_keys:
+            assert audio_key in keys, (
+                f'Trying to read {audio_key} but only {keys} are available'
+            )
+            audio_data = list()
+            for wav_file in example['audio_path'][audio_key]:
+
+                with soundfile.SoundFile(wav_file, mode='r') as f:
+                    audio_data.append(f.read())
+            example['audio_data'][audio_key] = np.array(audio_data)
+        return example
 
 
 def write_wavs(dst_dir, db, write_all=False):
     if write_all:
-        if mpi.IS_MASTER:
+        if dlp_mpi.IS_MASTER:
             [(dst_dir / data_type).mkdir(exist_ok=False)
              for data_type in type_mapper.values()]
         map_fn = partial(
-            scenario_map_fn, snr_range=snr_range,
+            scenario_map_fn,
             sync_speech_source=True,
             add_speech_reverberation_direct=True,
             add_speech_reverberation_tail=True
@@ -45,26 +60,28 @@ def write_wavs(dst_dir, db, write_all=False):
         if dlp_mpi.IS_MASTER:
             (dst_dir / 'observation').mkdir(exist_ok=False)
         map_fn = partial(
-            scenario_map_fn, snr_range=snr_range,
+            scenario_map_fn,
             sync_speech_source=True,
             add_speech_reverberation_direct=False,
             add_speech_reverberation_tail=False
         )
     ds = db.get_dataset(['train_si284', 'cv_dev93', 'test_eval92']).map(
-        AudioReader(audio_keys=[K.RIR, K.SPEECH_SOURCE])).map(map_fn)
+        audio_read).map(map_fn)
 
     for example in dlp_mpi.split_managed(ds):
-        audio_dict = example[K.AUDIO_DATA]
-        example_id = example[K.EXAMPLE_ID]
-        del audio_dict[K.SPEECH_IMAGE]
-        del audio_dict[K.RIR]
+        audio_dict = example['audio_data']
+        example_id = example['example_id']
+        del audio_dict['speech_image']
+        del audio_dict['rir']
+        del audio_dict['speech_source']
         if not write_all:
-            del audio_dict[K.SPEECH_SOURCE]
-            del audio_dict[K.NOISE_IMAGE]
+            del audio_dict['speech_reverberation_early']
+            del audio_dict['speech_reverberation_tale']
+            del audio_dict['noise_image']
         assert all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()])
         for key, value in audio_dict.items():
             path = dst_dir / type_mapper[key]
-            if key in [K.OBSERVATION, K.NOISE_IMAGE]:
+            if key in ['observation', 'noise_image']:
                 value = value[None]
             for idx, signal in enumerate(value):
                 appendix = f'_{idx}' if len(value) > 1 else ''
@@ -80,7 +97,7 @@ def write_wavs(dst_dir, db, write_all=False):
         created_files = list(dst_dir.rglob("*.wav"))
         logging.info(f"Written {len(created_files)} wav files.")
         if write_all:
-            assert len(created_files) == (3 * 2 + 2) * len(ds), len(
+            assert len(created_files) == (2 * 2 + 2) * len(ds), len(
                 created_files)
         else:
             assert len(created_files) == len(ds), len(created_files)
@@ -95,16 +112,16 @@ def create_json(dst_dir, db, write_all):
             if write_all:
                 for key, data_type in type_mapper.items():
                     if key in ['observation', 'noise_image']:
-                        ex[K.AUDIO_PATH][key] = [
+                        ex['audio_path'][key] = [
                             dst_dir / data_type / (ex_id + '.wav'),
                          ]
                     else:
-                        ex[K.AUDIO_PATH][key] = [
+                        ex['audio_path'][key] = [
                             dst_dir / data_type / (ex_id + '_0.wav'),
                             dst_dir / data_type / (ex_id + '_1.wav')
                         ]
             else:
-                ex[K.AUDIO_PATH].update({
+                ex['audio_path'].update({
                     'observation': dst_dir / 'observation' / (ex_id + '.wav')
                 })
             dataset_dict[ex_id] = ex
@@ -156,7 +173,7 @@ if __name__ == '__main__':
             write_wavs(dst_dir, db, write_all=write_all)
         else:
             num_wav_files = len(list(dst_dir.rglob("*.wav")))
-            if write_all and  num_wav_files == (3 * 2 + 2) * 32000:
+            if write_all and  num_wav_files == (2 * 2 + 2) * 32000:
                 print('Wav files seem to exist. They are not overwritten.')
             elif not write_all and num_wav_files == 32000:
                 print('Wav files seem to exist. They are not overwritten.')
@@ -168,9 +185,14 @@ if __name__ == '__main__':
         if dlp_mpi.IS_MASTER and overwrite_json:
             print(f'Creating a new json and saving it to {json_path}')
             updated_json = create_json(dst_dir, db, write_all)
-            dump_database_as_json(json_path, updated_json)
+            json.dump(
+                updated_json,
+                json_path,
+                create_path=True,
+                indent=4,
+                ensure_ascii=False,
+            )
 
         logging.info(f"Done - {time.ctime()}")
-
 
     main()

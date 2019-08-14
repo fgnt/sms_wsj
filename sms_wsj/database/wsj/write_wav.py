@@ -1,24 +1,46 @@
 """
 Example calls:
-python -m paderbox.database.wsj.write_wav --dst-dir /net/vol/ldrude/share/wsj_8k --sample_rate 8000
+python -m sms_wsj.database.wsj.write_wav with dst_dir=/DEST/DIR wsj_root=/WSJ/ROOT/DIR --sample_rate=8000
 
-mpiexec -np 20 python -m paderbox.database.wsj.write_wav --dst-dir /net/vol/ldrude/share/wsj_8k --sample_rate 8000
+mpiexec -np 20 python -m sms_wsj.database.wsj.write_wav with dst_dir=/DEST/DIR wsj_root=/WSJ/ROOT/DIR sample_rate=8000
 
 """
 
 from pathlib import Path
-import click
-import time
-import logging
-from tqdm import tqdm
+import os
+import sacred
 import subprocess
 import numpy as np
-from paderbox.utils.mpi import COMM, RANK, SIZE, MASTER, IS_MASTER, bcast, barrier
+import dlp_mpi
 import shutil
+import soundfile
+import tempfile
 
-from paderbox.io.data_dir import wsj
-from paderbox.io.audioread import read_nist_wsj
-from paderbox.io.audiowrite import audiowrite
+ex = sacred.Experiment('Write WSJ waves')
+
+kaldi_root = Path(os.environ['KALDI_ROOT'])
+
+
+def read_nist_wsj(path):
+    """
+    Converts a nist/sphere file of wsj and reads it with audioread.
+
+    :param path: file path to audio file.
+    :param audioread_function: Function to use to read the resulting audio file
+    :return:
+    """
+    tmp_file = tempfile.NamedTemporaryFile(delete=False)
+    cmd = "{}/sph2pipe -f wav {path} {dest_file}".format(
+        kaldi_root / 'tools/sph2pipe_v2.5', path=path, dest_file=tmp_file.name
+    )
+    subprocess.run(
+        cmd, universal_newlines=True, shell=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=True, env=None, cwd=None
+    )
+    with soundfile.SoundFile(tmp_file.name, mode='r') as f:
+        signal = f.read()
+    os.remove(tmp_file.name)
+    return signal
 
 
 def resample_with_sox(x, rate_in, rate_out):
@@ -38,36 +60,50 @@ def resample_with_sox(x, rate_in, rate_out):
     )
     return np.fromstring(process.stdout, dtype=np.float32)
 
+@ex.config
+def config():
+    dst_dir = None
+    wsj_root = None
+    sample_rate = 16000
+    assert dst_dir is not None, 'You have to specify a destination dir'
+    assert wsj_root is not None, 'You have to specify a wsj_root'
+    wsj_root = Path(wsj_root).expanduser().resolve()
+    dst_dir = Path(dst_dir).expanduser().resolve()
+    assert wsj_root.exists(), wsj_root
+    assert dst_dir.exists(), dst_dir
 
+    assert not dst_dir == wsj_root, (wsj_root, dst_dir)
+
+@ex.automain
 def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
     # Expect, that the dst_dir does not exist to make sure to not overwrite.
-    if IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         dst_dir.mkdir(parents=True, exist_ok=False)
 
-    if IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         for suffix in 'pl ndx ptx dot txt'.split():
             files = list(wsj_root.rglob(f"*.{suffix}"))
-            logging.info(f"About to write {len(files)} {suffix} files.")
+            print(f"About to write {len(files)} {suffix} files.")
             for file in files:
                 target = dst_dir / file.relative_to(wsj_root)
                 target.parent.mkdir(parents=True, exist_ok=True)
                 if not target.is_file():
                     shutil.copy(file, target.parent)
             written_files = list(dst_dir.rglob(f"*.{suffix}"))
-            logging.info(f"Writing {len(files)} {suffix} files.")
+            print(f"Writing {len(files)} {suffix} files.")
             assert len(written_files) == len(files), (files, written_files)
 
-    if IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         # Ignore .wv2 files since they are not referenced in our database
         # anyway
         wsj_nist_files = list(wsj_root.rglob("*.wv1"))
-        logging.info(f"About to write {len(wsj_nist_files)} wav files.")
+        print(f"About to write {len(wsj_nist_files)} wav files.")
     else:
         wsj_nist_files = None
 
-    wsj_nist_files = bcast(wsj_nist_files)
+    wsj_nist_files = dlp_mpi.bcast(wsj_nist_files)
 
-    for nist_file in tqdm(wsj_nist_files[RANK::SIZE], disable=not IS_MASTER):
+    for nist_file in dlp_mpi.split_managed(wsj_nist_files):
         assert isinstance(nist_file, Path), nist_file
         signal = read_nist_wsj(nist_file, expected_sample_rate=16000)[0]
 
@@ -75,41 +111,16 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
         assert not target == nist_file, (nist_file, target)
         target.parent.mkdir(parents=True, exist_ok=True)
         signal = resample_with_sox(signal, rate_in=16000, rate_out=sample_rate)
-        audiowrite(signal, target, sample_rate=sample_rate)
+        with soundfile.SoundFile(
+                target, samplerate=sample_rate, channels=1,
+                subtype='FLOAT', mode='w',
+        ) as f:
+            f.write(signal.T)
 
-    barrier()
-    if IS_MASTER:
+    dlp_mpi.barrier()
+    if dlp_mpi.IS_MASTER:
         created_files = list(set(list(dst_dir.rglob("*.wav"))))
-        logging.info(f"Written {len(created_files)} wav files.")
+        print(f"Written {len(created_files)} wav files.")
         assert len(wsj_nist_files) == len(created_files), list(set([
             file.name.split('.wav')[0] for file in created_files
         ]) -set([file.name.split('.wv1')[0] for file in wsj_nist_files]))
-
-
-if __name__ == '__main__':
-    logging.basicConfig(
-        format='%(levelname)s: %(message)s',
-        level=logging.INFO
-    )
-
-    @click.command()
-    @click.option(
-        '-d', '--dst-dir',
-        help="Directory which will store the converted WSJ wav files",
-        type=click.Path()
-    )
-    @click.option('--wsj-root', default=wsj,
-                  help='Root directory to WSJ database', type=click.Path())
-    @click.option('--sample_rate', default=16000,
-                  help='16000 is the default.', type=int)
-    def main(dst_dir, wsj_root, sample_rate):
-        logging.info(f"Start - {time.ctime()}")
-
-        wsj_root = Path(wsj_root).expanduser().resolve()
-        dst_dir = Path(dst_dir).expanduser().resolve()
-        assert not dst_dir == wsj_root, (wsj_root, dst_dir)
-
-        write_wavs(dst_dir, wsj_root, sample_rate=sample_rate)
-        logging.info(f"Done - {time.ctime()}")
-
-    main()
