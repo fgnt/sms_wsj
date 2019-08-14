@@ -1,59 +1,28 @@
 """Call instructions:
 
 # When you do not have MPI:
-python -m paderbox.database.wsj_bss.create_files with database_path=/Users/lukas/Downloads/temp_wsj_bss debug=True
-python -m paderbox.database.wsj_bss.create_files with database_path=temp_wsj_bss debug=True
+python -m sms_wsj.database.create_rirs with database_path=/Users/lukas/Downloads/temp_wsj_bss debug=True
+python -m sms_wsj.database.create_rirs with database_path=temp_wsj_bss debug=True
 
 # When you have MPI:
-mpiexec -np 3 python -m paderbox.database.wsj_bss.create_files with database_path=temp_wsj_bss debug=True
+mpiexec -np 3 python -m sms_wsj.database.create_rirs with database_path=temp_wsj_bss debug=True
 
-# When on PC2:
-# Multiply your needs with mpiprocs.
-# 6h is barely enough with rset=200:mpiprocs=1:ncpus=1:mem=2g:vmem=2g
-# and creating all datasets.
-rm -rf /scratch/hpc-prf-nt2/ldrude/storage_root/project_dc/data/wsj_bss_v2
-TARGET_PATH=/scratch/hpc-prf-nt2/ldrude/storage_root/project_dc/data/wsj_bss_v2
-mkdir -p $TARGET_PATH
-ccsalloc \
-    --res="rset=200:mpiprocs=1:ncpus=1:mem=2g:vmem=2g" \
-    --join --stdout=$TARGET_PATH/python_%A_%a.out \
-    --tracefile=$TARGET_PATH/trace_%reqid.trace \
-    -t 6h \
-    -N create_files \
-    cbj.ompi -- \
-    python -m paderbox.database.wsj_bss.create_files with database_path=$TARGET_PATH
-
-# Synchronize the files:
-rsync \
-    --recursive \
-    --info=progress2 \
-    --compress \
-    pc2:/scratch/hpc-prf-nt2/ldrude/storage_root/project_dc/data/wsj_bss \
-    /net/vol/ldrude/projects/2017/project_dc_storage/data/
-
-time cbj.copy tar \
-    pc2:/scratch/hpc-prf-nt2/ldrude/storage_root/project_dc/data/wsj_bss \
-    /net/vol/ldrude/projects/2017/project_dc_storage/data/
 """
 import hashlib
+import json
 from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
-from sacred import Experiment
-
-from paderbox.io import dump_audio
-from paderbox.io import dump_json
-from paderbox.reverb.reverb_utils import generate_rir
-from paderbox.reverb.scenario import generate_random_source_positions
-from paderbox.reverb.scenario import generate_sensor_positions
-from paderbox.reverb.scenario import sample_from_random_box
-from paderbox.utils.mpi import COMM
-from paderbox.utils.mpi import IS_MASTER
-from paderbox.utils.mpi import RANK
-from paderbox.utils.mpi import SIZE
-from paderbox.utils.mpi import map_unordered
+import soundfile
 from paderbox.database.keys import *
+from sacred import Experiment
+from sms_wsj.reverb.reverb_utils import generate_rir
+from sms_wsj.reverb.scenario import generate_random_source_positions
+from sms_wsj.reverb.scenario import generate_sensor_positions
+from sms_wsj.reverb.scenario import sample_from_random_box
+
+import dlp_mpi
 
 experiment = Experiment(Path(__file__).stem)
 
@@ -92,16 +61,6 @@ def config():
             minimum_angular_distance=15,  # degree
             maximum_angular_distance=None,  # degree
         ),
-        # test_eval92_narrow=dict(
-        #     count=5 * 333,
-        #     minimum_angular_distance=None,  # degree
-        #     maximum_angular_distance=45,  # degree
-        # ),
-        # test_eval92_wide=dict(
-        #     count=5 * 333,
-        #     minimum_angular_distance=90,  # degree
-        #     maximum_angular_distance=None,  # degree
-        # ),
     )
 
     sample_rate = 8000
@@ -129,7 +88,7 @@ def main(
     assert len(database_path) > 0, "Database path can not be empty."
     database_path = Path(database_path)
 
-    if IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         print(f'from: random')
         print(f'to:   {database_path}')
 
@@ -176,10 +135,10 @@ def main(
                 for k, v in database[DATASETS][dataset][example_id].items()
             }
             database[DATASETS][dataset][example_id][EXAMPLE_ID] = example_id
-    if IS_MASTER:
-        dump_json(database, database_path / "scenarios.json")
+    if dlp_mpi.IS_MASTER:
+        json.dump(database, database_path / "scenarios.json")
 
-    if IS_MASTER:
+    if dlp_mpi.IS_MASTER:
         for dataset in datasets:
             dataset_path = database_path / dataset
             dataset_path.mkdir(parents=True, exist_ok=True)
@@ -187,10 +146,11 @@ def main(
     # TODO: Add either broadcasting or synchronize a checksum for savety.
 
     # Non-masters may need the folders before the master created them.
-    COMM.Barrier()
+    dlp_mpi.COMM.Barrier()
 
     for dataset_name, dataset in database[DATASETS].items():
-        print(f'RANK={RANK}, SIZE={SIZE}: Starting {dataset_name}.')
+        print(f'RANK={dlp_mpi.RANK}, SIZE={dlp_mpi.SIZE}:'
+              f' Starting {dataset_name}.')
 
         def workload(_example_id):
             example = dataset[_example_id]
@@ -218,21 +178,14 @@ def main(
                 # Although storing as np.float64 does not allow every reader
                 # to access the files, it doe not require normalization and
                 # we are unsure how much precision is needed for RIRs.
-                dump_audio(
-                    h[k, :, :],
-                    directory / f"h_{k}.wav",
-                    sample_rate=sample_rate,
-                    dtype=None,
-                    normalize=False,
-                )
+                with soundfile.SoundFile(
+                        directory / f"h_{k}.wav", subtype='DOUBLE',
+                        samplerate=sample_rate, mode='w', channels=h.shape[1]
+                ) as f:
+                    f.write(h[k, :, :])
 
-        for _ in map_unordered(workload, dataset, progress_bar=False):
+        for _ in dlp_mpi.map_unordered(workload, dataset, progress_bar=False):
             pass
 
-        # for example_id in list(dataset.keys())[RANK::SIZE]:
-        #     workload(example_id)
-
-        # for example_id in share_round_robin(dataset):
-        #     workload(example_id)
-
-        print(f'RANK={RANK}, SIZE={SIZE}: Finished {dataset_name}.')
+        print(f'RANK={dlp_mpi.RANK}, SIZE={dlp_mpi.SIZE}:'
+              f' Finished {dataset_name}.')
