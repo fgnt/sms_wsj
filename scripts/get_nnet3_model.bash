@@ -90,19 +90,14 @@ if [ $stage -le 17 ]; then
   fixed-affine-layer name=lda input=Append(-1,0,1,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
 
   # the first splicing is moved before the lda layer, so no splicing here
-  relu-batchnorm-dropout-layer name=tdnn1 $tdnn_opts dim=1024
-  tdnnf-layer name=tdnnf2 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=1
-  tdnnf-layer name=tdnnf3 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=1
-  tdnnf-layer name=tdnnf4 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=1
-  tdnnf-layer name=tdnnf5 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=0
-  tdnnf-layer name=tdnnf6 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf7 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf8 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf9 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf10 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf11 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf12 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf13 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
+  relu-batchnorm-dropout-layer name=tdnn1 $tdnn_opts dim=512
+  tdnnf-layer name=tdnnf2 $tdnnf_opts dim=512 bottleneck-dim=128 time-stride=1
+  tdnnf-layer name=tdnnf3 $tdnnf_opts dim=512 bottleneck-dim=128 time-stride=1
+  tdnnf-layer name=tdnnf4 $tdnnf_opts dim=512 bottleneck-dim=128 time-stride=1
+  tdnnf-layer name=tdnnf5 $tdnnf_opts dim=512 bottleneck-dim=128 time-stride=0
+  tdnnf-layer name=tdnnf6 $tdnnf_opts dim=512 bottleneck-dim=128 time-stride=3
+  tdnnf-layer name=tdnnf7 $tdnnf_opts dim=512 bottleneck-dim=128 time-stride=3
+  tdnnf-layer name=tdnnf8 $tdnnf_opts dim=512 bottleneck-dim=128 time-stride=3
   linear-component name=prefinal-l dim=192 $linear_opts
 
 
@@ -135,8 +130,8 @@ if [ $stage -le 18 ]; then
     --trainer.max-param-change=2.0 \
     --trainer.num-epochs=10 \
     --trainer.frames-per-iter=5000000 \
-    --trainer.optimization.num-jobs-initial=2 \
-    --trainer.optimization.num-jobs-final=8 \
+    --trainer.optimization.num-jobs-initial=1 \
+    --trainer.optimization.num-jobs-final=1 \
     --trainer.optimization.initial-effective-lrate=0.0005 \
     --trainer.optimization.final-effective-lrate=0.00005 \
     --trainer.num-chunk-per-minibatch=128,64 \
@@ -172,34 +167,22 @@ if [ $stage -le 19 ]; then
     --self-loop-scale 1.0 data/lang_test_tgpr \
     $tree_dir $tree_dir/graph_tgpr || exit 1;
 
-if [ $stage -le 18 ]; then
+if [ $stage -le 20 ]; then
   frames_per_chunk=$(echo $chunk_width | cut -d, -f1)
   rm $dir/.error 2>/dev/null || true
 
   for data in $cv_sets; do
-    (
-      data_affix=$(echo $data | sed s/test_//)
-      nspk=$(wc -l <data/${data}_hires/spk2utt)
-      for lmtype in tgpr bd_tgpr; do
-        steps/nnet3/decode.sh \
-          --acwt 1.0 --post-decode-acwt 10.0 \
-          --extra-left-context 0 --extra-right-context 0 \
-          --extra-left-context-initial 0 \
-          --extra-right-context-final 0 \
-          --frames-per-chunk $frames_per_chunk \
-          --nj $nspk --cmd "$decode_cmd"  --num-threads 4 \
-          --online-ivector-dir exp/nnet3${nnet3_affix}/ivectors_${data}_hires \
-          $tree_dir/graph_${lmtype} data/$dataset/${data}_hires ${dir}/decode_${lmtype}_${data_affix} || exit 1
-      done
-      steps/lmrescore.sh \
-        --self-loop-scale 1.0 \
-        --cmd "$decode_cmd" data/lang_test_{tgpr,tg} \
-        data/$dataset/${data}_hires ${dir}/decode_{tgpr,tg}_${data_affix} || exit 1
-      steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
-        data/lang_test_bd_{tgpr,fgconst} \
-       data/$dataset/${data}_hires ${dir}/decode_${lmtype}_${data_affix}{,_fg} || exit 1
-    ) || touch $dir/.error &
+    data_affix=$(echo $data | sed s/test_//)
+    nspk=$(wc -l <data/$dataset/${data}_hires/spk2utt)
+    lmtype=tgpr
+    steps/nnet3/decode.sh \
+        --acwt 1.0 --post-decode-acwt 10.0 \
+        --extra-left-context 0 --extra-right-context 0 \
+        --extra-left-context-initial 0 \
+        --extra-right-context-final 0 \
+        --frames-per-chunk $frames_per_chunk \
+        --nj $nspk --cmd "$decode_cmd"  --num-threads 4 \
+        --online-ivector-dir exp/$dataset/nnet3${nnet3_affix}/ivectors_${data}_hires \
+        $tree_dir/graph_${lmtype} data/$dataset/${data}_hires ${dir}/decode_${lmtype}_${data_affix} || exit 1
   done
-  wait
-  [ -f $dir/.error ] && echo "$0: there was a problem while decoding" && exit 1
 fi
