@@ -140,38 +140,31 @@ if [ $stage -le 10 ]; then
   done
 fi
 
-if [ -f data/${train_set}_sp/feats.scp ] && [ $stage -le 7 ]; then
-  echo "$0: data/${train_set}_sp/feats.scp already exists.  Refusing to overwrite the features "
-  echo " to avoid wasting time.  Please remove the file and continue if you really mean this."
-  exit 1;
-fi
-
 
 if [ $stage -le 11 ]; then
-  echo "$0: preparing directory for low-resolution speed-perturbed data (for alignment)"
-  utils/data/perturb_data_dir_speed_3way.sh \
+    if [ -f data/$ali_data_type/${train_set}_sp/feats.scp ] && [ $stage -le 7 ]; then
+        echo "$0: data/${train_set}_sp/feats.scp already exists.  Refusing to overwrite the features "
+        echo " to avoid wasting time.  Please remove the file and continue if you really mean this."
+        exit 1;
+    fi
+    echo "$0: preparing directory for low-resolution speed-perturbed data (for alignment)"
+    utils/data/perturb_data_dir_speed_3way.sh \
     data/$ali_data_type/${train_set} data/$ali_data_type/${train_set}_sp
-fi
 
-if [ $stage -le 12 ]; then
-  echo "$0: making MFCC features for low-resolution speed-perturbed data (needed for alignments)"
-  steps/make_mfcc.sh --nj $nj \
-    --cmd "$train_cmd" data/$ali_data_type/${train_set}_sp
-  steps/compute_cmvn_stats.sh data/$ali_data_type/${train_set}_sp
-  echo "$0: fixing input data-dir to remove nonexistent features, in case some "
-  echo ".. speed-perturbed segments were too short."
-  utils/fix_data_dir.sh data/$ali_data_type/${train_set}_sp
-fi
-
-if [ $stage -le 13 ]; then
-  if [ -f $ali_dir/ali.1.gz ]; then
-    echo "$0: alignments in $ali_dir appear to already exist.  Please either remove them "
-    echo " ... or use a later --stage option."
-    exit 1
-  fi
-  echo "$0: aligning with the perturbed low-resolution data"
-  steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
-    data/$ali_data_type/${train_set}_sp data/lang $gmm_dir $ali_dir
+    echo "$0: making MFCC features for low-resolution speed-perturbed data (needed for alignments)"
+    steps/make_mfcc.sh --nj $nj \
+        --cmd "$train_cmd" data/$ali_data_type/${train_set}_sp
+    steps/compute_cmvn_stats.sh data/$ali_data_type/${train_set}_sp
+    echo "$0: fixing input data-dir to remove nonexistent features, in case some "
+    echo ".. speed-perturbed segments were too short."
+    if [ -f $ali_dir/ali.1.gz ]; then
+        echo "$0: alignments in $ali_dir appear to already exist.  Please either remove them "
+        echo " ... or use a later --stage option."
+        exit 1
+    fi
+    echo "$0: aligning with the perturbed low-resolution data"
+    steps/align_fmllr.sh --nj $nj --cmd "$train_cmd" \
+        data/$ali_data_type/${train_set}_sp data/lang $gmm_dir $ali_dir
 fi
 
 
