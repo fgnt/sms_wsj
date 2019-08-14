@@ -77,10 +77,13 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
         signal = resample_with_sox(signal, rate_in=16000, rate_out=sample_rate)
         audiowrite(signal, target, sample_rate=sample_rate)
 
+    barrier()
     if IS_MASTER:
-        created_files = list(dst_dir.rglob("*.wav"))
+        created_files = list(set(list(dst_dir.rglob("*.wav"))))
         logging.info(f"Written {len(created_files)} wav files.")
-        assert len(wsj_nist_files) == len(created_files), (len(wsj_nist_files), len(created_files))
+        assert len(wsj_nist_files) == len(created_files), list(set([
+            file.name.split('.wav')[0] for file in created_files
+        ]) -set([file.name.split('.wv1')[0] for file in wsj_nist_files]))
 
 
 if __name__ == '__main__':
