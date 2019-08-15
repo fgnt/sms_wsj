@@ -1,3 +1,10 @@
+"""
+Example calls:
+python -m sms_wsj.database.wsj.write_wav --database_dir-dir /destination/dir --json-path /path/to/sms_wsj.json
+
+
+"""
+
 from pathlib import Path
 import sacred
 import tempfile
@@ -7,102 +14,6 @@ import soundfile as sf
 import json
 
 ex = sacred.Experiment('Create wsj json')
-
-
-@ex.config
-def config():
-    database_dir = None
-    json_path = None
-    wsj_json = None
-    as_wav = True
-    assert database_dir is not None, 'You have to specify the database dir'
-    assert wsj_json is not None, 'You have to specify a path to the wsj.json'
-    assert json_path is not None, 'You have to specify the path to write the json to'
-    database_dir = Path(database_dir).expanduser().resolve()
-    json_path = Path(json_path).expanduser().resolve()
-    if json_path.exists():
-        raise FileExistsError(json_path)
-    assert database_dir.exists(), database_dir
-
-
-@ex.automain
-def create_database(database_dir, json_path, as_wav):
-
-    database_dir = Path(database_dir)
-
-    train_sets = [
-        ["11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
-        ["13-34.1/wsj1/doc/indices/si_tr_s.ndx",
-         "11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"]
-    ]
-    train_set_names = [
-        "train_si84",  # 7138 examples
-        "train_si284"  # 37416 examples
-    ]
-
-    test_sets = [
-        ["11-13.1/wsj0/doc/indices/test/nvp/si_et_20.ndx"],
-        ["11-13.1/wsj0/doc/indices/test/nvp/si_et_05.ndx"],
-        ["13-32.1/wsj1/doc/indices/wsj1/eval/h1_p0.ndx"],
-        ["13-32.1/wsj1/doc/indices/wsj1/eval/h2_p0.ndx"]
-    ]
-
-    test_set_names = [
-        "test_eval92",  # 333 examples
-        "test_eval92_5k",  # 330 examples
-        "test_eval93",  # 213 examples
-        "test_eval93_5k"  # 215 examples
-    ]
-
-    dev_sets = [
-        ["13-34.1/wsj1/doc/indices/h1_p0.ndx"],
-        ["13-34.1/wsj1/doc/indices/h2_p0.ndx"],
-    ]
-    dev_set_names = [
-        "cv_dev93",  # 503 examples
-        "cv_dev93_5k",  # 513 examples
-    ]
-
-    transcriptions = get_transcriptions(database_dir, database_dir)
-    gender_mapping = get_gender_mapping(database_dir)
-
-    examples = dict()
-
-    examples_tr = create_official_datasets(
-        train_sets,
-        train_set_names,
-        database_dir,
-        as_wav,
-        gender_mapping,
-        transcriptions
-    )
-    examples.update(examples_tr)
-
-    examples_dt = create_official_datasets(
-        dev_sets,
-        dev_set_names,
-        database_dir,
-        as_wav, gender_mapping,
-        transcriptions
-    )
-    examples.update(examples_dt)
-
-    examples_et = create_official_datasets(
-        test_sets,
-        test_set_names,
-        database_dir,
-        as_wav,
-        gender_mapping,
-        transcriptions
-    )
-    examples.update(examples_et)
-
-    database = {
-        'datasets': examples,
-    }
-
-    json.dump(database, json_path, create_path=True,
-              indent=4, ensure_ascii=False)
 
 
 def create_official_datasets(
@@ -299,3 +210,99 @@ def get_gender_mapping(wsj_root: Path):
                         if line[1] == 'M' else 'female'
 
     return _spkr_gender_mapping
+
+
+@ex.config
+def config():
+    database_dir = None
+    json_path = None
+    wsj_json = None
+    as_wav = True
+    assert database_dir is not None, 'You have to specify the database dir'
+    assert json_path is not None, 'You have to specify the path to write the json to'
+
+
+@ex.automain
+def create_database(database_dir, json_path, as_wav):
+    database_dir = Path(database_dir).expanduser().resolve()
+    json_path = Path(json_path).expanduser().resolve()
+    if json_path.exists():
+        raise FileExistsError(json_path)
+    assert database_dir.exists(), database_dir
+
+    database_dir = Path(database_dir)
+
+    train_sets = [
+        ["11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
+        ["13-34.1/wsj1/doc/indices/si_tr_s.ndx",
+         "11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"]
+    ]
+    train_set_names = [
+        "train_si84",  # 7138 examples
+        "train_si284"  # 37416 examples
+    ]
+
+    test_sets = [
+        ["11-13.1/wsj0/doc/indices/test/nvp/si_et_20.ndx"],
+        ["11-13.1/wsj0/doc/indices/test/nvp/si_et_05.ndx"],
+        ["13-32.1/wsj1/doc/indices/wsj1/eval/h1_p0.ndx"],
+        ["13-32.1/wsj1/doc/indices/wsj1/eval/h2_p0.ndx"]
+    ]
+
+    test_set_names = [
+        "test_eval92",  # 333 examples
+        "test_eval92_5k",  # 330 examples
+        "test_eval93",  # 213 examples
+        "test_eval93_5k"  # 215 examples
+    ]
+
+    dev_sets = [
+        ["13-34.1/wsj1/doc/indices/h1_p0.ndx"],
+        ["13-34.1/wsj1/doc/indices/h2_p0.ndx"],
+    ]
+    dev_set_names = [
+        "cv_dev93",  # 503 examples
+        "cv_dev93_5k",  # 513 examples
+    ]
+
+    transcriptions = get_transcriptions(database_dir, database_dir)
+    gender_mapping = get_gender_mapping(database_dir)
+
+    examples = dict()
+
+    examples_tr = create_official_datasets(
+        train_sets,
+        train_set_names,
+        database_dir,
+        as_wav,
+        gender_mapping,
+        transcriptions
+    )
+    examples.update(examples_tr)
+
+    examples_dt = create_official_datasets(
+        dev_sets,
+        dev_set_names,
+        database_dir,
+        as_wav, gender_mapping,
+        transcriptions
+    )
+    examples.update(examples_dt)
+
+    examples_et = create_official_datasets(
+        test_sets,
+        test_set_names,
+        database_dir,
+        as_wav,
+        gender_mapping,
+        transcriptions
+    )
+    examples.update(examples_et)
+
+    database = {
+        'datasets': examples,
+    }
+    json_path.parent.mkdir(exist_ok=True, parents=True)
+    with json_path.open('w') as f:
+        json.dump(database, f, indent=4, ensure_ascii=False)
+    print(f'{json_path} written')

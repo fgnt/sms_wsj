@@ -68,11 +68,11 @@ def config():
     dst_dir = None
     wsj_root = None
     sample_rate = 16000
+    assert dst_dir is not None, 'You have to specify a destination dir'
+    assert wsj_root is not None, 'You have to specify a wsj_root'
 
 @ex.automain
 def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
-    assert dst_dir is not None, 'You have to specify a destination dir'
-    assert wsj_root is not None, 'You have to specify a wsj_root'
     wsj_root = Path(wsj_root).expanduser().resolve()
     dst_dir = Path(dst_dir).expanduser().resolve()
     assert wsj_root.exists(), wsj_root
