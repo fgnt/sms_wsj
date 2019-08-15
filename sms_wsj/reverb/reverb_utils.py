@@ -2,12 +2,11 @@
 Offers methods for calculating room impulse responses and convolutions of these
 with audio signals.
 """
-import itertools
 
 import numpy as np
 import scipy
 import scipy.signal
-from sms_wsj.reverb import rirgen
+from paderbox.reverb import rirgen
 
 eps = 1e-60
 window_length = 256

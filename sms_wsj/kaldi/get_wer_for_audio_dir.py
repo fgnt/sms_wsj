@@ -1,30 +1,10 @@
 """
 Example call on nt:
 Automatically takes all available cores:
-python -m paderbox.database.chime5.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
+python -m sms_wsj.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
 
 Example call on pc2:
-ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python -m paderbox.database.chime5.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
-
-
-Expected kaldi warnings:
-
-stdout:
-  steps/make_mfcc.sh: [info]: no segments file exists: assuming wav.scp indexed by utterance.
-
-stdout dev:
-  analyze_phone_length_stats.py: WARNING: optional-silence sil is seen only 31.464300121% of the time at utterance begin.  This may not be optimal.
-
-
-stderr:
-  steps/nnet2/check_ivectors_compatible.sh: WARNING: One of the directories do not contain iVector ID.
-  steps/nnet2/check_ivectors_compatible.sh: WARNING: That means it's you who's reponsible for keeping
-  steps/nnet2/check_ivectors_compatible.sh: WARNING: the directories compatible
-
-  Warning: ssh.pl ignoring options "--num-threads 1 "
-
-
-
+ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python -m sms_wsj.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
 
 """
 
@@ -33,14 +13,13 @@ import os
 from collections import defaultdict
 from pathlib import Path
 
-from paderbox.kaldi.io import dump_keyed_lines
-from paderbox.database import JsonDatabase
+from sms_wsj.kaldi.utils import dump_keyed_lines
+from lazy_dataset.database import JsonDatabase
 from shutil import copyfile
 
 import sacred
 
-from paderbox.utils.process_caller import run_process
-from paderbox.io import symlink, mkdir_p
+from sms_wsj.kaldi.utils import run_process
 from paderbox.utils.pc2 import write_ccsinfo_files
 from sms_wsj.kaldi.utils import create_kaldi_dir, SAMPLE_RATE
 from sms_wsj.kaldi.utils import calculate_mfccs, calculate_ivectors
@@ -241,8 +220,8 @@ def decode(model_dir, dest_dir, org_dir, audio_dir: Path, json_path: Path,
                                dataset, hires, num_jobs)
     decode_dir = dest_dir / f'exp/{model_data_type}/{model_dir.name}/{model_type}'
     if not decode_dir.exists():
-        mkdir_p(decode_dir)
-        [symlink(file, decode_dir / file.name)
+        decode_dir.mkdir(parents=True)
+        [os.symlink(file, decode_dir / file.name)
          for file in (model_dir / model_type).glob('*') if file.is_file()]
         assert (decode_dir / 'final.mdl').exists(), (
             f'final.mdl not in decode_dir: {decode_dir},'

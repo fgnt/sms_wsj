@@ -2,9 +2,9 @@ import os
 from pathlib import Path
 
 import sacred
-from paderbox.database import JsonDatabase
-from paderbox.utils.process_caller import run_process
+from lazy_dataset.database import JsonDatabase
 from sms_wsj.kaldi.utils import create_data_dir, create_kaldi_dir
+from sms_wsj.kaldi.utils import run_process
 import shutil
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])

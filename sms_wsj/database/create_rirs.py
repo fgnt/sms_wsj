@@ -15,7 +15,6 @@ from pathlib import Path
 
 import numpy as np
 import soundfile
-from paderbox.database.keys import *
 from sacred import Experiment
 from sms_wsj.reverb.reverb_utils import generate_rir
 from sms_wsj.reverb.scenario import generate_random_source_positions
@@ -124,17 +123,17 @@ def main(
                 rotate_z=rng.uniform(0, 2 * np.pi),
             )
             sound_decay_time = rng.uniform(**sound_decay_time_range)
-            database[DATASETS][dataset][example_id] = {
-                ROOM_DIMENSIONS: room_dimensions,
-                SOUND_DECAY_TIME: sound_decay_time,
-                SOURCE_POSITION: source_positions,
-                SENSOR_POSITION: sensor_positions,
+            database['datasets'][dataset][example_id] = {
+                'room_dimensions': room_dimensions,
+                'sound_decay_time': sound_decay_time,
+                'source_position': source_positions,
+                'sensor_position': sensor_positions,
             }
-            database[DATASETS][dataset][example_id] = {
+            database['datasets'][dataset][example_id] = {
                 k: np.round(v, decimals=3)
-                for k, v in database[DATASETS][dataset][example_id].items()
+                for k, v in database['datasets'][dataset][example_id].items()
             }
-            database[DATASETS][dataset][example_id][EXAMPLE_ID] = example_id
+            database['datasets'][dataset][example_id]['example_id'] = example_id
     if dlp_mpi.IS_MASTER:
         json.dump(database, database_path / "scenarios.json")
 
@@ -148,17 +147,17 @@ def main(
     # Non-masters may need the folders before the master created them.
     dlp_mpi.COMM.Barrier()
 
-    for dataset_name, dataset in database[DATASETS].items():
+    for dataset_name, dataset in database['datasets'].items():
         print(f'RANK={dlp_mpi.RANK}, SIZE={dlp_mpi.SIZE}:'
               f' Starting {dataset_name}.')
 
         def workload(_example_id):
             example = dataset[_example_id]
             h = generate_rir(
-                room_dimensions=example[ROOM_DIMENSIONS],
-                source_positions=example[SOURCE_POSITION],
-                sensor_positions=example[SENSOR_POSITION],
-                sound_decay_time=example[SOUND_DECAY_TIME],
+                room_dimensions=example['room_dimensions'],
+                source_positions=example['source_position'],
+                sensor_positions=example['sensor_position'],
+                sound_decay_time=example['sound_decay_time'],
                 sample_rate=sample_rate,
                 filter_length=filter_length,
                 sensor_orientations=None,

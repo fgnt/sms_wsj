@@ -3,10 +3,9 @@ import shutil
 import stat
 from collections import defaultdict
 from pathlib import Path
+import subprocess
 
-from paderbox.kaldi.io import dump_keyed_lines
-from paderbox.database import JsonDatabase
-from paderbox.utils.process_caller import run_process
+from lazy_dataset.database import JsonDatabase
 from sms_wsj import git_root
 
 DB2AudioKeyMapper = dict(
@@ -272,6 +271,43 @@ def get_alignments(egs_dir, num_jobs, kaldi_cmd='run.pl',
             f'{egs_dir}/exp/{gmm_data_type}/tri4b',
             f'{egs_dir}/exp/{data_type}/tri4b_ali_{dataset}'
         ],
-            cwd=str(egs_dir),
-            stdout=None, stderr=None
+            cwd=str(egs_dir)
         )
+
+
+def run_process(cmd, cwd=None, stderr=None, stdout=None):
+    subprocess.run(
+        cmd, universal_newlines=True, shell=True, stdout=stdout,
+        stderr=stderr, check=True, env=None, cwd=cwd
+    )
+
+
+def dump_keyed_lines(data_dict: dict, file: Path):
+    """
+        Used to write Kaldi files
+
+    """
+    file = Path(file)
+    file = Path(file).expanduser().resolve()
+    if file.name in ['utt2dur', 'spk2gender']:
+        kaldi_type = file.name
+    else:
+        kaldi_type = None
+    items = data_dict.items()
+    # text_file = Path(text_file)
+    data = []
+    for k, text in items:
+        if isinstance(text, list):
+            text = ' '.join(map(str, text))
+        if kaldi_type == 'utt2dur':
+            text_number = float(text)
+            assert 0. < text_number < 1000., (
+                    f'Strange duration: {k}: {text_number} s'
+                )
+        elif kaldi_type == 'spk2gender':
+            text = dict(male='m', female='f', m='m', f='f')[text]
+        else:
+            pass
+        data.append(f'{k} {text}')
+
+    file.write_text('\n'.join(data) + '\n')

@@ -1,8 +1,8 @@
 """
 Example calls:
-python -m paderbox.database.wsj.write_wav --dst-dir /destination/dir --json-path /path/to/sms_wsj.json --write-all
+python -m sms_wsj.database.wsj.write_wav --dst-dir /destination/dir --json-path /path/to/sms_wsj.json --write-all
 
-mpiexec -np 20 python -m paderbox.database.wsj.write_wav --dst-dir /destination/dir --json-path /path/to/sms_wsj.json --write-all
+mpiexec -np 20 python -m sms_wsj.database.wsj.write_wav --dst-dir /destination/dir --json-path /path/to/sms_wsj.json --write-all
 
 """
 import logging
