@@ -1,38 +1,81 @@
-"""
-NT:
-python -m paderbox.database.wsj_bss.create_json
-scp wsj_bss.json jenkins@ntjenkins:/net/vol/jenkins/jsons/
-
-PC2:
-python -m paderbox.database.wsj_bss.create_json \
-    --json-path=$NT_DATABASE_JSONS_DIR/wsj_bss.json
-"""
-from paderbox.database.wsj.database import PUNCTUATION_SYMBOLS
 from collections import defaultdict
 from pathlib import Path
 import numpy as np
-import click
 from copy import copy
-from paderbox.database.helper import (
-    dump_database_as_json,
-    click_common_options,
-    check_audio_files_exist
-)
-from paderbox.database.keys import *
-from paderbox.database.wsj import WSJ_8kHz, WSJ
-from paderbox.io.data_dir import wsj_bss
-from paderbox.database import JsonDatabase
+import sacred
+import json
+import wave
+from lazy_dataset.database import JsonDatabase
+
+ex = sacred.Experiment('Create sms_wsj json')
+
+PUNCTUATION_SYMBOLS = set('''
+    &AMPERSAND
+    ,COMMA
+    ;SEMI-COLON
+    :COLON
+    !EXCLAMATION-POINT
+    ...ELLIPSIS
+    -HYPHEN
+    .PERIOD
+    .DOT
+    ?QUESTION-MARK
+
+    .DECIMAL
+    .PERCENT
+    /SLASH
+
+    'SINGLE-QUOTE
+    "DOUBLE-QUOTE
+    "QUOTE
+    "UNQUOTE
+    "END-OF-QUOTE
+    "END-QUOTE
+    "CLOSE-QUOTE
+    "IN-QUOTES
+
+    (PAREN
+    (PARENTHESES
+    (IN-PARENTHESIS
+    (BRACE
+    (LEFT-PAREN
+    (PARENTHETICALLY
+    (BEGIN-PARENS
+    )CLOSE-PAREN
+    )CLOSE_PAREN
+    )END-THE-PAREN
+    )END-OF-PAREN
+    )END-PARENS
+    )CLOSE-BRACE
+    )RIGHT-PAREN
+    )UN-PARENTHESES
+    )PAREN
+
+    {LEFT-BRACE
+    }RIGHT-BRACE
+'''.split())
 
 
-@click.command()
-@click_common_options("wsj_bss.json", wsj_bss)
-@click.option('--sample_rate', '-sr', default='8k',
-              help='Sample rate to use.',
-              type=click.Choice(['8k', '16k']))
-def main(json_path, database_path, sample_rate):
-    json_path = Path(json_path)
-    if json_path.is_file():
+@ex.config
+def config():
+    rir_dir = None
+    json_path = None
+    wsj_json = None
+    assert rir_dir  is not None, 'You have to specify the rir dir'
+    assert wsj_json is not None, 'You have to specify a path to the wsj.json'
+    assert json_path is not None, 'You have to specify the path to write the json to'
+    wsj_json = Path(wsj_json).expanduser().resolve()
+    json_path = Path(json_path).expanduser().resolve()
+    if json_path.exists():
         raise FileExistsError(json_path)
+    rir_dir  = Path(rir_dir).expanduser().resolve()
+    assert wsj_json.is_file(), json_path
+    assert rir_dir.exists(), rir_dir 
+
+
+@ex.automain
+def main(json_path: Path, rir_dir: Path, wsj_json: Path):
+    
 
     setup = dict(
         train_si284=dict(source_dataset_name="train_si284"),
@@ -40,22 +83,17 @@ def main(json_path, database_path, sample_rate):
         test_eval92=dict(source_dataset_name="test_eval92"),
     )
 
-    rir_db = JsonDatabase(database_path / "scenarios.json")
+    rir_db = JsonDatabase(rir_dir / "scenarios.json")
 
-    if sample_rate == '16k':
-        source_db = WSJ()
-    elif sample_rate == '8k':
-        source_db = WSJ_8kHz()
-    else:
-        raise ValueError(f'Unknown sample rate: {sample_rate}')
+    source_db = JsonDatabase(wsj_json)
 
     target_db = dict()
-    target_db[DATASETS] = defaultdict(dict)
+    target_db['datasets'] = defaultdict(dict)
 
     rng = np.random.RandomState(0)
     for dataset_name in setup.keys():
         source_dataset_name = setup[dataset_name]["source_dataset_name"]
-        source_iterator = source_db.get_iterator_by_names(source_dataset_name)
+        source_iterator = source_db.get_dataset(source_dataset_name)
         print(f'length of source {dataset_name}: {len(source_iterator)}')
         source_iterator = source_iterator.filter(
             filter_fn=filter_punctuation_pronunciation, lazy=False
@@ -65,8 +103,17 @@ def main(json_path, database_path, sample_rate):
             '(after punctuation filter)'
         )
 
-        rir_iterator = rir_db.get_iterator_by_names(dataset_name)
+        rir_iterator = rir_db.get_dataset(dataset_name)
         print(f'length of rir {dataset_name}: {len(rir_iterator)}')
+
+        with wave.open(rir_dir / dataset_name / "0" / "h_0.wav", "rb") as f:
+            frame_rate_rir = f.getframerate()
+
+        ex_wsj = source_iterator.random_choice(1, rng_state=rng)[0]
+        with wave.open(ex_wsj['audio_path']['observation'], "rb") as f:
+            frame_rate_wsj = f.getframerate()
+        assert frame_rate_rir == frame_rate_wsj, (frame_rate_rir, frame_rate_wsj)
+
 
         for rir_example in rir_iterator:
             example = None
@@ -76,18 +123,17 @@ def main(json_path, database_path, sample_rate):
                     source_iterator,
                     rng,
                     dataset_name,
-                    database_path,
+                    rir_dir,
                 )
-            target_db[DATASETS][dataset_name][example[EXAMPLE_ID]] = example
+            target_db['datasets'][dataset_name][example['example_id']] = example
 
-    print("Check that all wav files in the json exist.")
-    check_audio_files_exist(target_db, speedup="thread")
     print("Finished check.")
-    dump_database_as_json(json_path, target_db)
+    json.dump(target_db, json_path, create_path=True,
+             indent=4, ensure_ascii=False)
 
 
 def filter_punctuation_pronunciation(example):
-    transcription = example[KALDI_TRANSCRIPTION].split()
+    transcription = example['kaldi_transcription'].split()
     return len(PUNCTUATION_SYMBOLS.intersection(transcription)) == 0
 
 
@@ -96,69 +142,65 @@ def get_randomized_example(
 ):
     """Returns None, if example is rejected."""
     example = copy(rir_example)
-    example[NUM_SPEAKERS] = len(example[SOURCE_POSITION][0])
+    example['num_speaker'] = len(example['source_position'][0])
 
     # Fixed selection of the first, to at least see each utterance once.
     # If we use more examples, utterances will be taken again.
-    rir_id = rir_example[EXAMPLE_ID]
+    rir_id = rir_example['example_id']
     source_examples = [source_iterator[int(rir_id) % len(source_iterator)]]
-    for _ in range(1, example[NUM_SPEAKERS]):
+    for _ in range(1, example['num_speaker']):
         source_examples.append(
             source_iterator[rng.randint(0, len(source_iterator))]
         )
 
-    example[SPEAKER_ID] = [ex[SPEAKER_ID] for ex in source_examples]
-    if len(set(example[SPEAKER_ID])) < example[NUM_SPEAKERS]:
+    example['speaker_id'] = [ex['speaker_id'] for ex in source_examples]
+    if len(set(example['speaker_id'])) < example['num_speaker']:
         return  # asserts that no speaker_id is used twice
 
-    example["source_id"] = [ex[EXAMPLE_ID] for ex in source_examples]
+    example["source_id"] = [ex['example_id'] for ex in source_examples]
 
-    for k in (GENDER, KALDI_TRANSCRIPTION):
+    for k in ('gender', 'kaldi_transcription'):
         example[k] = [ex[k] for ex in source_examples]
 
-    example[LOG_WEIGHTS] = rng.uniform(0, 5, size=(example[NUM_SPEAKERS],))
-    example[LOG_WEIGHTS] -= np.mean(example[LOG_WEIGHTS])
-    example[LOG_WEIGHTS] = example[LOG_WEIGHTS].tolist()
+    example['log_weights'] = rng.uniform(0, 5, size=(example['num_speaker'],))
+    example['log_weights'] -= np.mean(example['log_weights'])
+    example['log_weights'] = example['log_weights'].tolist()
 
     # This way, at least the first speaker can have proper alignments, all other
     # speakers can not be used for ASR.
-    if isinstance(source_examples[0][NUM_SAMPLES], dict) \
-            and OBSERVATION in source_examples[0][NUM_SAMPLES]:
+    if isinstance(source_examples[0]['num_samples'], dict) \
+            and 'observation' in source_examples[0]['num_samples']:
         # 16k case
-        example[NUM_SAMPLES] = {
-            OBSERVATION: source_examples[0][NUM_SAMPLES][OBSERVATION],
-            SPEECH_SOURCE: [ex[NUM_SAMPLES][OBSERVATION] for ex in
+        example['num_samples'] = {
+            'observation': source_examples[0]['num_samples']['observation'],
+            'speech_source': [ex['num_samples']['observation'] for ex in
                             source_examples]
         }
     else:
         # 8k case
-        example[NUM_SAMPLES] = {
-            OBSERVATION: source_examples[0][NUM_SAMPLES],
-            SPEECH_SOURCE: [ex[NUM_SAMPLES] for ex in source_examples]
+        example['num_samples'] = {
+            'observation': source_examples[0]['num_samples'],
+            'speech_source': [ex['num_samples'] for ex in source_examples]
         }
     example["offset"] = [0]
-    for k in range(1, example[NUM_SPEAKERS]):
+    for k in range(1, example['num_speakers']):
         excess_samples = (
-            example[NUM_SAMPLES][OBSERVATION]
-            - example[NUM_SAMPLES][SPEECH_SOURCE][k]
+            example['num_samples']['observation']
+            - example['num_samples']['speech_source'][k]
         )
         example["offset"].append(
             np.sign(excess_samples) * rng.randint(0, np.abs(excess_samples))
         )
 
-    example[EXAMPLE_ID] = "_".join((*example["source_id"], rir_id))
+    example['example_id'] = "_".join((*example["source_id"], rir_id))
 
-    example[AUDIO_PATH] = dict()
-    example[AUDIO_PATH][SPEECH_SOURCE] = [
-        ex[AUDIO_PATH][OBSERVATION] for ex in source_examples
+    example['audio_path'] = dict()
+    example['audio_path']['speech_source'] = [
+        ex['audio_path']['observation'] for ex in source_examples
     ]
-    example[AUDIO_PATH][RIR] = [
+    example['audio_path']['rir'] = [
         database_path / dataset_name / rir_id / f"h_{k}.wav"
-        for k in range(len(example[SOURCE_POSITION][0]))
+        for k in range(len(example['source_position'][0]))
     ]
 
     return example
-
-
-if __name__ == "__main__":
-    main()
