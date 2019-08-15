@@ -60,21 +60,21 @@ PUNCTUATION_SYMBOLS = set('''
 def config():
     rir_dir = None
     json_path = None
-    wsj_json = None
+    wsj_json_path = None
     assert rir_dir  is not None, 'You have to specify the rir dir'
-    assert wsj_json is not None, 'You have to specify a path to the wsj.json'
+    assert wsj_json_path is not None, 'You have to specify a path to the wsj.json'
     assert json_path is not None, 'You have to specify the path to write the json to'
-    wsj_json = Path(wsj_json).expanduser().resolve()
+    wsj_json_path = Path(wsj_json_path).expanduser().resolve()
     json_path = Path(json_path).expanduser().resolve()
     if json_path.exists():
         raise FileExistsError(json_path)
     rir_dir  = Path(rir_dir).expanduser().resolve()
-    assert wsj_json.is_file(), json_path
+    assert wsj_json_path.is_file(), json_path
     assert rir_dir.exists(), rir_dir 
 
 
 @ex.automain
-def main(json_path: Path, rir_dir: Path, wsj_json: Path):
+def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
     
 
     setup = dict(
@@ -85,7 +85,7 @@ def main(json_path: Path, rir_dir: Path, wsj_json: Path):
 
     rir_db = JsonDatabase(rir_dir / "scenarios.json")
 
-    source_db = JsonDatabase(wsj_json)
+    source_db = JsonDatabase(wsj_json_path)
 
     target_db = dict()
     target_db['datasets'] = defaultdict(dict)
