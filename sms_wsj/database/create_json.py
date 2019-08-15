@@ -4,7 +4,7 @@ import numpy as np
 from copy import copy
 import sacred
 import json
-import wave
+import soundfile
 from lazy_dataset.database import JsonDatabase
 
 ex = sacred.Experiment('Create sms_wsj json')
@@ -56,26 +56,98 @@ PUNCTUATION_SYMBOLS = set('''
 '''.split())
 
 
+def filter_punctuation_pronunciation(example):
+    transcription = example['kaldi_transcription'].split()
+    return len(PUNCTUATION_SYMBOLS.intersection(transcription)) == 0
+
+
+def get_randomized_example(
+    rir_example, source_iterator, rng, dataset_name, database_path
+):
+    """Returns None, if example is rejected."""
+    example = copy(rir_example)
+    example['num_speakers'] = len(example['source_position'][0])
+
+    # Fixed selection of the first, to at least see each utterance once.
+    # If we use more examples, utterances will be taken again.
+    rir_id = rir_example['example_id']
+    source_examples = [source_iterator[int(rir_id) % len(source_iterator)]]
+    for _ in range(1, example['num_speakers']):
+        source_examples.append(
+            source_iterator[rng.randint(0, len(source_iterator))]
+        )
+
+    example['speaker_id'] = [exa['speaker_id'] for exa in source_examples]
+    if len(set(example['speaker_id'])) < example['num_speakers']:
+        return  # asserts that no speaker_id is used twice
+
+    example["source_id"] = [exa['example_id'] for exa in source_examples]
+
+    for k in ('gender', 'kaldi_transcription'):
+        example[k] = [exa[k] for exa in source_examples]
+
+    example['log_weights'] = rng.uniform(0, 5, size=(example['num_speakers'],))
+    example['log_weights'] -= np.mean(example['log_weights'])
+    example['log_weights'] = example['log_weights'].tolist()
+
+    # This way, at least the first speaker can have proper alignments, all other
+    # speakers can not be used for ASR.
+    if isinstance(source_examples[0]['num_samples'], dict) \
+            and 'observation' in source_examples[0]['num_samples']:
+        # 16k case
+        example['num_samples'] = {
+            'observation': source_examples[0]['num_samples']['observation'],
+            'speech_source': [exa['num_samples']['observation'] for exa in
+                              source_examples]
+        }
+    else:
+        # 8k case
+        example['num_samples'] = {
+            'observation': source_examples[0]['num_samples'],
+            'speech_source': [exa['num_samples'] for exa in source_examples]
+        }
+    example["offset"] = [0]
+    for k in range(1, example['num_speakers']):
+        excess_samples = (
+            example['num_samples']['observation']
+            - example['num_samples']['speech_source'][k]
+        )
+        example["offset"].append(int(
+            np.sign(excess_samples) * rng.randint(0, np.abs(excess_samples))
+        ))
+    example['example_id'] = "_".join((*example["source_id"], rir_id))
+
+    example['audio_path'] = dict()
+    example['audio_path']['speech_source'] = [
+        exa['audio_path']['observation'] for exa in source_examples
+    ]
+    example['audio_path']['rir'] = [
+        str(database_path / dataset_name / rir_id / f"h_{k}.wav")
+        for k in range(len(example['source_position'][0]))
+    ]
+
+    return example
+
+
 @ex.config
 def config():
     rir_dir = None
     json_path = None
     wsj_json_path = None
-    assert rir_dir  is not None, 'You have to specify the rir dir'
+    assert rir_dir is not None, 'You have to specify the rir dir'
     assert wsj_json_path is not None, 'You have to specify a path to the wsj.json'
     assert json_path is not None, 'You have to specify the path to write the json to'
-    wsj_json_path = Path(wsj_json_path).expanduser().resolve()
-    json_path = Path(json_path).expanduser().resolve()
-    if json_path.exists():
-        raise FileExistsError(json_path)
-    rir_dir  = Path(rir_dir).expanduser().resolve()
-    assert wsj_json_path.is_file(), json_path
-    assert rir_dir.exists(), rir_dir 
 
 
 @ex.automain
 def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
-    
+    wsj_json_path = Path(wsj_json_path).expanduser().resolve()
+    json_path = Path(json_path).expanduser().resolve()
+    if json_path.exists():
+        raise FileExistsError(json_path)
+    rir_dir = Path(rir_dir).expanduser().resolve()
+    assert wsj_json_path.is_file(), json_path
+    assert rir_dir.exists(), rir_dir
 
     setup = dict(
         train_si284=dict(source_dataset_name="train_si284"),
@@ -106,14 +178,13 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
         rir_iterator = rir_db.get_dataset(dataset_name)
         print(f'length of rir {dataset_name}: {len(rir_iterator)}')
 
-        with wave.open(rir_dir / dataset_name / "0" / "h_0.wav", "rb") as f:
-            frame_rate_rir = f.getframerate()
+        info = soundfile.info(str(rir_dir / dataset_name / "0" / "h_0.wav"))
+        frame_rate_rir = info.samplerate
 
         ex_wsj = source_iterator.random_choice(1, rng_state=rng)[0]
-        with wave.open(ex_wsj['audio_path']['observation'], "rb") as f:
-            frame_rate_wsj = f.getframerate()
+        info = soundfile.SoundFile(ex_wsj['audio_path']['observation'])
+        frame_rate_wsj = info.samplerate
         assert frame_rate_rir == frame_rate_wsj, (frame_rate_rir, frame_rate_wsj)
-
 
         for rir_example in rir_iterator:
             example = None
@@ -126,80 +197,7 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
                     rir_dir,
                 )
             target_db['datasets'][dataset_name][example['example_id']] = example
-
-    json.dump(target_db, json_path, create_path=True,
-             indent=4, ensure_ascii=False)
-
-
-def filter_punctuation_pronunciation(example):
-    transcription = example['kaldi_transcription'].split()
-    return len(PUNCTUATION_SYMBOLS.intersection(transcription)) == 0
-
-
-def get_randomized_example(
-    rir_example, source_iterator, rng, dataset_name, database_path
-):
-    """Returns None, if example is rejected."""
-    example = copy(rir_example)
-    example['num_speaker'] = len(example['source_position'][0])
-
-    # Fixed selection of the first, to at least see each utterance once.
-    # If we use more examples, utterances will be taken again.
-    rir_id = rir_example['example_id']
-    source_examples = [source_iterator[int(rir_id) % len(source_iterator)]]
-    for _ in range(1, example['num_speaker']):
-        source_examples.append(
-            source_iterator[rng.randint(0, len(source_iterator))]
-        )
-
-    example['speaker_id'] = [ex['speaker_id'] for ex in source_examples]
-    if len(set(example['speaker_id'])) < example['num_speaker']:
-        return  # asserts that no speaker_id is used twice
-
-    example["source_id"] = [ex['example_id'] for ex in source_examples]
-
-    for k in ('gender', 'kaldi_transcription'):
-        example[k] = [ex[k] for ex in source_examples]
-
-    example['log_weights'] = rng.uniform(0, 5, size=(example['num_speaker'],))
-    example['log_weights'] -= np.mean(example['log_weights'])
-    example['log_weights'] = example['log_weights'].tolist()
-
-    # This way, at least the first speaker can have proper alignments, all other
-    # speakers can not be used for ASR.
-    if isinstance(source_examples[0]['num_samples'], dict) \
-            and 'observation' in source_examples[0]['num_samples']:
-        # 16k case
-        example['num_samples'] = {
-            'observation': source_examples[0]['num_samples']['observation'],
-            'speech_source': [ex['num_samples']['observation'] for ex in
-                            source_examples]
-        }
-    else:
-        # 8k case
-        example['num_samples'] = {
-            'observation': source_examples[0]['num_samples'],
-            'speech_source': [ex['num_samples'] for ex in source_examples]
-        }
-    example["offset"] = [0]
-    for k in range(1, example['num_speakers']):
-        excess_samples = (
-            example['num_samples']['observation']
-            - example['num_samples']['speech_source'][k]
-        )
-        example["offset"].append(
-            np.sign(excess_samples) * rng.randint(0, np.abs(excess_samples))
-        )
-
-    example['example_id'] = "_".join((*example["source_id"], rir_id))
-
-    example['audio_path'] = dict()
-    example['audio_path']['speech_source'] = [
-        ex['audio_path']['observation'] for ex in source_examples
-    ]
-    example['audio_path']['rir'] = [
-        database_path / dataset_name / rir_id / f"h_{k}.wav"
-        for k in range(len(example['source_position'][0]))
-    ]
-
-    return example
+    json_path.parent.mkdir(exist_ok=True, parents=True)
+    with json_path.open('w') as f:
+        json.dump(target_db, f, indent=4, ensure_ascii=False)
+    print(f'{json_path} written')

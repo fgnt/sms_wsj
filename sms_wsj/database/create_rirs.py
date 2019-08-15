@@ -162,8 +162,7 @@ def main(
                 filter_length=filter_length,
                 sensor_orientations=None,
                 sensor_directivity=None,
-                sound_velocity=343,
-                algorithm="habets",
+                sound_velocity=343
             )
             assert not np.any(
                 np.isnan(h)
@@ -178,7 +177,7 @@ def main(
                 # to access the files, it doe not require normalization and
                 # we are unsure how much precision is needed for RIRs.
                 with soundfile.SoundFile(
-                        directory / f"h_{k}.wav", subtype='DOUBLE',
+                        str(directory / f"h_{k}.wav"), subtype='DOUBLE',
                         samplerate=sample_rate, mode='w', channels=h.shape[1]
                 ) as f:
                     f.write(h[k, :, :])

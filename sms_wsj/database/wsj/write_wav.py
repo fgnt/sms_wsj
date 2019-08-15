@@ -107,7 +107,7 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
 
     for nist_file in dlp_mpi.split_managed(wsj_nist_files):
         assert isinstance(nist_file, Path), nist_file
-        signal = read_nist_wsj(nist_file, expected_sample_rate=16000)[0]
+        signal = read_nist_wsj(nist_file, expected_sample_rate=16000)
 
         target = dst_dir / nist_file.with_suffix('.wav').relative_to(wsj_root)
         assert not target == nist_file, (nist_file, target)
