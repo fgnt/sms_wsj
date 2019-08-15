@@ -146,7 +146,7 @@ def scenario_map_fn(
     log_weights = example['log_weights']
 
     # The two sources have to be cut to same length
-    K = example['num_speaker']
+    K = example['num_speakers']
     T = example['num_samples']['observation']
     s = example['audio_data']['speech_source']
 
@@ -177,6 +177,8 @@ def scenario_map_fn(
 
     # Rescale such that invasive SIR is as close as possible to `log_weights`.
     scale = (10 ** (np.asarray(log_weights)[:, None, None] / 20)) / std
+    # divide by 50 to ensure that all values are between -1 and 1
+    scale /= 50
 
     x *= scale
     example['audio_data']['speech_image'] = x
@@ -244,7 +246,7 @@ def get_valid_mird_rirs(mird_dir, rng=np.random):
         angular_distance = np.abs(minus_with_wrap(
             float(angle_degree[1]) / 180 * np.pi,
             float(angle_degree[0]) / 180 * np.pi,
-        )/ np.pi * 180)
+        ) / np.pi * 180)
         if angular_distance > 37.5:
             angular_distance_ok = True
 
