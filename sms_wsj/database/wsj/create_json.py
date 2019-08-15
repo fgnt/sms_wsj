@@ -1,35 +1,34 @@
 from pathlib import Path
-import click
+import sacred
 import tempfile
 import sh
 import re
 import soundfile as sf
+import json
 
-from paderbox.io.data_dir import wsj
-from paderbox.database import keys
-from paderbox.database.helper import (
-    dump_database_as_json,
-    click_common_options,
-    check_audio_files_exist
-    )
+ex = sacred.Experiment('Create wsj json')
 
 
-def read_nsamples(audio_path):
+@ex.config
+def config():
+    database_dir = None
+    json_path = None
+    wsj_json = None
+    as_wav = True
+    assert database_dir is not None, 'You have to specify the database dir'
+    assert wsj_json is not None, 'You have to specify a path to the wsj.json'
+    assert json_path is not None, 'You have to specify the path to write the json to'
+    database_dir = Path(database_dir).expanduser().resolve()
+    json_path = Path(json_path).expanduser().resolve()
+    if json_path.exists():
+        raise FileExistsError(json_path)
+    assert database_dir.exists(), database_dir
 
-    if audio_path.suffix == '.wv1':
-        f = open(audio_path, 'rb')
-        header = f.read(1024).decode("utf-8")  # nist header is a multiple of
-        # 1024 bytes
-        nsamples = int(re.search("sample_count -i (.+?)\n", header).group(1))
-    else:
-        info = sf.info(str(audio_path), verbose=True)
-        nsamples = info.frames
-    return nsamples
 
+@ex.automain
+def create_database(database_dir, json_path, as_wav):
 
-def create_database(wsj_path, as_wav=False):
-
-    wsj_path = Path(wsj_path)
+    database_dir = Path(database_dir)
 
     train_sets = [
         ["11-13.1/wsj0/doc/indices/train/tr_s_wv1.ndx"],
@@ -64,15 +63,15 @@ def create_database(wsj_path, as_wav=False):
         "cv_dev93_5k",  # 513 examples
     ]
 
-    transcriptions = get_transcriptions(wsj_path, wsj_path)
-    gender_mapping = get_gender_mapping(wsj_path)
+    transcriptions = get_transcriptions(database_dir, database_dir)
+    gender_mapping = get_gender_mapping(database_dir)
 
     examples = dict()
 
     examples_tr = create_official_datasets(
         train_sets,
         train_set_names,
-        wsj_path,
+        database_dir,
         as_wav,
         gender_mapping,
         transcriptions
@@ -82,7 +81,7 @@ def create_database(wsj_path, as_wav=False):
     examples_dt = create_official_datasets(
         dev_sets,
         dev_set_names,
-        wsj_path,
+        database_dir,
         as_wav, gender_mapping,
         transcriptions
     )
@@ -91,7 +90,7 @@ def create_database(wsj_path, as_wav=False):
     examples_et = create_official_datasets(
         test_sets,
         test_set_names,
-        wsj_path,
+        database_dir,
         as_wav,
         gender_mapping,
         transcriptions
@@ -99,10 +98,11 @@ def create_database(wsj_path, as_wav=False):
     examples.update(examples_et)
 
     database = {
-        keys.DATASETS: examples,
+        'datasets': examples,
     }
 
-    return database
+    json.dump(database, json_path, create_path=True,
+              indent=4, ensure_ascii=False)
 
 
 def create_official_datasets(
@@ -131,6 +131,19 @@ def create_official_datasets(
             _examples[set_name].update(_example)
 
     return _examples
+
+
+def read_nsamples(audio_path):
+
+    if audio_path.suffix == '.wv1':
+        f = open(audio_path, 'rb')
+        header = f.read(1024).decode("utf-8")  # nist header is a multiple of
+        # 1024 bytes
+        nsamples = int(re.search("sample_count -i (.+?)\n", header).group(1))
+    else:
+        info = sf.info(str(audio_path), verbose=True)
+        nsamples = info.frames
+    return nsamples
 
 
 def read_ndx(ndx_file: Path, wsj_root, as_wav,
@@ -197,17 +210,17 @@ def process_example_paths(example_paths, genders, transcript):
         gender = genders[speaker_id]
 
         example = {
-            keys.EXAMPLE_ID: example_id,
-            keys.AUDIO_PATH: {
-                keys.OBSERVATION: str(path)
+            'example_id': example_id,
+            'audio_path': {
+                'observation': str(path)
             },
-            keys.NUM_SAMPLES: {
-                keys.OBSERVATION: nsamples
+            'num_samples': {
+                'observation': nsamples
             },
-            keys.SPEAKER_ID: speaker_id,
-            keys.GENDER: gender,
-            keys.TRANSCRIPTION: transcript['clean word'][example_id],
-            keys.KALDI_TRANSCRIPTION: transcript['kaldi'][example_id]
+            'speaker_id': speaker_id,
+            'gender': gender,
+            'transcription': transcript['clean word'][example_id],
+            'kaldi_transcription': transcript['kaldi'][example_id]
         }
 
         _examples[example_id] = example
@@ -282,26 +295,7 @@ def get_gender_mapping(wsj_root: Path):
             for line in fid:
                 if not (line.startswith(';') or line.startswith('---')):
                     line = line.split()
-                    _spkr_gender_mapping[line[0].lower()] = keys.MALE \
-                        if line[1] == 'M' else keys.FEMALE
+                    _spkr_gender_mapping[line[0].lower()] = 'male' \
+                        if line[1] == 'M' else 'female'
 
     return _spkr_gender_mapping
-
-
-@click.command()
-@click_common_options(default_json_path='wsj.json', default_database_path=wsj)
-@click.option(
-    '--wav',
-    is_flag=True,
-    help='Store wav paths in json file, otherwise nist paths'
-)
-def main(database_path, json_path, wav):
-    json = create_database(database_path, wav)
-    print("Check that all wav files in the json exist.")
-    check_audio_files_exist(json, speedup="thread")
-    print("Finished check.")
-    dump_database_as_json(json_path, json)
-
-
-if __name__ == '__main__':
-    main()

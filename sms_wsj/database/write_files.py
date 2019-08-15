@@ -135,7 +135,6 @@ def create_json(dst_dir, db, write_all):
 def config():
     dst_dir = None
     json_path = None
-    sample_rate = 16000
     write_all = True
     new_json_path = None
     assert dst_dir is not None, 'You have to specify a destination dir'

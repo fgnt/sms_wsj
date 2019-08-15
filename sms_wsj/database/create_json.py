@@ -127,7 +127,6 @@ def main(json_path: Path, rir_dir: Path, wsj_json: Path):
                 )
             target_db['datasets'][dataset_name][example['example_id']] = example
 
-    print("Finished check.")
     json.dump(target_db, json_path, create_path=True,
              indent=4, ensure_ascii=False)
 
