@@ -1,3 +1,9 @@
+"""
+Training script for baseline asr system. Expects all sms_wsj files to be written to storage and json_path pointing to a json using those files.
+example call:
+
+python -m train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=$JSON_PATH/wsj_bss.json
+"""
 import os
 from pathlib import Path
 
@@ -37,7 +43,7 @@ def config():
     end_stage = 20
     kaldi_cmd = 'run.pl'
     ali_data_type = 'sms_early'
-    train_data_type = 'sms_single'
+    train_data_type = 'sms_single_speaker'
     gmm_dir = None
     # ToDo: change to kaldi_root/egs/ if no egs_path is defined?
     assert egs_path is not None, \
