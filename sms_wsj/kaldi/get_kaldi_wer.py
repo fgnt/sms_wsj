@@ -1,20 +1,20 @@
 """
 Example call on local machine:
 Automatically takes all available cores:
-$ python -m sms_wsj.kaldi.get_wer -F /EXP/DIR with kaldi_data_dir=/KALDI/DATA/DIR model_egs_dir=/MODEL/EGS/DIR
+$ python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR with kaldi_data_dir=/KALDI/DATA/DIR model_egs_dir=/MODEL/EGS/DIR
 
 Uses the json_path to create a kaldi data dir
-$ python -m sms_wsj.kaldi.get_wer -F /EXP/DIR with json_path=/JSON/PATH model_egs_dir=/MODEL/EGS/DIR
+$ python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR with json_path=/JSON/PATH model_egs_dir=/MODEL/EGS/DIR
 
 Evaluates audio data in audio_dir, expects audio_dir/dataset to exist and audio files of format {exampled_id}_0.wav the format can be changed using the variable id_to_file_name
-$ python -m sms_wsj.kaldi.get_wer -F /EXP/DIR with audio_dir=/AUDIO/DIR json_path=/JSON/PATH model_egs_dir=/MODEL/EGS/DIR
+$ python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR with audio_dir=/AUDIO/DIR json_path=/JSON/PATH model_egs_dir=/MODEL/EGS/DIR
 
 The follwoing command is used to directly decode a dataset. Expects kaldi_data_dir/dataset to exist.
-$ python -m sms_wsj.kaldi.get_wer -F /EXP/DIR decode with kaldi_data_dir=/KALDI/DATA/DIR model_egs_dir=/MODEL/EGS/DIR dataset=test_eval92
+$ python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR decode with kaldi_data_dir=/KALDI/DATA/DIR model_egs_dir=/MODEL/EGS/DIR dataset=test_eval92
 
 
 Example call on pc2 (HPC system in paderborn):
-$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python -m sms_wsj.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
+$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python -m sms_wsj.kaldi.get_kaldi_wer -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
 
 """
 
