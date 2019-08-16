@@ -28,14 +28,14 @@ DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr',
 
 
 
-def create_kaldi_dir(egs_path, org_dir=None):
+def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
     """
 
     :param egs_path:
     :return:
     """
     print(f'Create {egs_path} directory')
-    (egs_path / 'data').mkdir(exist_ok=False, parents=True)
+    (egs_path / 'data').mkdir(exist_ok=exist_ok, parents=True)
     if org_dir is None:
         org_dir = (egs_path / '..' / '..' / 'wsj' / 's5').resolve()
     for file in REQUIRED_FILES:
@@ -88,7 +88,6 @@ def create_data_dir(
         audio_key = DB2AudioKeyMapper[data_type]
     assert not (db is None and json_path is None), (db, json_path)
     if db is None:
-        assert json_path is not None, json_path
         db = JsonDatabase(json_path)
 
     data_dir = kaldi_dir / 'data' / data_type
@@ -203,9 +202,9 @@ def calculate_mfccs(base_dir, dataset, num_jobs=20, config='mfcc.conf',
     )
 
 
-def calculate_ivectors(ivector_dir, dest_dir, org_dir, train_affix,
-                       dataset_dir, extractor_dir, dataype='sms', num_jobs=8,
-                       kaldi_cmd='run.pl'):
+def calculate_ivectors(ivector_dir, dest_dir, org_dir, dataset_dir,
+                       extractor_dir, model_data_type='sms',
+                       data_type='sms', num_jobs=8, kaldi_cmd='run.pl'):
     '''
 
     :param ivector_dir: ivector directory may be a string, bool or Path
@@ -219,12 +218,11 @@ def calculate_ivectors(ivector_dir, dest_dir, org_dir, train_affix,
     dest_dir = dest_dir.expanduser().resolve()
 
     if isinstance(ivector_dir, str):
-        ivector_dir = dest_dir / 'exp' / dataype / (
-                'nnet3_' + train_affix) / ivector_dir
+        ivector_dir = dest_dir / 'exp' / model_data_type / 'nnet3' /\
+                      ivector_dir
     elif ivector_dir is True:
-        ivector_dir = dest_dir / 'exp' / dataype / (
-                'nnet3_' + train_affix) / (
-            f'ivectors_{dataset_dir.parent.name}_{dataset_dir.name}')
+        ivector_dir = dest_dir / 'exp' / model_data_type / 'nnet3' / (
+            f'ivectors_{data_type}_{dataset_dir.name}')
     elif isinstance(ivector_dir, Path):
         ivector_dir = ivector_dir
     else:
@@ -232,11 +230,11 @@ def calculate_ivectors(ivector_dir, dest_dir, org_dir, train_affix,
                          f' a Path, a string or bolean')
     if not ivector_dir.exists():
         if extractor_dir is None:
-            extractor_dir = org_dir / f'exp/{dataype}/' \
-                f'nnet3_{train_affix}/extractor'
+            extractor_dir = org_dir / f'exp/{model_data_type}/' \
+                f'nnet3/extractor'
         else:
             if isinstance(extractor_dir, str):
-                extractor_dir = org_dir / f'exp/{dataype}/{extractor_dir}'
+                extractor_dir = org_dir / f'exp/{model_data_type}/{extractor_dir}'
         assert extractor_dir.exists(), extractor_dir
         print(f'Directory {ivector_dir} not found, estimating ivectors')
         run_process([
@@ -276,8 +274,12 @@ def get_alignments(egs_dir, num_jobs, kaldi_cmd='run.pl',
 
 
 def run_process(cmd, cwd=None, stderr=None, stdout=None):
+    if isinstance(cmd, str):
+        shell = True
+    else:
+        shell = False
     subprocess.run(
-        cmd, universal_newlines=True, shell=True, stdout=stdout,
+        cmd, universal_newlines=True, shell=shell, stdout=stdout,
         stderr=stderr, check=True, env=None, cwd=cwd
     )
 
