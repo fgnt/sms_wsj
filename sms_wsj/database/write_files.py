@@ -1,12 +1,11 @@
 """
 Example calls:
-python -m sms_wsj.database.wsj.write_wav --dst-dir /destination/dir --json-path /path/to/sms_wsj.json --write-all
+python -m sms_wsj.database.wsj.write_wav with dst_dir=/destination/dir json-path=/path/to/sms_wsj.json write_all=True --new_json_path=/path/to/new_sms_wsj.json write_all=True
 
-mpiexec -np 20 python -m sms_wsj.database.wsj.write_wav --dst-dir /destination/dir --json-path /path/to/sms_wsj.json --write-all
+mpiexec -np 20 python -m sms_wsj.database.wsj.write_wav with dst_dir=/destination/dir json-path=/path/to/sms_wsj.json write_all=True --new_json_path=/path/to/new_sms_wsj.json write_all=True
 
 """
-import logging
-import time
+
 from functools import partial
 from pathlib import Path
 
@@ -34,6 +33,7 @@ def audio_read(example):
     """
     audio_keys = ['rir', 'speech_source']
     keys = list(example['audio_path'].keys())
+    example['audio_data'] = dict()
     for audio_key in audio_keys:
         assert audio_key in keys, (
             f'Trying to read {audio_key} but only {keys} are available'
@@ -42,7 +42,7 @@ def audio_read(example):
         for wav_file in example['audio_path'][audio_key]:
 
             with soundfile.SoundFile(wav_file, mode='r') as f:
-                audio_data.append(f.read())
+                audio_data.append(f.read().T)
         example['audio_data'][audio_key] = np.array(audio_data)
     return example
 
@@ -55,7 +55,7 @@ def write_wavs(dst_dir, db, write_all=False):
         map_fn = partial(
             scenario_map_fn,
             sync_speech_source=True,
-            add_speech_reverberation_direct=True,
+            add_speech_reverberation_early=True,
             add_speech_reverberation_tail=True
         )
     else:
@@ -64,7 +64,7 @@ def write_wavs(dst_dir, db, write_all=False):
         map_fn = partial(
             scenario_map_fn,
             sync_speech_source=True,
-            add_speech_reverberation_direct=False,
+            add_speech_reverberation_early=False,
             add_speech_reverberation_tail=False
         )
     ds = db.get_dataset(['train_si284', 'cv_dev93', 'test_eval92']).map(
@@ -80,7 +80,8 @@ def write_wavs(dst_dir, db, write_all=False):
             del audio_dict['speech_reverberation_early']
             del audio_dict['speech_reverberation_tale']
             del audio_dict['noise_image']
-        assert all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()])
+        assert all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()]), (
+            example_id, [np.max(np.abs(v)) for v in audio_dict.values()])
         for key, value in audio_dict.items():
             path = dst_dir / type_mapper[key]
             if key in ['observation', 'noise_image']:
@@ -92,12 +93,13 @@ def write_wavs(dst_dir, db, write_all=False):
                 with soundfile.SoundFile(
                         audio_path, subtype='FLOAT', mode='w', samplerate=8000,
                         channels=1 if signal.ndim == 1 else signal.shape[0]
-                ) as f: f.write(signal.T)
+                ) as f:
+                    f.write(signal.T)
 
     dlp_mpi.barrier()
     if dlp_mpi.IS_MASTER:
         created_files = list(dst_dir.rglob("*.wav"))
-        logging.info(f"Written {len(created_files)} wav files.")
+        print(f"Written {len(created_files)} wav files.")
         if write_all:
             assert len(created_files) == (2 * 2 + 2) * len(ds), len(
                 created_files)
@@ -139,38 +141,40 @@ def config():
     new_json_path = None
     assert dst_dir is not None, 'You have to specify a destination dir'
     assert json_path is not None, 'You have to specify a path to sms_wsj.json'
-    json_path = Path(json_path).expanduser().resolve()
-    dst_dir = Path(dst_dir).expanduser().resolve()
-    assert json_path.exists(), json_path
-    assert dst_dir.exists(), dst_dir
-    if new_json_path is None:
-        print('No new json path was specified, so no json is written for the'
-              'created wav files')
+
 @ex.automain
 def main(dst_dir, json_path, write_all, new_json_path):
-    logging.info(f"Start - {time.ctime()}")
-
-    dst_dir = Path(dst_dir).expanduser().resolve()
-    assert dst_dir.is_dir(), dst_dir
     json_path = Path(json_path).expanduser().resolve()
-    assert json_path.is_file(), json_path
-
-    db = JsonDatabase(json_path)
-    if not any([(dst_dir / data_type).exists() for data_type in type_mapper.keys()]):
-        write_wavs(dst_dir, db, write_all=write_all)
-    else:
-        num_wav_files = len(list(dst_dir.rglob("*.wav")))
-        if write_all and  num_wav_files == (2 * 2 + 2) * 32000:
-            print('Wav files seem to exist. They are not overwritten.')
-        elif not write_all and num_wav_files == 32000:
-            print('Wav files seem to exist. They are not overwritten.')
+    dst_dir = Path(dst_dir).expanduser().resolve()
+    dst_dir = dst_dir / 'sms_wsj'
+    if dlp_mpi.IS_MASTER:
+        assert json_path.exists(), json_path
+        dst_dir.mkdir(exist_ok=False, parents=True)
+        if not any([(dst_dir / data_type).exists() for data_type in type_mapper.keys()]):
+            write_files = True
         else:
-            raise ValueError(
-                'Not all wav files exist. However, the directory structure'
-                ' already exists.')
+            write_files = False
+            num_wav_files = len(list(dst_dir.rglob("*.wav")))
+            if write_all and  num_wav_files == (2 * 2 + 2) * 32000:
+                print('Wav files seem to exist. They are not overwritten.')
+            elif not write_all and num_wav_files == 32000:
+                print('Wav files seem to exist. They are not overwritten.')
+            else:
+                raise ValueError(
+                    'Not all wav files exist. However, the directory structure'
+                    ' already exists.')
+    else:
+        write_files = None
+    write_files, new_json_path = dlp_mpi.COMM.bcast(
+        (write_files, new_json_path), root=dlp_mpi.MASTER)
+    db = JsonDatabase(json_path)
+    if write_files:
+        write_wavs(dst_dir, db, write_all=write_all)
 
     if dlp_mpi.IS_MASTER and new_json_path:
         print(f'Creating a new json and saving it to {json_path}')
         updated_json = create_json(dst_dir, db, write_all)
-        json.dump(updated_json, new_json_path, create_path=True,
-            indent=4, ensure_ascii=False)
+        new_json_path.parent.mkdir(exist_ok=True, parents=True)
+        with new_json_path.open('w') as f:
+            json.dump(updated_json, f, indent=4, ensure_ascii=False)
+        print(f'{json_path} written')
