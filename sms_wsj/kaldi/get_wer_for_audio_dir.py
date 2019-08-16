@@ -1,10 +1,10 @@
 """
-Example call on nt:
+Example call on local machine:
 Automatically takes all available cores:
-python -m sms_wsj.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
+$ python -m sms_wsj.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
 
-Example call on pc2:
-ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python -m sms_wsj.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
+Example call on pc2 (HPC system in paderborn):
+$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python -m sms_wsj.get_wer_for_audio_dir -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
 
 """
 
