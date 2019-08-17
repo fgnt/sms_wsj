@@ -109,7 +109,7 @@ def write_wavs(dst_dir, db, write_all=False):
 
 def create_json(dst_dir, db, write_all):
     json_dict = dict(datasets=dict())
-    database_dict = db.database_dict['datasets']
+    database_dict = db.data['datasets']
     for dataset_name, dataset in database_dict.items():
         dataset_dict = dict()
         for ex_id, ex in dataset.items():
