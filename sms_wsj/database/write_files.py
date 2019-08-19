@@ -117,16 +117,16 @@ def create_json(dst_dir, db, write_all):
                 for key, data_type in type_mapper.items():
                     if key in ['observation', 'noise_image']:
                         ex['audio_path'][key] = [
-                            dst_dir / data_type / (ex_id + '.wav'),
+                            str(dst_dir / data_type / (ex_id + '.wav')),
                          ]
                     else:
                         ex['audio_path'][key] = [
-                            dst_dir / data_type / (ex_id + '_0.wav'),
-                            dst_dir / data_type / (ex_id + '_1.wav')
+                            str(dst_dir / data_type / (ex_id + '_0.wav')),
+                            str(dst_dir / data_type / (ex_id + '_1.wav'))
                         ]
             else:
                 ex['audio_path'].update({
-                    'observation': dst_dir / 'observation' / (ex_id + '.wav')
+                    'observation': str(dst_dir / 'observation' / (ex_id + '.wav'))
                 })
             dataset_dict[ex_id] = ex
             json_dict['datasets'][dataset_name] = dataset_dict
@@ -145,19 +145,21 @@ def config():
 @ex.automain
 def main(dst_dir, json_path, write_all, new_json_path):
     json_path = Path(json_path).expanduser().resolve()
+    new_json_path = Path(new_json_path).expanduser().resolve()
     dst_dir = Path(dst_dir).expanduser().resolve()
-    dst_dir = dst_dir / 'sms_wsj'
     if dlp_mpi.IS_MASTER:
         assert json_path.exists(), json_path
-        dst_dir.mkdir(exist_ok=False, parents=True)
-        if not any([(dst_dir / data_type).exists() for data_type in type_mapper.keys()]):
+        dst_dir.mkdir(exist_ok=True, parents=True)
+        if not any([(dst_dir / data_type).exists()
+                    for data_type in type_mapper.keys()]):
             write_files = True
         else:
             write_files = False
             num_wav_files = len(list(dst_dir.rglob("*.wav")))
-            if write_all and  num_wav_files == (2 * 2 + 2) * 32000:
+            if write_all and num_wav_files == (2 * 2 + 2) * 32000:
                 print('Wav files seem to exist. They are not overwritten.')
-            elif not write_all and num_wav_files == 32000:
+            elif not write_all and num_wav_files == 32000 and (
+                    dst_dir / 'observation').exists():
                 print('Wav files seem to exist. They are not overwritten.')
             else:
                 raise ValueError(
