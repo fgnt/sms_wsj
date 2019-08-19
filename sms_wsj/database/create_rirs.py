@@ -135,7 +135,10 @@ def main(
             }
             database['datasets'][dataset][example_id]['example_id'] = example_id
     if dlp_mpi.IS_MASTER:
-        json.dump(database, database_path / "scenarios.json")
+        scenario_json = database_path / "scenarios.json"
+        scenario_json.parent.mkdir(exist_ok=False, parents=True)
+        with scenario_json.open('w') as f:
+            json.dump(database, f, indent=4, ensure_ascii=False)
 
     if dlp_mpi.IS_MASTER:
         for dataset in datasets:
