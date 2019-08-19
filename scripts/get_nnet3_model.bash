@@ -1,4 +1,16 @@
 #! /bin/bash
+
+# This script is an adjusted version of kaldis wsj run_tdnn_1g.sh script.
+# We reduced the number tdnn-f layer, batch size and training jobs to
+# fit smaller gpus.
+# Training and evaluation on wsj_8k leads to the following WER:
+#                             this script  tdnn1g_sp
+# WER dev93 (tgpr)               7.40        6.68
+# WER eval92 (tgpr)              5.59        4.54
+# Training and evaluation on sms_wsj with a single speaker leads to the following WER:
+# WER cv_dev93 (tgpr)            12.20
+# WER test_eval92 (tgpr)         8.93
+
 # Exit on error: https://stackoverflow.com/a/1379904/911441
 set -e
 

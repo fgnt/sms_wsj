@@ -2,8 +2,11 @@
 
 set -e -o pipefail
 
-# This script is called from scripts like local/nnet3/run_tdnn.sh and
-# local/chain/run_tdnn.sh (and may eventually be called by more scripts).  It
+# This is a adjusted copy of the common ivector estimation skript provided
+# by kaldi. Most changes are regarding the expected file structure and stages
+
+# This script is called from scripts like local_sms/get_nnet3_model.bash 
+# (and may eventually be called by more scripts).  It
 # contains the common feature preparation and iVector-related parts of the
 # script.  See those scripts for examples of usage.
 

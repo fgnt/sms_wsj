@@ -1,4 +1,8 @@
 #! /bin/bash
+
+# This script trains a tri3 HMM/GMM model similar to the kaldi wsj default
+# run.sh script
+
 # Exit on error: https://stackoverflow.com/a/1379904/911441
 set -e
 
@@ -26,7 +30,7 @@ done
 
 ################################################################################
 # Extract MFCC features
-#############################################################################
+################################################################################
 
 # Now make MFCC features.
 # mfccdir should be some place with a largish disk where you
@@ -51,7 +55,7 @@ utils/subset_data_dir.sh data/$dataset/train_si84 3500 data/$dataset/train_si84_
 
 ################################################################################
 # Train monophone model on the 2k shortest utterances from the si-84 subset
-###############################################################################
+################################################################################
 # Starting basic training on MFCC features
 steps/train_mono.sh --boost-silence 1.25 --nj 10 --cmd "$train_cmd" \
       data/$dataset/train_si84_2kshort data/lang exp/$dataset/mono0a || exit 1;
