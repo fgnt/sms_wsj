@@ -125,12 +125,12 @@ def create_data_dir(
                 wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
             example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
             example_id_to_wav[example_id] = wav_command
-            try:
-                speaker = example['kaldi_transcription'][target_speaker]
-                example_id_to_trans[example_id] = speaker
-            except KeyError as e:
-                raise e
-            speaker_id = example['speaker_id'][target_speaker]
+            speaker = example['kaldi_transcription'][target_speaker]
+            example_id_to_trans[example_id] = speaker
+            if target_speaker == 0:
+                speaker_id = example['speaker_id'][target_speaker]
+            else:
+                speaker_id = '_'.join(example['speaker_id'][:target_speaker])
             example_id_to_speaker[example_id] = speaker_id
             gender = example['gender'][target_speaker]
             speaker_to_gender[dataset_name][speaker_id] = gender
