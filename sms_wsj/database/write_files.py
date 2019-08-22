@@ -73,9 +73,6 @@ def write_wavs(dst_dir, db, write_all=False):
     for example in dlp_mpi.split_managed(ds):
         audio_dict = example['audio_data']
         example_id = example['example_id']
-        del audio_dict['speech_image']
-        del audio_dict['rir']
-        del audio_dict['speech_source']
         if not write_all:
             del audio_dict['speech_reverberation_early']
             del audio_dict['speech_reverberation_tale']
@@ -83,6 +80,8 @@ def write_wavs(dst_dir, db, write_all=False):
         assert all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()]), (
             example_id, [np.max(np.abs(v)) for v in audio_dict.values()])
         for key, value in audio_dict.items():
+            if key not in type_mapper:
+                continue
             path = dst_dir / type_mapper[key]
             if key in ['observation', 'noise_image']:
                 value = value[None]
@@ -145,7 +144,6 @@ def config():
 @ex.automain
 def main(dst_dir, json_path, write_all, new_json_path):
     json_path = Path(json_path).expanduser().resolve()
-    new_json_path = Path(new_json_path).expanduser().resolve()
     dst_dir = Path(dst_dir).expanduser().resolve()
     if dlp_mpi.IS_MASTER:
         assert json_path.exists(), json_path
@@ -167,14 +165,14 @@ def main(dst_dir, json_path, write_all, new_json_path):
                     ' already exists.')
     else:
         write_files = None
-    write_files, new_json_path = dlp_mpi.COMM.bcast(
-        (write_files, new_json_path), root=dlp_mpi.MASTER)
+    write_files = dlp_mpi.COMM.bcast(write_files, root=dlp_mpi.MASTER)
     db = JsonDatabase(json_path)
     if write_files:
         write_wavs(dst_dir, db, write_all=write_all)
 
     if dlp_mpi.IS_MASTER and new_json_path:
         print(f'Creating a new json and saving it to {json_path}')
+        new_json_path = Path(new_json_path).expanduser().resolve()
         updated_json = create_json(dst_dir, db, write_all)
         new_json_path.parent.mkdir(exist_ok=True, parents=True)
         with new_json_path.open('w') as f:
