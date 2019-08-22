@@ -4,6 +4,7 @@ import stat
 from collections import defaultdict
 from pathlib import Path
 import subprocess
+from functools import partial
 
 from lazy_dataset.database import JsonDatabase
 from sms_wsj import git_root
@@ -62,22 +63,41 @@ def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
                 fd.writelines(f"--sample-frequency={SAMPLE_RATE}\n")
 
 
+def _get_wer_command_for_json(example, ref_ch, audio_key, target_speaker):
+    if isinstance(audio_key, (list, tuple)):
+        mix_command = 'sox -m -v 1 ' + ' -v 1 '.join(
+            [str(example['audio_path'][audio][target_speaker])
+             for audio in audio_key]
+        )
+        wav_command = f'{mix_command} -t wav - | sox -t wav -' \
+            f' -t wav -b 16 - remix {ref_ch + 1} |'
+    else:
+        wav = example['audio_path'][audio_key][target_speaker]
+        wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
+    return wav_command
+
+
+def _get_wer_command_for_audio_dir(
+        example, ref_ch, audio_dir, id_to_file_name_fn):
+    dataset_name = example['dataset']
+    example_id = example['example_id']
+    try:
+        audio_path = audio_dir / dataset_name / id_to_file_name_fn(example_id)
+        assert audio_path.exists(), audio_path
+    except AssertionError:
+        audio_path = audio_dir / id_to_file_name_fn(
+            example_id)
+        assert audio_path.exists(), audio_path
+    wav_command = f'sox {audio_path} -t wav  -b 16 - remix {ref_ch + 1} |'
+    return wav_command
+
+
 def create_data_dir(
         kaldi_dir, db=None, json_path=None, dataset_names=None,
-        data_type='wsj_8k', target_speaker=0, ref_channels=0
-):
+        data_type='wsj_8k', target_speaker=0, ref_channels=0):
     """
-
-    :param kaldi_dir:
-    :param db:
-    :param dataset_names:
-    :param data_type:
-    :param target_speaker:
-    :param ref_channel:
-    :return:
+    Wrapper calling _create_data_dir for data_dirs from json or db object
     """
-    print(f'Create data dir for {data_type}/{dataset_names} data')
-
     if data_type == 'sms_single_speaker':
         audio_key = [DB2AudioKeyMapper[data]
                      for data in ['sms_early', 'sms_late', 'noise']]
@@ -86,12 +106,70 @@ def create_data_dir(
                      for data in ['sms_early', 'sms_late']]
     else:
         audio_key = DB2AudioKeyMapper[data_type]
+    get_wer_command_fn = partial(
+        _get_wer_command_for_json, audio_key=audio_key,
+        target_speaker=target_speaker
+    )
+    _create_data_dir(
+        get_wer_command_fn, kaldi_dir=kaldi_dir, db=db, json_path=json_path,
+        dataset_names=dataset_names, data_type=data_type,
+        target_speaker=target_speaker, ref_channels=ref_channels
+    )
+
+
+def create_data_dir_from_audio_dir(
+        audio_dir, kaldi_dir, id_to_file_name='{}_0.wav', db=None,
+        json_path=None, dataset_names=None, data_type='wsj_8k',
+        target_speaker=0, ref_channels=0
+):
+    """
+    Wrapper calling _create_data_dir for data_dirs from audio_dir
+    """
+    if isinstance(id_to_file_name, str):
+        id_to_file_name_fn = lambda _id: id_to_file_name.format(_id)
+    else:
+        id_to_file_name_fn = id_to_file_name
+    assert callable(id_to_file_name_fn), id_to_file_name_fn
+    get_wer_command_fn = partial(
+        _get_wer_command_for_audio_dir, audio_dir=audio_dir,
+        id_to_file_name_fn=id_to_file_name_fn
+    )
+    _create_data_dir(
+        get_wer_command_fn, kaldi_dir=kaldi_dir, db=db, json_path=json_path,
+        dataset_names=dataset_names, data_type=data_type,
+        target_speaker=target_speaker, ref_channels=ref_channels
+    )
+
+
+def _create_data_dir(
+        get_wer_command_fn, kaldi_dir, db=None, json_path=None,
+        dataset_names=None, data_type='wsj_8k', target_speaker=0,
+        ref_channels=0,
+):
+    """
+
+    Args:
+        get_wer_command_fn:
+        kaldi_dir:
+        db:
+        json_path:
+        dataset_names:
+        data_type:
+        target_speaker:
+        ref_channels:
+
+    Returns:
+
+    """
+
+    print(f'Create data dir for {data_type}/{dataset_names} data')
+
     assert not (db is None and json_path is None), (db, json_path)
     if db is None:
         db = JsonDatabase(json_path)
 
     data_dir = kaldi_dir / 'data' / data_type
-    data_dir.mkdir(exist_ok=True, parents=False)
+    data_dir.mkdir(exist_ok=True, parents=True)
 
     if not isinstance(ref_channels, (list, tuple)):
         ref_channels = [ref_channels]
@@ -113,20 +191,11 @@ def create_data_dir(
         for ref_ch in ref_channels:
             example_id = example['example_id']
             dataset_name = example['dataset']
-            if isinstance(audio_key, (list, tuple)):
-                mix_command = 'sox -m -v 1 ' + ' -v 1 '.join(
-                    [str(example['audio_path'][audio][target_speaker])
-                     for audio in audio_key]
-                )
-                wav_command = f'{mix_command} -t wav - | sox -t wav -' \
-                    f' -t wav -b 16 - remix {ref_ch + 1} |'
-            else:
-                wav = example['audio_path'][audio_key][target_speaker]
-                wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
             example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
-            example_id_to_wav[example_id] = wav_command
-            speaker = example['kaldi_transcription'][target_speaker]
-            example_id_to_trans[example_id] = speaker
+            example_id_to_wav[example_id] = get_wer_command_fn(example,
+                                                               ref_ch=ref_ch)
+            transcription = example['kaldi_transcription'][target_speaker]
+            example_id_to_trans[example_id] = transcription
             if target_speaker == 0:
                 speaker_id = example['speaker_id'][target_speaker]
             else:

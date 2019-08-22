@@ -20,89 +20,25 @@ $ ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python
 
 import os
 
-from collections import defaultdict
 from pathlib import Path
 
-from sms_wsj.kaldi.utils import dump_keyed_lines, create_data_dir
 from lazy_dataset.database import JsonDatabase
-from shutil import copyfile, copytree
+from shutil import copytree
 
 import sacred
 
+from sms_wsj.kaldi.utils import create_data_dir_from_audio_dir
 from sms_wsj.kaldi.utils import run_process
-from sms_wsj.kaldi.utils import create_kaldi_dir, SAMPLE_RATE
+from sms_wsj.kaldi.utils import create_kaldi_dir, create_data_dir
 from sms_wsj.kaldi.utils import calculate_mfccs, calculate_ivectors
 
 ex = sacred.Experiment('Kaldi array')
 kaldi_root = Path(os.environ['KALDI_ROOT'])
 
-REQUIRED_FILES = ['cmd.sh', 'path.sh']
-REQUIRED_DIRS = ['data/lang', 'data/local', 'data/srilm', 'conf', 'local']
-
-
-@ex.capture
-def copy_ref_dir(out_dir, ref_dir, audio_dir, allow_missing_files=False):
-    audio_dir = audio_dir.expanduser().resolve()
-
-    # ToDo: improve exception msg when len(used_ids) == 0.
-    #       Example cause: wrong audio_dir
-
-    target_speaker = 0
-    required_files = ['utt2spk', 'text']
-    with (ref_dir / 'text').open() as file:
-        text = file.readlines()
-    ref_ids = [line.split(' ', maxsplit=1)[0].strip() for line in text]
-    out_dir = Path(out_dir)
-    out_dir.mkdir(parents=True)
-    for files in required_files:
-        copyfile(str(ref_dir / files), str(out_dir / files))
-    ids = {
-        wav_file: wav_file.name.split('.wav')[0].split(f'_{target_speaker}')[0]
-        for wav_file in audio_dir.glob('*')
-    }
-    assert len(ids) > 0, ids
-
-    used_ids = {
-        kaldi_id: wav_file
-        for wav_file, kaldi_ids in ids.items()
-        for kaldi_id in kaldi_ids
-        if kaldi_id in ref_ids
-    }
-    assert len(used_ids) > 0, used_ids
-
-    if len(used_ids) < len(ids):
-        print(f'Not all files in {audio_dir} were used, '
-              f'{len(ids) - len(used_ids)} ids are not used in kaldi')
-    elif len(used_ids) < len(ref_ids):
-        if not allow_missing_files:
-            raise ValueError(
-                f'{len(ref_ids) - len(used_ids)} files are missing in {audio_dir}.'
-                f' We found only {len(used_ids)} files but expect {len(ref_ids)}'
-                f' files')
-        print(
-            f'{len(ref_ids) - len(used_ids)} files are missing in {audio_dir}.'
-            f' We found only {len(used_ids)} files but expect {len(ref_ids)}'
-            f' files. Still continuing to decode the remaining files')
-        ref_ids = [_id for _id in used_ids.keys()]
-        ref_ids.sort()
-        for files in ['utt2spk', 'text']:
-            with (out_dir / files).open() as fd:
-                lines = fd.readlines()
-                lines = [line for line in lines
-                         if line.split(' ')[0] in used_ids]
-            (out_dir / files).unlink()
-            with (out_dir / files).open('w') as fd:
-                fd.writelines(lines)
-
-    wavs = [' '.join([kaldi_id, str(used_ids[kaldi_id])]) + '\n'
-            for kaldi_id in ref_ids]
-    with (out_dir / 'wav.scp').open('w') as file:
-        file.writelines(wavs)
-
 
 @ex.command
-def create_data_dir_from_audio_dir(
-        audio_dir: Path, dataset_names, base_dir=None, json_path=None, db=None,
+def create_dir(
+        audio_dir: Path, dataset_names=None, base_dir=None, json_path=None, db=None,
         data_type='sms_enh', id_to_file_name='{}_0.wav', target_speaker=0
 ):
     """
@@ -111,74 +47,15 @@ def create_data_dir_from_audio_dir(
         assert len(ex.current_run.observers) == 1, (
             'FileObserver` missing. Add a `FileObserver` with `-F foo/bar/`.'
         )
-        base_dir = Path(ex.current_run.observers[0].basedir)
+        base_dir = Path(
+            ex.current_run.observers[0].basedir).expanduser().resolve()
 
-    data_dir = base_dir / 'data'
-    assert isinstance(data_type, str), data_type
-    if db is None:
-        db = JsonDatabase(json_path)
-
-    if isinstance(id_to_file_name, str):
-        id_to_file_name_fn = lambda _id: id_to_file_name.format(_id)
-    else:
-        id_to_file_name_fn = id_to_file_name
-    assert callable(id_to_file_name_fn), id_to_file_name_fn
-
-    data_dir.mkdir(exist_ok=True, parents=True)
-
-    example_id_to_wav = dict()
-    example_id_to_speaker = dict()
-    example_id_to_trans = dict()
-    example_id_to_duration = dict()
-    speaker_to_gender = defaultdict(lambda: defaultdict(list))
-    dataset_to_example_id = defaultdict(list)
-
-    if isinstance(dataset_names, str):
-        dataset_names = [dataset_names]
-    assert not any([
-        (data_dir / dataset_name).exists() for dataset_name in
-        dataset_names]), data_dir
-    assert all([(audio_dir / dataset_name) for dataset_name in
-        dataset_names]), audio_dir
-    dataset = db.get_dataset(dataset_names)
-    for example in dataset:
-        example_id = example['example_id']
-        dataset_name = example['dataset']
-        audio_path = audio_dir / dataset_name / id_to_file_name_fn(example_id)
-        assert audio_path.exists(), audio_path
-        example_id_to_wav[example_id] = audio_path
-        try:
-            speaker = example['kaldi_transcription'][target_speaker]
-            example_id_to_trans[example_id] = speaker
-        except KeyError as e:
-            raise e
-        speaker_id = example['speaker_id'][target_speaker]
-        example_id_to_speaker[example_id] = speaker_id
-        gender = example['gender'][target_speaker]
-        speaker_to_gender[dataset_name][speaker_id] = gender
-        num_samples = example['num_samples']['observation']
-        example_id_to_duration[
-            example_id] = f"{num_samples / SAMPLE_RATE:.2f}"
-        dataset_to_example_id[dataset_name].append(example_id)
-
-    assert len(example_id_to_speaker) > 0, dataset
-    for dataset_name in dataset_names:
-        dset_dir = data_dir / data_type / dataset_name
-        dset_dir.mkdir(parents=True)
-        for name, dictionary in (
-                ("utt2spk", example_id_to_speaker),
-                ("text", example_id_to_trans),
-                ("utt2dur", example_id_to_duration),
-                ("wav.scp", example_id_to_wav)
-        ):
-            dictionary = {key: value for key, value in dictionary.items()
-                          if key in dataset_to_example_id[dataset_name]}
-
-            assert len(dictionary) > 0, (dataset_name, name)
-            dump_keyed_lines(dictionary, dset_dir / name)
-        dictionary = speaker_to_gender[dataset_name]
-        assert len(dictionary) > 0, (dataset_name, name)
-        dump_keyed_lines(dictionary, dset_dir / 'spk2gender')
+    audio_dir = Path(audio_dir).expanduser().resolve()
+    create_data_dir_from_audio_dir(
+        audio_dir, base_dir, id_to_file_name=id_to_file_name, db=db,
+        json_path=json_path, dataset_names=dataset_names, data_type=data_type,
+        target_speaker=target_speaker
+    )
 
 
 @ex.command
@@ -215,8 +92,7 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
     model_egs_dir = Path(model_egs_dir).expanduser().resolve()
     if isinstance(model_dir, str):
         model_dir = model_egs_dir / 'exp' / model_data_type / model_dir
-    else:
-        model_dir = Path(model_dir)
+
     assert model_dir.exists(), f'{model_dir} does not exist'
 
 
@@ -243,10 +119,6 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
             pass
         else:
             raise ValueError(kaldi_cmd)
-    run_process([
-        f'{base_dir}/utils/fix_data_dir.sh', str(dataset_dir)],
-        cwd=str(base_dir), stdout=None, stderr=None
-    )
     config = 'mfcc_hires.conf' if hires else 'mfcc.conf'
     calculate_mfccs(base_dir, dataset_dir, num_jobs=num_jobs,
                     config=config, recalc=True, kaldi_cmd=kaldi_cmd)
@@ -314,6 +186,12 @@ def default():
     # only used with audio_dir
     id_to_file_name = '{}_0.wav'
     target_speaker = 0
+    ref_channels = 0
+
+    if ref_channels > 0 and isinstance(data_type, (list, tuple)):
+        assert 'wsj_8k' not in data_type, data_type
+    else:
+        assert not data_type == 'wsj_8k', (ref_channels, data_type)
 
 
     # am specific values which usually do not have to be changed
@@ -360,7 +238,6 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
     )
     base_dir = Path(ex.current_run.observers[0].basedir)
     base_dir = base_dir.expanduser().resolve()
-    assert bool(audio_dir) ^ bool(kaldi_data_dir), 'Either '
     if audio_dir is not None:
         audio_dir = base_dir / audio_dir
         assert audio_dir.exists(), audio_dir
@@ -391,17 +268,32 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
     if not isinstance(data_type, (tuple, list)):
         data_type = [data_type]
 
+    kaldi_cmd = _config['kaldi_cmd']
+    if not base_dir == model_egs_dir and not (base_dir / 'steps').exists():
+        create_kaldi_dir(base_dir, model_egs_dir, exist_ok=True)
+        if kaldi_cmd == 'ssh.pl':
+            CCS_NODEFILE = Path(os.environ['CCS_NODEFILE'])
+            (base_dir / '.queue').mkdir()
+            (base_dir / '.queue' / 'machines').write_text(
+                CCS_NODEFILE.read_text())
+        elif kaldi_cmd == 'run.pl':
+            pass
+        else:
+            raise ValueError(kaldi_cmd)
+
     for d_type in data_type:
         for dset in dataset_names:
             dataset_dir = base_dir / 'data' / d_type / dset
             if audio_dir is not None:
                 assert len(data_type) == 1, data_type
-                create_data_dir_from_audio_dir(
-                    audio_dir, base_dir=base_dir, db=db, dataset_names=dset
+                create_dir(
+                    audio_dir, kaldi_dir=base_dir, db=db, dataset_names=dset
                 )
             elif kaldi_data_dir is None:
-                create_data_dir(base_dir, db=db, data_type=d_type,
-                                dataset_names=dataset_names)
+                create_data_dir(
+                    base_dir, db=db, data_type=d_type, dataset_names=dset,
+                    ref_channels=_config['ref_channels']
+                )
             else:
                 assert len(data_type) == 1, (
                     'when using a predefined kaldi_data_dir not more then one '
@@ -414,10 +306,8 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
                 base_dir=base_dir,
                 model_egs_dir=model_egs_dir,
                 dataset_dir=dataset_dir,
-                model_data_type=_config['model_data_type'],
                 model_dir=check_config_element(_config['model_dir']),
                 ivector_dir=check_config_element(_config['ivector_dir']),
                 extractor_dir=check_config_element(_config['extractor_dir']),
-                hires=_config['hires'],
-                num_jobs=_config['num_jobs']
+                data_type=d_type
             )
