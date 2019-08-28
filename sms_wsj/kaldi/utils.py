@@ -28,12 +28,24 @@ DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr',
                               'data/lang_test_tg']
 
 
-
 def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
     """
 
-    :param egs_path:
-    :return:
+    Args:
+        egs_path:
+        org_dir:
+            An egs folder (e.g. $KALDI_ROOT/egs/wsj/s5). This folder is used as
+            reference to create the new eps folder.
+            e.g.
+             - make symlinks to the 'local', 'steps', 'utils', 'data/lang' and
+               'data/local' folder
+             - copy 'conf', 'data/lang_test_tgpr' and 'data/lang_test_tg' to
+               the new folder
+
+
+
+    Returns:
+
     """
     print(f'Create {egs_path} directory')
     (egs_path / 'data').mkdir(exist_ok=exist_ok, parents=True)
