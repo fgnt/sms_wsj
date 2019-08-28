@@ -65,7 +65,8 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
     '''
 
     :param model_dir: name of model or Path to model_dir
-    :param dest_dir: kaldi egs dir for the decoding
+    :param dataset_dir: kaldi egs dir for the decoding
+        e.g.: "<egs_folder>/data/cv_dev_93"
     :param org_dir: kaldi egs dir from which information for decoding are gathered
     :param audio_dir: directory of audio files to decode (may be None)
     :param ref_dir: reference kaldi dataset directory or name for decode dataset
@@ -82,7 +83,7 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
         )
         base_dir = Path(ex.current_run.observers[0].basedir)
         base_dir = base_dir.expanduser().resolve()
-        dataset_dir = base_dir / dataset_dir
+        dataset_dir = dataset_dir.expanduser().resolve()
         assert dataset_dir.exists(), dataset_dir
         copytree(dataset_dir, base_dir / 'data' / dataset_dir.name,
                  symlinks=True)
@@ -239,17 +240,17 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
     base_dir = Path(ex.current_run.observers[0].basedir)
     base_dir = base_dir.expanduser().resolve()
     if audio_dir is not None:
-        audio_dir = base_dir / audio_dir
+        audio_dir = Path(audio_dir).expanduser().resolve()
         assert audio_dir.exists(), audio_dir
-        json_path = base_dir / json_path
+        json_path = Path(json_path).expanduser().resolve()
         assert json_path.exists(), json_path
         db = JsonDatabase(json_path)
     elif kaldi_data_dir is not None:
-        kaldi_data_dir = base_dir / kaldi_data_dir
+        kaldi_data_dir = Path(kaldi_data_dir).expanduser().resolve()
         assert kaldi_data_dir.exists(), kaldi_data_dir
         assert json_path is None, json_path
     elif json_path is not None:
-        json_path = base_dir / json_path
+        json_path = Path(json_path).expanduser().resolve()
         assert json_path.exists(), json_path
         db = JsonDatabase(json_path)
     else:
@@ -287,7 +288,7 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
             if audio_dir is not None:
                 assert len(data_type) == 1, data_type
                 create_dir(
-                    audio_dir, kaldi_dir=base_dir, db=db, dataset_names=dset
+                    audio_dir, base_dir=base_dir, db=db, dataset_names=dset
                 )
             elif kaldi_data_dir is None:
                 create_data_dir(
