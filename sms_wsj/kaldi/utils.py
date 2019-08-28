@@ -65,6 +65,11 @@ def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
             new_script_path = egs_path / 'local_sms' / script.name
 
         shutil.copyfile(script, new_script_path)
+        if script.name == 'path.sh':
+            with new_script_path.open('r+') as f:
+                content = f.read()
+                f.seek(0, 0)
+                f.write(f'export KALDI_ROOT={kaldi_root}' + '\n' + content)
         # make script executable
         st = os.stat(new_script_path)
         os.chmod(new_script_path, st.st_mode | stat.S_IEXEC)
