@@ -212,7 +212,7 @@ def default():
     hires = True
     kaldi_cmd = 'run.pl'
 
-    # This is just for our pc2 environment
+    # only used for the paderborn parallel computing center
     if 'CCS_NODEFILE' in os.environ:
         num_jobs = len(list(
             Path(os.environ['CCS_NODEFILE']).read_text().strip().splitlines()

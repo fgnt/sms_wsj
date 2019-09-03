@@ -408,3 +408,12 @@ def dump_keyed_lines(data_dict: dict, file: Path):
         data.append(f'{k} {text}')
 
     file.write_text('\n'.join(data) + '\n')
+
+
+def pc2_environ(kaldi_dir):
+    CCS_NODEFILE = Path(os.environ['CCS_NODEFILE'])
+    if (kaldi_dir / '.queue').exists():
+        print('Deleting already existing .queue directory')
+        shutil.rmtree(kaldi_dir / '.queue')
+    (kaldi_dir / '.queue').mkdir()
+    (kaldi_dir / '.queue' / 'machines').write_text(CCS_NODEFILE.read_text())
