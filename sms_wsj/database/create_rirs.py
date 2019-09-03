@@ -69,20 +69,21 @@ def config():
 def get_rng(dataset, example_id):
     string = f"{dataset}_{example_id}"
     seed = (
-        int(hashlib.sha256(string.encode("utf-8")).hexdigest(), 16) % 2 ** 32
+            int(hashlib.sha256(string.encode("utf-8")).hexdigest(),
+                16) % 2 ** 32
     )
     return np.random.RandomState(seed=seed)
 
 
 @experiment.automain
 def main(
-    database_path,
-    datasets,
-    geometry,
-    sound_decay_time_range,
-    sample_rate,
-    filter_length,
-    debug,
+        database_path,
+        datasets,
+        geometry,
+        sound_decay_time_range,
+        sample_rate,
+        filter_length,
+        debug,
 ):
     assert len(database_path) > 0, "Database path can not be empty."
     database_path = Path(database_path)
@@ -133,7 +134,8 @@ def main(
                 k: np.round(v, decimals=3)
                 for k, v in database['datasets'][dataset][example_id].items()
             }
-            database['datasets'][dataset][example_id]['example_id'] = example_id
+            database['datasets'][dataset][example_id][
+                'example_id'] = example_id
     if dlp_mpi.IS_MASTER:
         scenario_json = database_path / "scenarios.json"
         scenario_json.parent.mkdir(exist_ok=False, parents=True)

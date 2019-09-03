@@ -1,12 +1,10 @@
 
-import numpy as np
-
-
 import hashlib
 from hashlib import md5
+
+import numpy as np
 from scipy.signal import fftconvolve
 from sms_wsj.reverb.reverb_utils import get_rir_start_sample
-
 
 __all__ = [
     'scenario_map_fn',
@@ -151,15 +149,18 @@ def scenario_map_fn(
     s = example['audio_data']['speech_source']
 
     def get_convolved_signals(h):
-        x = [fftconvolve(s_[..., None, :], h_, axes=-1) for s_, h_ in zip(s, h)]
+        x = [fftconvolve(s_[..., None, :], h_, axes=-1)
+             for s_, h_ in zip(s, h)]
 
         for x_, T_ in zip(x, example['num_samples']['speech_source']):
-            assert x_.shape == (D, T_ + rir_length - 1), (x_.shape, D, T_ + rir_length - 1)
+            assert x_.shape == (D, T_ + rir_length - 1), (
+                x_.shape, D, T_ + rir_length - 1)
 
         # This is Jahn's heuristic to be able to still use WSJ alignments.
         offset = [
             offset_ - rir_start_sample_
-            for offset_, rir_start_sample_ in zip(example['offset'], rir_start_sample)
+            for offset_, rir_start_sample_ in zip(
+                example['offset'], rir_start_sample)
         ]
 
         x = [extract_piece(x_, offset_, T) for x_, offset_ in zip(x, offset)]
@@ -253,7 +254,9 @@ def get_valid_mird_rirs(mird_dir, rng=np.random):
     rirs = np.stack([
         scipy.io.loadmat(str(
             mird_dir /
-            f'Impulse_response_Acoustic_Lab_Bar-Ilan_University_(Reverberation_{t60}s)_{spacing}_{distance[k]}m_{angle_degree[k]}.mat'
+            f'Impulse_response_Acoustic_Lab_Bar-Ilan_University_('
+            f'Reverberation_{t60}s)_{spacing}_{distance[k]}m_'
+            f'{angle_degree[k]}.mat'
         ))['impulse_response'].T
         for k in range(K)
     ])

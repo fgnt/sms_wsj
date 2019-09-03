@@ -1,9 +1,10 @@
-from collections import defaultdict
-from pathlib import Path
-import numpy as np
-from copy import copy
-import sacred
 import json
+from collections import defaultdict
+from copy import copy
+from pathlib import Path
+
+import numpy as np
+import sacred
 import soundfile
 from lazy_dataset.database import JsonDatabase
 
@@ -90,8 +91,8 @@ def get_randomized_example(
     example['log_weights'] -= np.mean(example['log_weights'])
     example['log_weights'] = example['log_weights'].tolist()
 
-    # This way, at least the first speaker can have proper alignments, all other
-    # speakers can not be used for ASR.
+    # This way, at least the first speaker can have proper alignments,
+    # all other speakers can not be used for ASR.
     if isinstance(source_examples[0]['num_samples'], dict) \
             and 'observation' in source_examples[0]['num_samples']:
         # 16k case
@@ -135,8 +136,8 @@ def config():
     json_path = None
     wsj_json_path = None
     assert rir_dir is not None, 'You have to specify the rir dir'
-    assert wsj_json_path is not None, 'You have to specify a path to the wsj.json'
-    assert json_path is not None, 'You have to specify the path to write the json to'
+    assert wsj_json_path is not None, 'You have to specify a wsj_json_path'
+    assert json_path is not None, 'You have to specify a path for the new json'
 
 
 @ex.automain
@@ -184,7 +185,8 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
         ex_wsj = source_iterator.random_choice(1, rng_state=rng)[0]
         info = soundfile.SoundFile(ex_wsj['audio_path']['observation'])
         frame_rate_wsj = info.samplerate
-        assert frame_rate_rir == frame_rate_wsj, (frame_rate_rir, frame_rate_wsj)
+        assert frame_rate_rir == frame_rate_wsj, (
+            frame_rate_rir, frame_rate_wsj)
 
         for rir_example in rir_iterator:
             example = None
@@ -196,7 +198,8 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
                     dataset_name,
                     rir_dir,
                 )
-            target_db['datasets'][dataset_name][example['example_id']] = example
+            ex_id = example['example_id']
+            target_db['datasets'][dataset_name][ex_id] = example
     json_path.parent.mkdir(exist_ok=True, parents=True)
     with json_path.open('w') as f:
         json.dump(target_db, f, indent=4, ensure_ascii=False)

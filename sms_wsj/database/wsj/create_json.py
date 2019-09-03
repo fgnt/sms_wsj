@@ -5,13 +5,14 @@ python -m sms_wsj.database.wsj.write_wav --database_dir-dir /destination/dir --j
 
 """
 
-from pathlib import Path
-import sacred
-import tempfile
-import sh
-import re
-import soundfile as sf
 import json
+import re
+import tempfile
+from pathlib import Path
+
+import sacred
+import sh
+import soundfile as sf
 
 ex = sacred.Experiment('Create wsj json')
 
@@ -219,7 +220,7 @@ def config():
     wsj_json = None
     as_wav = True
     assert database_dir is not None, 'You have to specify the database dir'
-    assert json_path is not None, 'You have to specify the path to write the json to'
+    assert json_path is not None, 'You have to specify a path for the new json'
 
 
 @ex.automain

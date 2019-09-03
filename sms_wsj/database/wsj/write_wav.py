@@ -63,6 +63,7 @@ def resample_with_sox(x, rate_in, rate_out):
     )
     return np.fromstring(process.stdout, dtype=np.float32)
 
+
 @ex.config
 def config():
     dst_dir = None
@@ -70,6 +71,7 @@ def config():
     sample_rate = 16000
     assert dst_dir is not None, 'You have to specify a destination dir'
     assert wsj_root is not None, 'You have to specify a wsj_root'
+
 
 @ex.automain
 def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
@@ -112,7 +114,12 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
         target = dst_dir / nist_file.with_suffix('.wav').relative_to(wsj_root)
         assert not target == nist_file, (nist_file, target)
         target.parent.mkdir(parents=True, exist_ok=True)
+        # normalization:
+        #   Correction, because the allowed values are in the range [-1, 1).
+        #       => "1" is not a vaild value
         signal = resample_with_sox(signal, rate_in=16000, rate_out=sample_rate)
+        correction = (2 ** 15 - 1) / (2 ** 15)
+        signal = signal * (correction / np.amax(np.abs(signal)))
         with soundfile.SoundFile(
                 str(target), samplerate=sample_rate, channels=1,
                 subtype='FLOAT', mode='w',
@@ -125,4 +132,4 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
         print(f"Written {len(created_files)} wav files.")
         assert len(wsj_nist_files) == len(created_files), list(set([
             file.name.split('.wav')[0] for file in created_files
-        ]) -set([file.name.split('.wv1')[0] for file in wsj_nist_files]))
+        ]) - set([file.name.split('.wv1')[0] for file in wsj_nist_files]))
