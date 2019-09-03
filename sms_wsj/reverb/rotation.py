@@ -12,6 +12,7 @@ def rot_x(alpha):
         ]
     )
 
+
 def rot_y(alpha):
     """Returns rotation matrix."""
     return np.asarray(
@@ -21,6 +22,7 @@ def rot_y(alpha):
             [-np.sin(alpha), 0, np.cos(alpha)]
         ]
     )
+
 
 def rot_z(alpha):
     """Returns rotation matrix."""

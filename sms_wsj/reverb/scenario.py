@@ -113,7 +113,7 @@ def generate_sensor_positions(
     elif shape == 'chime3':
         assert scale is None, scale
         assert (
-            number_of_sensors is None or number_of_sensors == 6
+                number_of_sensors is None or number_of_sensors == 6
         ), number_of_sensors
 
         sensor_positions = np.asarray(
@@ -165,8 +165,8 @@ def generate_random_source_positions(
         rng: Random number generator, if you need to set the seed.
     """
     enforce_angular_constrains = (
-        minimum_angular_distance is not None or
-        maximum_angular_distance is not None
+            minimum_angular_distance is not None or
+            maximum_angular_distance is not None
     )
 
     if not dims == 2 and enforce_angular_constrains:
@@ -189,13 +189,13 @@ def generate_random_source_positions(
             difference = difference[np.triu_indices_from(difference, k=1)]
             distance = np.abs(difference)
             if (
-                minimum_angular_distance is not None and
-                minimum_angular_distance > np.min(distance)
+                    minimum_angular_distance is not None and
+                    minimum_angular_distance > np.min(distance)
             ):
                 continue
             if (
-                maximum_angular_distance is not None and
-                maximum_angular_distance < np.max(distance)
+                    maximum_angular_distance is not None and
+                    maximum_angular_distance < np.max(distance)
             ):
                 continue
         accept = True

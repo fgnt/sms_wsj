@@ -69,7 +69,6 @@ def generate_rir(
     if sensor_directivity is None:
         sensor_directivity = 'omnidirectional'
 
-
     assert filter_length is not None
     rir = np.zeros(
         (number_of_sources, number_of_sensors, filter_length),
@@ -152,21 +151,8 @@ def convolve(signal, impulse_response, truncate=False):
 
     *independent, samples = signal.shape
     *independent_, sensors, filter_length = impulse_response.shape
-    assert independent == independent_, \
-        f'signal.shape {signal.shape} does not match ' \
-        f'impulse_response.shape {impulse_response.shape}'
-
-    # slices = [range(s) for s in independent]
-
-    # x_shape = (*independent, sensors, samples + filter_length - 1)
-    # x = np.zeros(x_shape, dtype=signal.dtype)
-    #
-    # for indices in itertools.product(*slices):
-    #     for target_index in range(sensors):
-    #         x[(*indices, target_index, slice(None))] = scipy.signal.fftconvolve(
-    #             signal[(*indices, slice(None))],
-    #             impulse_response[(*indices, target_index, slice(None))]
-    #         )
+    assert independent == independent_, f'signal.shape {signal.shape} does' \
+        f' not match impulse_response.shape {impulse_response.shape}'
 
     x = scipy.signal.fftconvolve(
         signal[..., None, :],
@@ -219,4 +205,5 @@ def get_rir_start_sample(h, level_ratio=1e-1):
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
