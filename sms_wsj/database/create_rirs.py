@@ -134,6 +134,11 @@ def main(
                 k: np.round(v, decimals=3)
                 for k, v in database['datasets'][dataset][example_id].items()
             }
+            database['datasets'][dataset][example_id].update({
+                k: v.tolist()
+                for k, v in database['datasets'][dataset][example_id].items()
+                if isinstance(v, np.ndarray)
+            })
             database['datasets'][dataset][example_id][
                 'example_id'] = example_id
     if dlp_mpi.IS_MASTER:
@@ -185,9 +190,10 @@ def main(
                         str(directory / f"h_{k}.wav"), subtype='DOUBLE',
                         samplerate=sample_rate, mode='w', channels=h.shape[1]
                 ) as f:
-                    f.write(h[k, :, :])
+                    f.write(h[k, :, :].T)
 
-        for _ in dlp_mpi.map_unordered(workload, dataset, progress_bar=False):
+        for _ in dlp_mpi.map_unordered(workload, list(sorted(dataset.keys())),
+                                       progress_bar=True):
             pass
 
         print(f'RANK={dlp_mpi.RANK}, SIZE={dlp_mpi.SIZE}:'
