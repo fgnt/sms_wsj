@@ -1,10 +1,10 @@
 import os
 import shutil
 import stat
-from collections import defaultdict
-from pathlib import Path
 import subprocess
+from collections import defaultdict
 from functools import partial
+from pathlib import Path
 
 from lazy_dataset.database import JsonDatabase
 from sms_wsj import git_root
@@ -52,11 +52,11 @@ def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
     if org_dir is None:
         org_dir = (egs_path / '..' / '..' / 'wsj' / 's5').resolve()
     for file in REQUIRED_FILES:
-        os.symlink(org_dir / file, egs_path/ file)
+        os.symlink(org_dir / file, egs_path / file)
     for dirs in REQUIRED_DIRS:
         os.symlink(org_dir / dirs, egs_path / dirs)
     for dirs in DIRS_WITH_CHANGEABLE_FILES:
-        shutil.copytree(org_dir / dirs, egs_path/ dirs)
+        shutil.copytree(org_dir / dirs, egs_path / dirs)
     for script in (git_root / 'scripts').glob('*'):
         if script.name in ['path.sh', 'cmd.sh']:
             new_script_path = egs_path / script.name
@@ -221,7 +221,8 @@ def _create_data_dir(
             gender = example['gender'][target_speaker]
             speaker_to_gender[dataset_name][speaker_id] = gender
             num_samples = example['num_samples']['observation']
-            example_id_to_duration[example_id] = f"{num_samples/ SAMPLE_RATE:.2f}"
+            example_id_to_duration[
+                example_id] = f"{num_samples / SAMPLE_RATE:.2f}"
             dataset_to_example_id[dataset_name].append(example_id)
 
     assert len(example_id_to_speaker) > 0, dataset
@@ -288,23 +289,30 @@ def calculate_mfccs(base_dir, dataset, num_jobs=20, config='mfcc.conf',
     )
 
 
-def calculate_ivectors(ivector_dir, dest_dir, org_dir, dataset_dir,
-                       extractor_dir, model_data_type='sms',
+def calculate_ivectors(ivector_dir, dest_dir, dataset_dir, extractor_dir=None,
+                       org_dir=None, model_data_type='sms',
                        data_type='sms', num_jobs=8, kaldi_cmd='run.pl'):
-    '''
+    """
 
-    :param ivector_dir: ivector directory may be a string, bool or Path
-    :param base_dir: kaldi egs directory with steps and utils dir
-    :param train_affix: dataset specifier (dataset name without train or dev)
-    :param dataset_dir: kaldi dataset dir
-    :param extractor_dir: directory of the ivector extractor (may be None)
-    :param num_jobs: number of parallel jobs
-    :return:
-    '''
+    Args:
+        ivector_dir: ivector directory may be a string, bool or Path
+        dest_dir: kaldi egs directory with steps and utils dir
+        dataset_dir: kaldi data dir
+        extractor_dir: directory of the ivector extractor (may be None)
+        org_dir: kaldi egs directory used if extractor_dir is only a string
+        model_data_type: dataset specifier for the extractor data type
+        data_type: dataset specifier for the input data
+        num_jobs: number of parallel jobs
+        kaldi_cmd:
+
+    Returns:
+
+    """
+
     dest_dir = dest_dir.expanduser().resolve()
 
     if isinstance(ivector_dir, str):
-        ivector_dir = dest_dir / 'exp' / model_data_type / 'nnet3' /\
+        ivector_dir = dest_dir / 'exp' / model_data_type / 'nnet3' / \
                       ivector_dir
     elif ivector_dir is True:
         ivector_dir = dest_dir / 'exp' / model_data_type / 'nnet3' / (
@@ -320,7 +328,8 @@ def calculate_ivectors(ivector_dir, dest_dir, org_dir, dataset_dir,
                 f'nnet3/extractor'
         else:
             if isinstance(extractor_dir, str):
-                extractor_dir = org_dir / f'exp/{model_data_type}/{extractor_dir}'
+                extractor_dir = org_dir / f'exp/{model_data_type}/' \
+                    f'{extractor_dir}'
         assert extractor_dir.exists(), extractor_dir
         print(f'Directory {ivector_dir} not found, estimating ivectors')
         run_process([
@@ -390,8 +399,8 @@ def dump_keyed_lines(data_dict: dict, file: Path):
         if kaldi_type == 'utt2dur':
             text_number = float(text)
             assert 0. < text_number < 1000., (
-                    f'Strange duration: {k}: {text_number} s'
-                )
+                f'Strange duration: {k}: {text_number} s'
+            )
         elif kaldi_type == 'spk2gender':
             text = dict(male='m', female='f', m='m', f='f')[text]
         else:

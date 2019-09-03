@@ -1,17 +1,18 @@
 """
-Training script for baseline asr system. Expects all sms_wsj files to be written to storage and json_path pointing to a json using those files.
+Training script for baseline asr system. Expects all sms_wsj files to be
+written to storage and json_path pointing to a json using those files.
 example call:
 
 python -m train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=$JSON_PATH/wsj_bss.json
 """
 import os
+import shutil
 from pathlib import Path
 
 import sacred
 from lazy_dataset.database import JsonDatabase
 from sms_wsj.kaldi.utils import create_data_dir, create_kaldi_dir
-from sms_wsj.kaldi.utils import run_process
-import shutil
+from sms_wsj.kaldi.utils import run_process, pc2_environ
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])
 assert kaldi_root.exists(), (
@@ -33,6 +34,7 @@ ex = sacred.Experiment('Kaldi ASR baseline training')
 def config():
     egs_path = None
     json_path = None
+    # only used for the paderborn parallel computing center
     if 'CCS_NODEFILE' in os.environ:
         num_jobs = len(list(
             Path(os.environ['CCS_NODEFILE']).read_text().strip().splitlines()
@@ -59,17 +61,14 @@ def config():
 def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
         ali_data_type, train_data_type, kaldi_cmd, num_jobs):
     sms_db = JsonDatabase(json_path)
-    sms_kaldi_dir = Path(egs_path).resolve().expanduser() / train_data_type / 's5'
+    sms_kaldi_dir = Path(egs_path).resolve().expanduser()
+    sms_kaldi_dir = sms_kaldi_dir / train_data_type / 's5'
     if stage <= 1 < end_stage:
         create_kaldi_dir(sms_kaldi_dir)
 
     if kaldi_cmd == 'ssh.pl':
-        CCS_NODEFILE = Path(os.environ['CCS_NODEFILE'])
-        if (sms_kaldi_dir / '.queue').exists():
-            print('Deleting already existing .queue directory')
-            shutil.rmtree(sms_kaldi_dir / '.queue')
-        (sms_kaldi_dir / '.queue').mkdir()
-        (sms_kaldi_dir / '.queue' / 'machines').write_text(CCS_NODEFILE.read_text())
+        if 'CCS_NODEFILE' in os.environ:
+            pc2_environ(sms_kaldi_dir)
         with (sms_kaldi_dir / 'cmd.sh').open('a') as fd:
             fd.writelines('export train_cmd="ssh.pl"')
     elif kaldi_cmd == 'run.pl':
@@ -101,8 +100,10 @@ def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
             shutil.copytree(gmm_dir,  gmm_parent_dir / gmm)
 
     if stage <= 3 < end_stage and not ali_data_type == train_data_type:
-        create_data_dir(sms_kaldi_dir, db=sms_db, data_type=ali_data_type,
-                        ref_channels=[0, 1, 2, 3, 4, 5])
+        create_data_dir(
+            sms_kaldi_dir, db=sms_db, data_type=ali_data_type,
+            ref_channels=[0, 1, 2, 3, 4, 5]
+        )
 
     if stage <= 4 < end_stage:
         create_data_dir(

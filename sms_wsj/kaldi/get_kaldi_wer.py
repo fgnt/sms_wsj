@@ -19,18 +19,15 @@ $ ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python
 """
 
 import os
-
 from pathlib import Path
-
-from lazy_dataset.database import JsonDatabase
 from shutil import copytree
 
 import sacred
-
-from sms_wsj.kaldi.utils import create_data_dir_from_audio_dir
-from sms_wsj.kaldi.utils import run_process
-from sms_wsj.kaldi.utils import create_kaldi_dir, create_data_dir
+from lazy_dataset.database import JsonDatabase
 from sms_wsj.kaldi.utils import calculate_mfccs, calculate_ivectors
+from sms_wsj.kaldi.utils import create_data_dir_from_audio_dir
+from sms_wsj.kaldi.utils import create_kaldi_dir, create_data_dir
+from sms_wsj.kaldi.utils import run_process
 
 ex = sacred.Experiment('Kaldi array')
 kaldi_root = Path(os.environ['KALDI_ROOT'])
@@ -42,6 +39,19 @@ def create_dir(
         data_type='sms_enh', id_to_file_name='{}_0.wav', target_speaker=0
 ):
     """
+
+    Args:
+        audio_dir: path to audio_dir
+        dataset_names: datasets to create a data_dir for
+        base_dir: directory in which all information is copied or generated
+        json_path: path to wsj_bss.json file
+        db: JsonDatabase object
+        data_type: name of data type to evaluate
+        id_to_file_name: template to get the wav file name from the example_id
+        target_speaker: index of speaker to decode
+
+    Returns:
+
     """
     if base_dir is None:
         assert len(ex.current_run.observers) == 1, (
@@ -62,21 +72,26 @@ def create_dir(
 def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
            model_dir='chain/tdnn1a_sp', ivector_dir=True, extractor_dir=None,
            data_type='sms_enh', hires=True, num_jobs=8, kaldi_cmd='run.pl'):
-    '''
+    """
 
-    :param model_dir: name of model or Path to model_dir
-    :param dataset_dir: kaldi egs dir for the decoding
-        e.g.: "<egs_folder>/data/cv_dev_93"
-    :param org_dir: kaldi egs dir from which information for decoding are gathered
-    :param audio_dir: directory of audio files to decode (may be None)
-    :param ref_dir: reference kaldi dataset directory or name for decode dataset
-    :param ivector_dir: directory or name for the ivectors (may be None or False)
-    :param extractor_dir: directory of the ivector extractor (maybe None)
-    :param hires: flag for using high resolution mfcc features (True / False)
-    :param enh: name of the enhancement method, used for creating dataset name
-    :param num_jobs: number of parallel jobs
-    :return:
-    '''
+    Args:
+        model_egs_dir: path to the egs dir the model was trained in
+        dataset_dir: kaldi egs dir for the decoding
+                e.g.: "<egs_folder>/data/cv_dev_93"
+        base_dir: directory in which all information is copied or generated
+        model_data_type: data type on which the model was trained
+        model_dir: name of model or Path to model_dir
+        ivector_dir: directory or name for the ivectors (may be None or False)
+        extractor_dir: directory of the ivector extractor (maybe None)
+        data_type: name of data type to evaluate
+        hires: flag for using high resolution mfcc features (True / False)
+        num_jobs: number of parallel jobs
+        kaldi_cmd: kaldi cmd for example run.pl, ssh.pl queue.pl
+
+    Returns:
+
+    """
+
     if base_dir is None:
         assert len(ex.current_run.observers) == 1, (
             'FileObserver` missing. Add a `FileObserver` with `-F foo/bar/`.'
@@ -96,13 +111,12 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
 
     assert model_dir.exists(), f'{model_dir} does not exist'
 
-
     os.environ['PATH'] = f'{base_dir}/utils:{os.environ["PATH"]}'
     decode_dir = base_dir / 'exp' / model_data_type / model_dir.name
     if not decode_dir.exists():
         decode_dir.mkdir(parents=True)
-        [os.symlink(file, decode_dir / file.name)
-         for file in (model_dir).glob('*') if file.is_file()]
+        [os.symlink(str(file), str(decode_dir / file.name))
+         for file in model_dir.glob('*') if file.is_file()]
         assert (decode_dir / 'final.mdl').exists(), (
             f'final.mdl not in decode_dir: {decode_dir}, '
             f'maybe using worn model_egs_dir: {model_egs_dir}?'
@@ -124,8 +138,8 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
     calculate_mfccs(base_dir, dataset_dir, num_jobs=num_jobs,
                     config=config, recalc=True, kaldi_cmd=kaldi_cmd)
     ivector_dir = calculate_ivectors(
-        ivector_dir, base_dir, model_egs_dir, dataset_dir,
-        extractor_dir, model_data_type, data_type, num_jobs, kaldi_cmd
+        ivector_dir, base_dir, dataset_dir, extractor_dir, model_egs_dir,
+        model_data_type, data_type, num_jobs, kaldi_cmd
     )
     run_process([
         'steps/nnet3/decode.sh', '--acwt', '1.0',
@@ -143,23 +157,20 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
            ).read_text())
 
 
-def on_pc2():
-    if 'CCS_NODEFILE' in os.environ:
-        return True
-    else:
-        return False
-
-
 @ex.config
 def default():
     """
-    audio_dir: Dir to decode. The path can be absolute or relative to the sacred
-        base folder. If None take the ref_dev_dir as audio_dir. Note when
-        ref_dev_dir is a relative path, it is relative to org_dir and not sacred
-        base folder.
+    If audio_dir and json_path are defined, the wavs in audio_dir will be
+    decoded. If necessary a mapping from example_id to the wav names can be
+    specified using id_to_file_name.
+    If kaldi_data_dir it will be used as data_dir for decoding. In this case
+    audio_dir hast to be None
+    If neither audio_dir nor kaldi_data_dir is defined, but json_path is not
+    None. kaldi data_dirs for all data_type and dataset_names are created and
+    decoded.
 
     model_egs_dir: egs directory of the trained model with data and exp dir
-
+    num_jobs: if not specified takes the the number of cores as default
 
     """
     model_egs_dir = None
@@ -168,7 +179,7 @@ def default():
     audio_dir = None
     kaldi_data_dir = None
 
-    json_path = None # only necessary if using audio dir
+    json_path = None
 
     model_data_type = 'sms_single_speaker'
     dataset_names = ['test_eval92', 'cv_dev93']
@@ -194,28 +205,20 @@ def default():
     else:
         assert not data_type == 'wsj_8k', (ref_channels, data_type)
 
-
     # am specific values which usually do not have to be changed
     ivector_dir = True
     extractor_dir = 'nnet3/extractor'
     model_dir = 'chain/tdnn1a_sp'
     hires = True
+    kaldi_cmd = 'run.pl'
 
+    # This is just for our pc2 environment
     if 'CCS_NODEFILE' in os.environ:
         num_jobs = len(list(
             Path(os.environ['CCS_NODEFILE']).read_text().strip().splitlines()
         ))
     else:
         num_jobs = os.cpu_count()
-
-    if on_pc2():
-        kaldi_cmd = 'ssh.pl'
-    else:
-        kaldi_cmd = 'run.pl'
-
-@ex.named_config
-def sms_single_speaker():
-    model_egs_dir = '/scratch/hpc-prf-nt1/jensheit/python_packages/sms_wsj/data/sms_single_speaker/s5'
 
 
 def check_config_element(element):
