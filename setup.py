@@ -69,10 +69,12 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'numpy',
+        'dlp_mpi',
         'lazy_dataset',
+        'pathlib',
         'sacred',
-        'pathlib'
+        'sh',
+        'soundfile',
     ],
 
     # Installation problems in a clean, new environment:
@@ -91,15 +93,9 @@ setup(
     },
 
     ext_modules=cythonize([
-        # 'paderbox/reverb/CalcRIR_Simple_C.pyx',
-        # 'paderbox/reverb/rirgen/pyrirgen.pyx'
+        'sms_wsj/reverb/rirgen/pyrirgen.pyx'
     ],
         annotate=True,
     ),
     include_dirs=[numpy.get_include()],
-    entry_points={
-        "console_scripts": [
-            'paderbox.strip_solution = paderbox.utils.strip_solution:entry_point',
-        ]
-    },
 )

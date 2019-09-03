@@ -1,5 +1,4 @@
 
-import hashlib
 from hashlib import md5
 
 import numpy as np
@@ -9,14 +8,6 @@ from sms_wsj.reverb.reverb_utils import get_rir_start_sample
 __all__ = [
     'scenario_map_fn',
 ]
-
-
-def get_rng(dataset, example_id):
-    string = f"{dataset}_{example_id}"
-    seed = (
-        int(hashlib.sha256(string.encode("utf-8")).hexdigest(), 16) % 2 ** 32
-    )
-    return np.random.RandomState(seed=seed)
 
 
 def _example_id_to_rng(example_id):
