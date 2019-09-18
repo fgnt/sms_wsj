@@ -195,6 +195,7 @@ def main(
         for _ in dlp_mpi.map_unordered(workload, list(sorted(dataset.keys())),
                                        progress_bar=True):
             pass
+        dlp_mpi.barrier()
 
         print(f'RANK={dlp_mpi.RANK}, SIZE={dlp_mpi.SIZE}:'
               f' Finished {dataset_name}.')
