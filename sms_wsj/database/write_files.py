@@ -20,7 +20,12 @@ import dlp_mpi
 
 ex = sacred.Experiment('Write WSJ BSS files')
 
-type_mapper = {'speech_reverberation_early': 'early'}
+type_mapper = {
+    'speech_reverberation_early': 'early',
+    'speech_reverberation_tail': 'tail',
+    'noise_image': 'noise',
+    'observation': 'observation'
+}
 
 
 def audio_read(example):
@@ -72,7 +77,7 @@ def write_wavs(dst_dir, db, write_all=False):
         example_id = example['example_id']
         if not write_all:
             del audio_dict['speech_reverberation_early']
-            del audio_dict['speech_reverberation_tale']
+            del audio_dict['speech_reverberation_tail']
             del audio_dict['noise_image']
         # assert all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()]), (
         #     example_id, [np.max(np.abs(v)) for v in audio_dict.values()])
