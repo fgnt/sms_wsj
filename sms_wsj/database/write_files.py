@@ -111,8 +111,10 @@ def write_wavs(dst_dir, db, write_all=False):
         ]
         print(f"Written {len(created_files)} wav files.")
         if write_all:
-            assert len(created_files) == (2 * 2 + 2) * len(ds), len(
-                created_files)
+            expect = (2 * 2 + 2) * len(ds)
+            assert len(created_files) == expect, (
+                len(created_files), expect
+            )
         else:
             assert len(created_files) == len(ds), len(created_files)
 
