@@ -33,7 +33,7 @@ $(SMS_WSJ_DIR)/sms_wsj: $(JSON_PATH)/sms_wsj.json $(SMS_WSJ_DIR)
 	mpiexec -np $(num_jobs) python -m sms_wsj.database.write_files with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_PATH)/sms_wsj.json write_all=True new_json_path=$(JSON_PATH)/sms_wsj.json
 
 # The room impuls responses can be downloaded, so that they do not have to be created
-# however if you want to recreate them use "make rirs SMS_WSJ_DIR=/path/to/storage/"
+# however if you want to recreate them use "make rirs RIR_DIR=/path/to/storage/"
 rirs:
 	@echo creating $(RIR_DIR)
 	mpiexec -np $(num_jobs) python -m sms_wsj.database.create_rirs with database_path=$(RIR_DIR)
