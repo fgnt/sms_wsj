@@ -41,7 +41,7 @@ input num_jobs. Per default 16 parallel jobs are used.
 
 Use the following command to train the baseline asr model:
 ```bash
-$ python -m train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=/path/to/wsj_bss.json
+$ python -m sms_wsj.train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=/path/to/sms_wsj.json
 ```
 For more informationon possible 
 The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"

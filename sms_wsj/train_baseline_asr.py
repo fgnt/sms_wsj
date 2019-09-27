@@ -3,7 +3,7 @@ Training script for baseline asr system. Expects all sms_wsj files to be
 written to storage and json_path pointing to a json using those files.
 example call:
 
-python -m train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=$JSON_PATH/wsj_bss.json
+python -m train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=$JSON_PATH/sms_wsj.json
 """
 import os
 import shutil
