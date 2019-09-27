@@ -99,7 +99,16 @@ def write_wavs(dst_dir, db, write_all=False):
 
     dlp_mpi.barrier()
     if dlp_mpi.IS_MASTER:
-        created_files = list(dst_dir.rglob("*.wav"))
+        created_files = [
+            p for p in dst_dir.rglob("*.wav") if any(
+                [
+                    (
+                        p.match(str(dst_dir / f'{data_type}/**/*.wav')) or
+                        p.match(str(dst_dir / f'{data_type}/*.wav'))
+                    ) for data_type in type_mapper.values()
+                ]
+            )
+        ]
         print(f"Written {len(created_files)} wav files.")
         if write_all:
             assert len(created_files) == (2 * 2 + 2) * len(ds), len(
