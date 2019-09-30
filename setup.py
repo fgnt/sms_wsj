@@ -69,12 +69,13 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        'dlp_mpi',
+        # TODO 'dlp_mpi',
         'lazy_dataset',
         'pathlib',
         'sacred',
         'sh',
         'soundfile',
+        # TODO scipy>=1.3.0
     ],
 
     # Installation problems in a clean, new environment:
