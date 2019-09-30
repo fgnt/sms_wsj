@@ -22,7 +22,7 @@ import sacred
 from pb_bss.evaluation.wrapper import OutputMetrics
 import dlp_mpi
 
-from paderbox.database.wsj_bss import WsjBss as SmsWsj
+from sms_wsj.database import SmsWsj
 from sms_wsj.database.utils import scenario_map_fn
 
 
