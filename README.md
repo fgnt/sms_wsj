@@ -45,3 +45,11 @@ $ python -m sms_wsj.train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=
 ```
 For more informationon possible 
 The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"
+
+
+## FAQ
+### Q: What does the example id `4k0c0301_4k6c030t_0` mean?
+A: The example id is a unique identifier for an example (sometime also knwon as utterance id).
+The example id is a composition of the sperakers, the utterances and an scenario counter:
+
+![Example ID](doc/images/example_id.svg)
