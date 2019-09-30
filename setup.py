@@ -71,7 +71,6 @@ setup(
     install_requires=[
         # TODO 'dlp_mpi',
         'lazy_dataset',
-        'pathlib',
         'sacred',
         'sh',
         'soundfile',
