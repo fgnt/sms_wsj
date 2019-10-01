@@ -50,7 +50,7 @@ def config():
     # ToDo: change to kaldi_root/egs/ if no egs_path is defined?
     assert egs_path is not None, \
         'The directory where all asr training related data is stored has' \
-        ' to be defined, use "with storage_dir=/path/to/storage/dir"'
+        ' to be defined, use "with egs_path=/path/to/storage/dir"'
     assert json_path is not None, \
         'The path to the json describing the SMS-WSJ database has to be' \
         ' defined, use "with json_path=/path/to/json/sms_wsj.json"' \
