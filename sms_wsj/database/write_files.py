@@ -138,16 +138,16 @@ def create_json(dst_dir, db, write_all, snr_range=(20, 30)):
             if write_all:
                 for key, data_type in type_mapper.items():
                     if key in ['observation', 'noise_image']:
-                        ex['audio_path'][key] = str(dst_dir / data_type / (
+                        ex['audio_path'][key] = str(dst_dir / data_type / dataset_name / (
                                 ex_id + '.wav')),
                     else:
                         ex['audio_path'][key] = [
-                            str(dst_dir / data_type / (ex_id + '_0.wav')),
-                            str(dst_dir / data_type / (ex_id + '_1.wav'))
+                            str(dst_dir / data_type / dataset_name / (ex_id + '_0.wav')),
+                            str(dst_dir / data_type / dataset_name / (ex_id + '_1.wav'))
                         ]
             else:
                 ex['audio_path'].update({
-                    'observation': str(dst_dir / 'observation' / (ex_id + '.wav'))
+                    'observation': str(dst_dir / 'observation' / dataset_name / (ex_id + '.wav'))
                 })
             rng = _example_id_to_rng(ex_id)
             snr = rng.uniform(*snr_range)
