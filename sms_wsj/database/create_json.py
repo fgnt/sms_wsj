@@ -1,3 +1,4 @@
+import os
 import json
 from collections import defaultdict
 from copy import copy
@@ -135,8 +136,14 @@ def config():
     rir_dir = None
     json_path = None
     wsj_json_path = None
+    if rir_dir is None and 'RIR_DIR' in os.environ:
+        rir_dir = os.environ['RIR_DIR']
     assert rir_dir is not None, 'You have to specify the rir dir'
+    if wsj_json_path is None and 'WSJ_JSON' in os.environ:
+        wsj_json_path = os.environ['WSJ_JSON']
     assert wsj_json_path is not None, 'You have to specify a wsj_json_path'
+    if json_path is None and 'SMS_WSJ_JSON' in os.environ:
+        json_path = os.environ['SMS_WSJ_JSON']
     assert json_path is not None, 'You have to specify a path for the new json'
 
 
@@ -199,6 +206,7 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
                     rir_dir,
                 )
             ex_id = example['example_id']
+            del example['example_id']
             target_db['datasets'][dataset_name][ex_id] = example
     json_path.parent.mkdir(exist_ok=True, parents=True)
     with json_path.open('w') as f:
