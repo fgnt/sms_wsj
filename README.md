@@ -53,3 +53,6 @@ A: The example id is a unique identifier for an example (sometime also knwon as 
 The example id is a composition of the sperakers, the utterances and an scenario counter:
 
 ![Example ID](doc/images/example_id.svg)
+=======
+
+The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"
