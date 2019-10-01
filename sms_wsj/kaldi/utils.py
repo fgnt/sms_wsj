@@ -202,7 +202,8 @@ def _create_data_dir(
     elif isinstance(dataset_names, str):
         dataset_names = [dataset_names]
     assert not any([
-        (data_dir / dataset_name).exists() for dataset_name in dataset_names])
+        (data_dir / dataset_name).exists() for dataset_name in dataset_names
+    ]), (data_dir, dataset_names)
     dataset = db.get_dataset(dataset_names)
     for example in dataset:
         for ref_ch in ref_channels:
