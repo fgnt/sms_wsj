@@ -4,7 +4,7 @@ SMS_WSJ_DIR ?= cache
 RIR_DIR = $(SMS_WSJ_DIR)/rirs
 JSON_PATH ?= cache
 WSJ_8K_DIR ?= $(SMS_WSJ_DIR)/wsj_8k
-on_the_fly = False # if True the reverberated data will be calculated on the fly and not saved to SMS_WSJ_DIR
+WRITE_ALL = True # if True the reverberated data will be calculated on the fly and not saved to SMS_WSJ_DIR
 num_jobs = 16
 
 all: sms_wsj
@@ -30,7 +30,7 @@ $(JSON_PATH)/sms_wsj.json: $(RIR_DIR) $(JSON_PATH)/wsj_8k.json
 sms_wsj: $(SMS_WSJ_DIR)/sms_wsj $(SMS_WSJ_DIR)
 $(SMS_WSJ_DIR)/sms_wsj: $(JSON_PATH)/sms_wsj.json $(SMS_WSJ_DIR)
 	@echo creating $(SMS_WSJ_DIR) files
-	mpiexec -np $(num_jobs) python -m sms_wsj.database.write_files with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_PATH)/sms_wsj.json write_all=True new_json_path=$(JSON_PATH)/sms_wsj.json
+	mpiexec -np $(num_jobs) python -m sms_wsj.database.write_files with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_PATH)/sms_wsj.json write_all=$(WRITE_ALL) new_json_path=$(JSON_PATH)/sms_wsj.json
 
 # The room impuls responses can be downloaded, so that they do not have to be created
 # however if you want to recreate them use "make rirs RIR_DIR=/path/to/storage/"
