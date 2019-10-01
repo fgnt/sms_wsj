@@ -179,8 +179,6 @@ def _create_data_dir(
 
     """
 
-    print(f'Create data dir for {data_type}/{dataset_names} data')
-
     assert not (db is None and json_path is None), (db, json_path)
     if db is None:
         db = JsonDatabase(json_path)
@@ -203,7 +201,18 @@ def _create_data_dir(
         dataset_names = [dataset_names]
     assert not any([
         (data_dir / dataset_name).exists() for dataset_name in dataset_names
-    ]), (data_dir, dataset_names)
+    ]), (
+        'One of the following directories already exists: '
+        f'{[data_dir / ds_name for ds_name in dataset_names]}\n'
+        'Delete them if you want to restart this stage'
+    )
+
+    print(
+        'Create data dir for '
+        f'{", ".join([f"{data_type}/{ds_name}" for ds_name in dataset_names])} '
+        'data'
+    )
+
     dataset = db.get_dataset(dataset_names)
     for example in dataset:
         for ref_ch in ref_channels:
