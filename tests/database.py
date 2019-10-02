@@ -46,6 +46,16 @@ def test_example():
 
     assert example['example_id'] == '4k0c0301_4k6c030t_0'
     assert example['snr'] == 29.749852569493584
+    assert example['room_dimensions'] == [[8.169], [5.905], [3.073]]
+    assert example['source_position'] == [[2.443, 2.71], [3.104, 2.135], [1.557, 1.557]]
+    assert example['sensor_position'] == [[3.899, 3.8, 3.759, 3.817, 3.916, 3.957],
+                        [3.199, 3.189, 3.098, 3.017, 3.027, 3.118],
+                        [1.413, 1.418, 1.423, 1.423, 1.417, 1.413]]
+    assert example['sound_decay_time'] == 0.354
+    assert example['offset'] == [0, 17423]
+    assert example['log_weights'] == [1.2027951449295022, -1.2027951449295022]
+    assert example['num_samples'] == {'observation': 103650,
+                                      'speech_source': [103650, 56335]}
 
 
 def test_order():
