@@ -91,6 +91,31 @@ def get_white_noise_for_signal(
         return noise_signal
 
 
+def synchronize_speech_source(speech_source, offset, T):
+    """
+    >>> from sms_wsj.database.database import SmsWsj, AudioReader
+    >>> ds = SmsWsj().get_dataset('cv_dev93')
+    >>> example = ds[0]
+    >>> speech_source = AudioReader._rec_audio_read(
+    ...     example['audio_path']['speech_source'])
+    >>> [s.shape for s in speech_source]
+    [(103650,), (93411,)]
+    >>> synchronize_speech_source(
+    ...     speech_source,
+    ...     example['offset'],
+    ...     T=example['num_samples']['observation'],
+    ... ).shape
+    (2, 103650)
+    """
+    return np.array([
+        extract_piece(x_, offset_, T)
+        for x_, offset_ in zip(
+            speech_source,
+            offset,
+        )
+    ])
+
+
 def scenario_map_fn(
         example,
         *,
@@ -193,13 +218,10 @@ def scenario_map_fn(
         example['audio_data']['speech_reverberation_tail'] = x_tail
 
     if sync_speech_source:
-        example['audio_data']['speech_source'] = np.array([
-            extract_piece(x_, offset_, T)
-            for x_, offset_ in zip(
-                example['audio_data']['speech_source'],
-                example['offset'],
-            )
-        ])
+        example['audio_data']['speech_source'] = synchronize_speech_source(
+            example['audio_data']['speech_source'],
+            example['offset']
+        )
 
     clean_mix = np.sum(x, axis=0)
 
