@@ -1,4 +1,8 @@
 import os
+import dataclasses
+
+import numpy as np
+
 import lazy_dataset.database
 
 
@@ -82,3 +86,100 @@ class SmsWsj(lazy_dataset.database.JsonDatabase):
             json_path = self.default_json_path()
 
         super().__init__(json_path)
+
+
+@dataclasses.dataclass
+class AudioReader:
+    """
+    Reads the audio data of an example.
+    The paths are in `example['audio_path']` and will be written to
+    `example['audio_data']`.
+    This reader is usually used as a mapping in a dataset:
+
+    >>> from IPython.lib.pretty import pprint
+    >>> np.set_string_function(lambda a: f'array(shape={a.shape}, dtype={a.dtype})')
+
+    >>> db = SmsWsj()
+    >>> ds = db.get_dataset('cv_dev93')
+    >>> ds = ds.map(AudioReader())
+    >>> example = ds[0]
+    >>> pprint(example['audio_data'])
+    {'observation': array(shape=(6, 103650), dtype=float64),
+     'speech_source': array(shape=(2, 103650), dtype=float64),
+     'speech_reverberation_early': array(shape=(2, 6, 103650), dtype=float64),
+     'speech_reverberation_tail': array(shape=(2, 6, 103650), dtype=float64),
+     'speech_image': array(shape=(2, 6, 103650), dtype=float64),
+     'noise_image': array(shape=(6, 103650), dtype=float64)}
+    """
+
+    observation: bool = True
+
+    speech_source: bool = True
+    sync_speech_source: bool = True
+    # If true, pad or cut to match num samples of observation
+
+    speech_reverberation_early: bool = True
+    speech_reverberation_tail: bool = True
+    speech_image: bool = True
+
+    noise_image: bool = True
+
+    rir: bool = False
+
+    def __post_init__(self):
+        if self.speech_image:
+            self.speech_reverberation_early = True
+            self.speech_reverberation_tail = True
+
+    @classmethod
+    def _rec_audio_read(cls, file):
+        import soundfile
+
+        if isinstance(file, (tuple, list)):
+            return np.array([cls._rec_audio_read(f) for f in file])
+        elif isinstance(file, (dict)):
+            return {k: cls._rec_audio_read(v) for k, v in file.items()}
+        else:
+            data, sample_rate = soundfile.read(file)
+            return data.T
+
+    def __call__(self, example):
+        # ToDo: np.squeeze
+
+        data = {}
+        path = example['audio_path']
+
+        if self.observation:
+            data['observation'] = self._rec_audio_read(path['observation'])
+        if self.speech_source:
+            data['speech_source'] = self._rec_audio_read(path['speech_source'])
+            if self.sync_speech_source:
+                from sms_wsj.database.utils import synchronize_speech_source
+                data['speech_source'] = synchronize_speech_source(
+                    data['speech_source'],
+                    example['offset'],
+                    T = example['num_samples']['observation'],
+                )
+
+        if self.speech_reverberation_early:
+            data['speech_reverberation_early'] = self._rec_audio_read(
+                path['speech_reverberation_early'])
+        if self.speech_reverberation_tail:
+            data['speech_reverberation_tail'] = self._rec_audio_read(
+                path['speech_reverberation_tail'])
+
+        if self.speech_image:
+            data['speech_image'] = (
+                data['speech_reverberation_early']
+                + data['speech_reverberation_tail']
+            )
+
+        if self.noise_image:
+            data['noise_image'] = self._rec_audio_read(path['noise_image'])
+
+        if self.rir:
+            data['rir'] = self._rec_audio_read(path['rir'])
+
+        example['audio_data'] = data
+
+        return example
