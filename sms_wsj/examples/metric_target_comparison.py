@@ -22,8 +22,7 @@ import sacred
 from pb_bss.evaluation.wrapper import OutputMetrics
 import dlp_mpi
 
-from sms_wsj.database import SmsWsj
-from sms_wsj.database.utils import scenario_map_fn
+from sms_wsj.database import SmsWsj, AudioReader
 
 
 experiment = sacred.Experiment('Oracle Experiment')
@@ -33,6 +32,7 @@ experiment = sacred.Experiment('Oracle Experiment')
 def config():
     dataset = 'cv_dev93'  # or 'test_eval92'
     out = None  # json file to write the detailed results
+
 
 @experiment.capture
 def get_dataset(dataset):
@@ -56,22 +56,8 @@ def get_dataset(dataset):
     """
     db = SmsWsj()
     ds = db.get_dataset(dataset)
-
-    def rec_audio_read(file):
-        if isinstance(file, (tuple, list)):
-            return [rec_audio_read(f) for f in file]
-        else:
-            data, sample_rate = soundfile.read(file)
-            return data.T
-
-    def read_audio(ex):
-        ex['audio_data'] = {
-            'speech_source': np.array(rec_audio_read(ex['audio_path']['speech_source'])),
-            'rir': np.array(rec_audio_read(ex['audio_path']['rir'])),
-        }
-        return scenario_map_fn(ex)
-
-    return ds.map(read_audio)
+    ds = ds.map(AudioReader())
+    return ds
 
 
 def get_scores(ex, prediction, source):
@@ -94,12 +80,12 @@ def get_scores(ex, prediction, source):
     >>> pprint(get_scores(get_dataset('cv_dev93')[0], 'image_0', 'source'))
     {'pesq': array([2.234]),
      'stoi': array([0.8005423]),
-     'mir_eval_sxr_sdr': array([12.11446205]),
-     'si_sdr': array([-20.05244549])}
+     'mir_eval_sxr_sdr': array([12.11446204]),
+     'si_sdr': array([-20.05244551])}
     >>> pprint(get_scores(get_dataset('cv_dev93')[0], 'image_0', 'image_1'))
     {'pesq': array([3.608]),
      'stoi': array([0.92216845]),
-     'mir_eval_sxr_sdr': array([9.55425597]),
+     'mir_eval_sxr_sdr': array([9.55425598]),
      'si_sdr': array([-0.16858895])}
     """
 
