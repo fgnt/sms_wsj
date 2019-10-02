@@ -44,6 +44,9 @@ def test_example():
         'gender', 'kaldi_transcription', 'log_weights', 'num_samples',
         'offset', 'audio_path', 'snr', 'example_id', 'dataset', 'audio_data']
 
+    assert example['example_id'] == '4k0c0301_4k6c030t_0'
+    assert example['snr'] == 29.749852569493584
+
 
 def test_order():
     db = SmsWsj()
