@@ -221,7 +221,8 @@ def scenario_map_fn(
     if sync_speech_source:
         example['audio_data']['speech_source'] = synchronize_speech_source(
             example['audio_data']['speech_source'],
-            example['offset']
+            offset=example['offset'],
+            T=T,
         )
 
     clean_mix = np.sum(x, axis=0)
