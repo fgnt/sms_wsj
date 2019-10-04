@@ -89,7 +89,9 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
             [(dst_dir / data_type / dataset).mkdir(exist_ok=False)
              for data_type in type_mapper.values()]
         ds = db.get_dataset(dataset).map(audio_read).map(map_fn)
-        for example in dlp_mpi.split_managed(ds):
+        for example in dlp_mpi.split_managed(
+                ds, is_indexable=True,
+                allow_single_worker=True, progress_bar=True):
             audio_dict = example['audio_data']
             example_id = example['example_id']
             if not write_all:
