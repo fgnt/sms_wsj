@@ -86,7 +86,7 @@ def main(
         debug,
 ):
     assert len(database_path) > 0, "Database path can not be empty."
-    database_path = Path(database_path)
+    database_path = Path(database_path).expanduser().resolve()
 
     if dlp_mpi.IS_MASTER:
         print(f'from: random')
