@@ -189,13 +189,14 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
         info = soundfile.info(str(rir_dir / dataset_name / "0" / "h_0.wav"))
         frame_rate_rir = info.samplerate
 
-        ex_wsj = source_iterator.random_choice(1, rng_state=rng)[0]
+        ex_wsj = source_iterator.random_choice(1)[0]
         info = soundfile.SoundFile(ex_wsj['audio_path']['observation'])
         frame_rate_wsj = info.samplerate
         assert frame_rate_rir == frame_rate_wsj, (
             frame_rate_rir, frame_rate_wsj)
 
-        for rir_example in rir_iterator:
+        ex_dict = dict()
+        for rir_example in rir_iterator.sort():
             example = None
             while example is None:
                 example = get_randomized_example(
@@ -207,7 +208,10 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
                 )
             ex_id = example['example_id']
             del example['example_id']
-            target_db['datasets'][dataset_name][ex_id] = example
+            ex_dict[ex_id] = example
+
+        target_db['datasets'][dataset_name] = dict(sorted(
+            ex_dict.items(), key=lambda ex: int(ex[0].split('_')[-1])))
     json_path.parent.mkdir(exist_ok=True, parents=True)
     with json_path.open('w') as f:
         json.dump(target_db, f, indent=4, ensure_ascii=False)

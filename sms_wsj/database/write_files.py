@@ -69,7 +69,7 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
              for data_type in type_mapper.values()]
         map_fn = partial(
             scenario_map_fn,
-            snr_range = snr_range,
+            snr_range=snr_range,
             sync_speech_source=True,
             add_speech_reverberation_early=True,
             add_speech_reverberation_tail=True
@@ -120,13 +120,13 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
     if dlp_mpi.IS_MASTER:
         created_files = check_files(dst_dir)
         print(f"Written {len(created_files)} wav files.")
-    if write_all:
-        expect = (2 * 2 + 2) * 32000
-        assert len(created_files) == expect, (
-            len(created_files), expect
-        )
-    else:
-        assert len(created_files) == 32000, len(created_files)
+        if write_all:
+            expect = (2 * 2 + 2) * 32000
+            assert len(created_files) == expect, (
+                len(created_files), expect
+            )
+        else:
+            assert len(created_files) == 32000, len(created_files)
 
 
 def create_json(dst_dir, db, write_all, snr_range=(20, 30)):
@@ -139,7 +139,7 @@ def create_json(dst_dir, db, write_all, snr_range=(20, 30)):
                 for key, data_type in type_mapper.items():
                     if key in ['observation', 'noise_image']:
                         ex['audio_path'][key] = str(dst_dir / data_type / dataset_name / (
-                                ex_id + '.wav')),
+                                ex_id + '.wav'))
                     else:
                         ex['audio_path'][key] = [
                             str(dst_dir / data_type / dataset_name / (ex_id + '_0.wav')),

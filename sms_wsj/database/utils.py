@@ -80,7 +80,8 @@ def get_white_noise_for_signal(
             snr: SNR or single speaker SNR.
             rng_state: A random number generator object or np.random
         """
-        noise_signal = rng_state.normal(*time_signal.shape)
+        noise_signal = rng_state.normal(size=time_signal.shape)
+
         power_time_signal = np.mean(time_signal ** 2, keepdims=True)
         power_noise_signal = np.mean(noise_signal ** 2, keepdims=True)
         current_snr = 10 * np.log10(power_time_signal / power_noise_signal)
