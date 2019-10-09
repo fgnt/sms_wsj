@@ -95,15 +95,14 @@ def _get_wer_command_for_json(example, ref_ch, audio_key, target_speaker):
 
 
 def _get_wer_command_for_audio_dir(
-        example, ref_ch, audio_dir, id_to_file_name_fn):
+        example, ref_ch, spk, audio_dir, id_to_file_name_fn):
     dataset_name = example['dataset']
     example_id = example['example_id']
     try:
-        audio_path = audio_dir / dataset_name / id_to_file_name_fn(example_id)
+        audio_path = audio_dir / dataset_name / id_to_file_name_fn(example_id, spk)
         assert audio_path.exists(), audio_path
     except AssertionError:
-        audio_path = audio_dir / id_to_file_name_fn(
-            example_id)
+        audio_path = audio_dir / id_to_file_name_fn(example_id, spk)
         assert audio_path.exists(), audio_path
     wav_command = f'sox {audio_path} -t wav  -b 16 - remix {ref_ch + 1} |'
     return wav_command
@@ -143,7 +142,8 @@ def create_data_dir_from_audio_dir(
     Wrapper calling _create_data_dir for data_dirs from audio_dir
     """
     if isinstance(id_to_file_name, str):
-        id_to_file_name_fn = lambda _id: id_to_file_name.format(_id)
+        id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(
+            spk, ex_id=_id)
     else:
         id_to_file_name_fn = id_to_file_name
     assert callable(id_to_file_name_fn), id_to_file_name_fn
@@ -199,6 +199,8 @@ def _create_data_dir(
         dataset_names = ('train_si284', 'cv_dev93', 'test_eval92')
     elif isinstance(dataset_names, str):
         dataset_names = [dataset_names]
+    if not isinstance(target_speaker, (list, tuple)):
+        target_speaker = [target_speaker]
     assert not any([
         (data_dir / dataset_name).exists() for dataset_name in dataset_names
     ]), (
@@ -218,22 +220,30 @@ def _create_data_dir(
         for ref_ch in ref_channels:
             example_id = example['example_id']
             dataset_name = example['dataset']
-            example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
-            example_id_to_wav[example_id] = get_wer_command_fn(example,
-                                                               ref_ch=ref_ch)
-            transcription = example['kaldi_transcription'][target_speaker]
-            example_id_to_trans[example_id] = transcription
-            if target_speaker == 0:
-                speaker_id = example['speaker_id'][target_speaker]
-            else:
-                speaker_id = '_'.join(example['speaker_id'][:target_speaker])
-            example_id_to_speaker[example_id] = speaker_id
-            gender = example['gender'][target_speaker]
-            speaker_to_gender[dataset_name][speaker_id] = gender
-            num_samples = example['num_samples']['observation']
-            example_id_to_duration[
-                example_id] = f"{num_samples / SAMPLE_RATE:.2f}"
-            dataset_to_example_id[dataset_name].append(example_id)
+            for t_spk in target_speaker:
+                example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
+                example_id += f'_spk{t_spk}' if len(target_speaker) > 1 else ''
+                example_id_to_wav[example_id] = get_wer_command_fn(
+                    example, ref_ch=ref_ch, spk=t_spk)
+                try:
+                    transcription = example['kaldi_transcription'][t_spk]
+                except KeyError:
+                    transcription = example['transcription'][t_spk]
+                example_id_to_trans[example_id] = transcription
+                if t_spk == 0:
+                    speaker_id = example['speaker_id'][t_spk]
+                else:
+                    speaker_id = '_'.join(example['speaker_id'][:t_spk])
+                example_id_to_speaker[example_id] = speaker_id
+                gender = example['gender'][t_spk]
+                speaker_to_gender[dataset_name][speaker_id] = gender
+                if isinstance(example['num_samples'], dict):
+                    num_samples = example['num_samples']['observation']
+                else:
+                    num_samples = example['num_samples']
+                example_id_to_duration[
+                    example_id] = f"{num_samples / SAMPLE_RATE:.2f}"
+                dataset_to_example_id[dataset_name].append(example_id)
 
     assert len(example_id_to_speaker) > 0, dataset
     for dataset_name in dataset_names:

@@ -196,7 +196,7 @@ def default():
         data_type = 'sms_enh'
 
     # only used with audio_dir
-    id_to_file_name = '{}_0.wav'
+    id_to_file_name = '{ex_id}_0.wav'
     target_speaker = 0
     ref_channels = 0
 
@@ -262,7 +262,7 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
     if _config['model_egs_dir'] is None:
         model_egs_dir = kaldi_root / 'egs' / 'sms_wsj' / 's5'
     else:
-        model_egs_dir = Path(_config['model_egs_dir'])
+        model_egs_dir = Path(_config['model_egs_dir']).expanduser().resolve()
     assert model_egs_dir.exists(), model_egs_dir
 
     dataset_names = _config['dataset_names']
