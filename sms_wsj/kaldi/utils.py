@@ -80,16 +80,15 @@ def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
                 fd.writelines(f"--sample-frequency={SAMPLE_RATE}\n")
 
 
-def _get_wer_command_for_json(example, ref_ch, audio_key, target_speaker):
+def _get_wer_command_for_json(example, ref_ch, spk, audio_key):
     if isinstance(audio_key, (list, tuple)):
         mix_command = 'sox -m -v 1 ' + ' -v 1 '.join(
-            [str(example['audio_path'][audio][target_speaker])
-             for audio in audio_key]
+            [str(example['audio_path'][audio][spk]) for audio in audio_key]
         )
         wav_command = f'{mix_command} -t wav - | sox -t wav -' \
             f' -t wav -b 16 - remix {ref_ch + 1} |'
     else:
-        wav = example['audio_path'][audio_key][target_speaker]
+        wav = example['audio_path'][audio_key][spk]
         wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
     return wav_command
 
@@ -97,12 +96,12 @@ def _get_wer_command_for_json(example, ref_ch, audio_key, target_speaker):
 def _get_wer_command_for_audio_dir(
         example, ref_ch, spk, audio_dir, id_to_file_name_fn):
     dataset_name = example['dataset']
-    example_id = example['example_id']
+    ex_id = example['example_id']
     try:
-        audio_path = audio_dir / dataset_name / id_to_file_name_fn(example_id, spk)
+        audio_path = audio_dir / dataset_name / id_to_file_name_fn(ex_id, spk)
         assert audio_path.exists(), audio_path
     except AssertionError:
-        audio_path = audio_dir / id_to_file_name_fn(example_id, spk)
+        audio_path = audio_dir / id_to_file_name_fn(ex_id, spk)
         assert audio_path.exists(), audio_path
     wav_command = f'sox {audio_path} -t wav  -b 16 - remix {ref_ch + 1} |'
     return wav_command
@@ -218,9 +217,9 @@ def _create_data_dir(
     dataset = db.get_dataset(dataset_names)
     for example in dataset:
         for ref_ch in ref_channels:
-            example_id = example['example_id']
-            dataset_name = example['dataset']
             for t_spk in target_speaker:
+                example_id = example['example_id']
+                dataset_name = example['dataset']
                 example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
                 example_id += f'_spk{t_spk}' if len(target_speaker) > 1 else ''
                 example_id_to_wav[example_id] = get_wer_command_fn(
