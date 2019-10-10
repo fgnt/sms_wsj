@@ -65,9 +65,13 @@ def generate_rir(
 
     if sensor_orientations is None:
         sensor_orientations = np.zeros((2, number_of_sources))
+    else:
+        raise NotImplementedError(sensor_orientations)
 
     if sensor_directivity is None:
         sensor_directivity = 'omnidirectional'
+    else:
+        raise NotImplementedError(sensor_directivity)
 
     assert filter_length is not None
     rir = np.zeros(
