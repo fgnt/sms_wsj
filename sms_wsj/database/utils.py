@@ -233,8 +233,6 @@ def scenario_map_fn(
 
     rng = _example_id_to_rng(example['example_id'])
 
-    # Should the SNR be defined of "reverberated vs noise" or
-    # "early reverberated vs noise"?
     n = get_white_noise_for_signal(clean_mix, snr=snr, rng_state=rng)
     example['audio_data']['noise_image'] = n
     example['audio_data']['observation'] = clean_mix + n
