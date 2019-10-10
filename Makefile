@@ -5,8 +5,9 @@ RIR_DIR = $(SMS_WSJ_DIR)/rirs
 JSON_PATH ?= cache
 WSJ_8K_DIR ?= $(SMS_WSJ_DIR)/wsj_8k
 WRITE_ALL = True # if True the reverberated data will be calculated on the fly and not saved to SMS_WSJ_DIR
-num_jobs = 16
+num_jobs = $(nproc --all)
 
+echo using $num_jobs parallel jobs
 all: sms_wsj
 
 cache:

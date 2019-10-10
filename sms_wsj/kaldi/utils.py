@@ -122,8 +122,7 @@ def create_data_dir(
     else:
         audio_key = DB2AudioKeyMapper[data_type]
     get_wer_command_fn = partial(
-        _get_wer_command_for_json, audio_key=audio_key,
-        target_speaker=target_speaker
+        _get_wer_command_for_json, audio_key=audio_key
     )
     _create_data_dir(
         get_wer_command_fn, kaldi_dir=kaldi_dir, db=db, json_path=json_path,
