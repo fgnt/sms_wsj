@@ -1,5 +1,6 @@
 import os
 import json
+import functools
 from collections import defaultdict
 from copy import copy
 from pathlib import Path
@@ -8,6 +9,8 @@ import numpy as np
 import sacred
 import soundfile
 from lazy_dataset.database import JsonDatabase
+
+from sms_wsj.database.create_rirs import get_rng
 
 ex = sacred.Experiment('Create sms_wsj json')
 
@@ -63,25 +66,138 @@ def filter_punctuation_pronunciation(example):
     return len(PUNCTUATION_SYMBOLS.intersection(transcription)) == 0
 
 
-def get_randomized_example(
-    rir_example, source_iterator, rng, dataset_name, database_path
-):
-    """Returns None, if example is rejected."""
-    example = copy(rir_example)
-    example['num_speakers'] = len(example['source_position'][0])
+def test_example_composition(a, b, speaker_ids):
+    """
 
-    # Fixed selection of the first, to at least see each utterance once.
-    # If we use more examples, utterances will be taken again.
+    Args:
+        a: List of permutation example indices
+        b: List of permutation example indices
+        speaker_ids: Speaker id corresponding to an index
+
+    Returns:
+
+    >>> speaker_ids = np.array(['Alice', 'Bob', 'Carol', 'Carol'])
+    >>> test_example_composition([0, 1, 2, 3], [2, 3, 1, 0], speaker_ids)
+    >>> test_example_composition([0, 1, 2, 3], [0, 1, 2, 3], speaker_ids)
+    Traceback (most recent call last):
+    ...
+    AssertionError: ('utterance duplicate', [0, 1, 2, 3], [0, 1, 2, 3])
+    >>> test_example_composition([0, 1, 2, 3], [1, 0, 3, 2], speaker_ids)
+    Traceback (most recent call last):
+    ...
+    AssertionError: ('speaker duplicate', 2)
+    >>> test_example_composition([0, 1, 2, 3], [2, 3, 0, 1], speaker_ids)
+    Traceback (most recent call last):
+    ...
+    AssertionError: ('duplicate pair', 2)
+
+
+
+    """
+    # Ensure that a speaker is not mixed with itself
+    # This also ensures that an utterance is not mixed with itself
+    assert np.all(speaker_ids[a] != speaker_ids[b]), ('speaker duplicate', len(a) - np.sum(speaker_ids[a] != speaker_ids[b]))
+
+    # Ensure that any pair of utterances does not appear more than once
+    tmp = [tuple(sorted(ab)) for ab in zip(a, b)]
+    assert len(set(tuple(tmp))) == len(a), ('duplicate pair', len(a) - len(set(tuple(tmp))))
+
+
+def extend_example_composition_greedy(rng, speaker_ids, example_compositions=None, tries=500):
+    """
+
+    Args:
+        rng:
+        speaker_ids: Speaker id corresponding to an index
+        example_compositions:
+        tries:
+
+    Returns:
+
+    >>> rng = np.random.RandomState(0)
+    >>> speaker_ids = np.array(['Alice', 'Bob', 'Carol', 'Dave', 'Eve'])
+    >>> comp = extend_example_composition_greedy(rng, speaker_ids)
+    >>> comp
+    array([[2],
+           [0],
+           [1],
+           [3],
+           [4]])
+    >>> comp = extend_example_composition_greedy(rng, speaker_ids, comp)
+    >>> comp
+    array([[2, 3],
+           [0, 4],
+           [1, 2],
+           [3, 0],
+           [4, 1]])
+    >>> comp = extend_example_composition_greedy(rng, speaker_ids, comp)
+    >>> comp
+    array([[2, 3, 1],
+           [0, 4, 2],
+           [1, 2, 3],
+           [3, 0, 4],
+           [4, 1, 0]])
+    >>> speaker_ids[comp]
+    array([['Carol', 'Dave', 'Bob'],
+           ['Alice', 'Eve', 'Carol'],
+           ['Bob', 'Carol', 'Dave'],
+           ['Dave', 'Alice', 'Eve'],
+           ['Eve', 'Bob', 'Alice']], dtype='<U5')
+    """
+    if example_compositions is None:
+        example_compositions = np.arange(len(speaker_ids), dtype=np.int)
+        example_compositions = rng.permutation(example_compositions)[:, None]
+        return example_compositions
+
+    assert example_compositions.ndim == 2, example_compositions.shape
+
+    candidates = np.arange(len(speaker_ids), dtype=np.int)
+    speaker_ids = np.array(speaker_ids)
+    for _ in range(tries):
+        candidates = rng.permutation(candidates)
+
+        try:
+            for i in range(len(candidates)):
+                for _ in range(tries):
+                    if any([
+                        speaker_ids[entry_a] == speaker_ids[candidates[i]]
+                        for entry_a in example_compositions[i]
+                    ]):
+                        candidates[i:] = rng.permutation(candidates[i:])
+                    else:
+                        break
+
+            for tmp in example_compositions.T:
+                test_example_composition(tmp, candidates, speaker_ids)
+
+        except AssertionError:
+            pass
+        else:
+            break
+
+    return np.concatenate([example_compositions, candidates[:, None]], axis=-1)
+
+
+def get_randomized_example(
+    rir_example, source_examples, rng, dataset_name, database_path
+):
+    example = copy(rir_example)
+    assert len(source_examples) <= len(example['source_position'][0])
+    num_speakers = len(source_examples)
+
+    example['source_position'] = [
+        source_position[:num_speakers]
+        for source_position in example['source_position']
+    ]
+
+    example['num_speakers'] = num_speakers
+
     rir_id = rir_example['example_id']
-    source_examples = [source_iterator[int(rir_id) % len(source_iterator)]]
-    for _ in range(1, example['num_speakers']):
-        source_examples.append(
-            source_iterator[rng.randint(0, len(source_iterator))]
-        )
 
     example['speaker_id'] = [exa['speaker_id'] for exa in source_examples]
-    if len(set(example['speaker_id'])) < example['num_speakers']:
-        return  # asserts that no speaker_id is used twice
+
+    # asserts that no speaker_id is used twice
+    assert len(set(example['speaker_id'])) == example['num_speakers']
 
     example["source_id"] = [exa['example_id'] for exa in source_examples]
 
@@ -94,30 +210,29 @@ def get_randomized_example(
 
     # This way, at least the first speaker can have proper alignments,
     # all other speakers can not be used for ASR.
-    if isinstance(source_examples[0]['num_samples'], dict) \
-            and 'observation' in source_examples[0]['num_samples']:
-        # 16k case
-        example['num_samples'] = {
-            'observation': source_examples[0]['num_samples']['observation'],
-            'speech_source': [exa['num_samples']['observation'] for exa in
-                              source_examples]
-        }
-    else:
-        # 8k case
-        example['num_samples'] = {
-            'observation': source_examples[0]['num_samples'],
-            'speech_source': [exa['num_samples'] for exa in source_examples]
-        }
-    example["offset"] = [0]
-    for k in range(1, example['num_speakers']):
+    def _get_num_samples(num_samples):
+        if isinstance(num_samples, dict):
+            return num_samples['observation']
+        else:
+            return num_samples
+
+    example['num_samples'] = dict()
+    example['num_samples']['speech_source'] = [
+        _get_num_samples(exa['num_samples']['observation'])
+        for exa in source_examples
+    ]
+    example['num_samples']['observation'] = max(
+        example['num_samples']['speech_source']
+    )
+
+    example["offset"] = []
+    for k in range(example['num_speakers']):
         excess_samples = (
             example['num_samples']['observation']
             - example['num_samples']['speech_source'][k]
         )
-        example["offset"].append(int(
-            np.sign(excess_samples) * rng.randint(0, np.abs(excess_samples))
-        ))
-    example['example_id'] = "_".join((*example["source_id"], rir_id))
+        assert excess_samples >= 0, excess_samples
+        example["offset"].append(rng.randint(0, excess_samples + 1))
 
     example['audio_path'] = dict()
     example['audio_path']['speech_source'] = [
@@ -125,7 +240,7 @@ def get_randomized_example(
     ]
     example['audio_path']['rir'] = [
         str(database_path / dataset_name / rir_id / f"h_{k}.wav")
-        for k in range(len(example['source_position'][0]))
+        for k in range(example['num_speakers'])
     ]
 
     return example
@@ -146,9 +261,11 @@ def config():
         json_path = os.environ['SMS_WSJ_JSON']
     assert json_path is not None, 'You have to specify a path for the new json'
 
+    num_speakers = 2
+
 
 @ex.automain
-def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
+def main(json_path: Path, rir_dir: Path, wsj_json_path: Path, num_speakers):
     wsj_json_path = Path(wsj_json_path).expanduser().resolve()
     json_path = Path(json_path).expanduser().resolve()
     if json_path.exists():
@@ -170,7 +287,6 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
     target_db = dict()
     target_db['datasets'] = defaultdict(dict)
 
-    rng = np.random.RandomState(0)
     for dataset_name in setup.keys():
         source_dataset_name = setup[dataset_name]["source_dataset_name"]
         source_iterator = source_db.get_dataset(source_dataset_name)
@@ -184,35 +300,78 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path):
         )
 
         rir_iterator = rir_db.get_dataset(dataset_name)
+
+        assert len(rir_iterator) % len(source_iterator) == 0, (
+            f'To avoid a bias towards certain utterance the len '
+            f'rir_iterator ({len(rir_iterator)}) should be an integer '
+            f'multiple of len source_iterator ({len(source_iterator)}).'
+        )
+
         print(f'length of rir {dataset_name}: {len(rir_iterator)}')
 
+        probe_path = rir_dir / dataset_name / "0"
+        available_speaker_positions = len(list(probe_path.glob('h_*.wav')))
+        assert num_speakers <= available_speaker_positions, (
+            f'Requested {num_speakers} num_speakers, while found only '
+            f'{available_speaker_positions} rirs in {probe_path}.'
+        )
+
         info = soundfile.info(str(rir_dir / dataset_name / "0" / "h_0.wav"))
-        frame_rate_rir = info.samplerate
+        sample_rate_rir = info.samplerate
 
         ex_wsj = source_iterator.random_choice(1)[0]
         info = soundfile.SoundFile(ex_wsj['audio_path']['observation'])
-        frame_rate_wsj = info.samplerate
-        assert frame_rate_rir == frame_rate_wsj, (
-            frame_rate_rir, frame_rate_wsj)
+        sample_rate_wsj = info.samplerate
+        assert sample_rate_rir == sample_rate_wsj, (
+            sample_rate_rir, sample_rate_wsj)
+
+        rir_iterator = rir_iterator.sort(
+            sort_fn=functools.partial(sorted, key=int)
+        )
+
+        source_iterator = source_iterator.sort()
+        assert len(rir_iterator) % len(source_iterator) == 0
+        repeats = len(rir_iterator) // len(source_iterator)
+        source_iterator = source_iterator.tile(repeats)
+
+        speaker_ids = [
+            example['speaker_id']
+            for example in source_iterator
+        ]
+
+        rng = get_rng(dataset_name, 'example_compositions')
+
+        example_compositions = None
+        for _ in range(num_speakers):
+            example_compositions = extend_example_composition_greedy(
+                rng, speaker_ids, example_compositions=example_compositions,
+            )
 
         ex_dict = dict()
-        for rir_example in rir_iterator.sort():
-            example = None
-            while example is None:
-                example = get_randomized_example(
-                    rir_example,
-                    source_iterator,
-                    rng,
-                    dataset_name,
-                    rir_dir,
-                )
-            ex_id = example['example_id']
-            del example['example_id']
-            ex_dict[ex_id] = example
+        assert len(rir_iterator) == len(example_compositions)
+        for rir_example, example_composition in zip(
+                rir_iterator, example_compositions
+        ):
+            source_examples = source_iterator[example_composition]
 
-        target_db['datasets'][dataset_name] = dict(sorted(
-            ex_dict.items(), key=lambda ex: int(ex[0].split('_')[-1])))
+            example_id = "_".join([
+                rir_example['example_id'],
+                *[ex["example_id"] for ex in source_examples],
+            ])
+
+            rng = get_rng(dataset_name, example_id)
+            example = get_randomized_example(
+                rir_example,
+                source_examples,
+                rng,
+                dataset_name,
+                rir_dir,
+            )
+            ex_dict[example_id] = example
+
+        target_db['datasets'][dataset_name] = ex_dict
+
     json_path.parent.mkdir(exist_ok=True, parents=True)
     with json_path.open('w') as f:
-        json.dump(target_db, f, indent=4, ensure_ascii=False)
+        json.dump(target_db, f, indent=2, ensure_ascii=False)
     print(f'{json_path} written')
