@@ -123,12 +123,12 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
         created_files = check_files(dst_dir)
         print(f"Written {len(created_files)} wav files.")
         if write_all:
-            expect = (2 * 2 + 2) * 32000
+            expect = (2 * 2 + 2) * 35875
             assert len(created_files) == expect, (
                 len(created_files), expect
             )
         else:
-            assert len(created_files) == 32000, len(created_files)
+            assert len(created_files) == 35875, len(created_files)
 
 
 def create_json(dst_dir, db, write_all, snr_range=(20, 30)):
