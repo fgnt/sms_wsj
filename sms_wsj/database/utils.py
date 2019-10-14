@@ -125,6 +125,8 @@ def scenario_map_fn(
         sync_speech_source=True,
         add_speech_reverberation_early=True,
         add_speech_reverberation_tail=True,
+
+        details=False,
 ):
     """
     This will care for convolution with RIR and also generate noise.
@@ -166,9 +168,11 @@ def scenario_map_fn(
     s = example['audio_data']['speech_source']
 
     def get_convolved_signals(h):
+        assert s.shape[0] == h.shape[0], (s.shape, h.shape)
         x = [fftconvolve(s_[..., None, :], h_, axes=-1)
              for s_, h_ in zip(s, h)]
 
+        assert len(x) == len(example['num_samples']['speech_source'])
         for x_, T_ in zip(x, example['num_samples']['speech_source']):
             assert x_.shape == (D, T_ + rir_length - 1), (
                 x_.shape, D, T_ + rir_length - 1)
@@ -180,6 +184,7 @@ def scenario_map_fn(
                 example['offset'], rir_start_sample)
         ]
 
+        assert len(x) == len(offset)
         x = [extract_piece(x_, offset_, T) for x_, offset_ in zip(x, offset)]
         x = np.stack(x, axis=0)
         assert x.shape == (K, D, T), x.shape
@@ -204,19 +209,25 @@ def scenario_map_fn(
     if add_speech_reverberation_early:
         h_early = h.copy()
         # Replace this with advanced indexing
-        for i, h_k in enumerate(h_early):
-            h_early[..., rir_stop_sample[i]:] = 0
+        for i in range(h_early.shape[0]):
+            h_early[i, ..., rir_stop_sample[i]:] = 0
         x_early = get_convolved_signals(h_early)
         x_early *= scale
         example['audio_data']['speech_reverberation_early'] = x_early
 
+        if details:
+            example['audio_data']['rir_early'] = h_early
+
     if add_speech_reverberation_tail:
         h_tail = h.copy()
-        for i, h_k in enumerate(h_tail):
-            h_tail[..., :rir_stop_sample[i]] = 0
+        for i in range(h_tail.shape[0]):
+            h_tail[i, ..., :rir_stop_sample[i]] = 0
         x_tail = get_convolved_signals(h_tail)
         x_tail *= scale
         example['audio_data']['speech_reverberation_tail'] = x_tail
+
+        if details:
+            example['audio_data']['rir_tail'] = h_tail
 
     if sync_speech_source:
         example['audio_data']['speech_source'] = synchronize_speech_source(
