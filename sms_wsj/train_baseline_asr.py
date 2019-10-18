@@ -84,7 +84,8 @@ def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
         gmm = gmm_dir.name
     if stage <= 2 < end_stage:
         if gmm_dir is None:
-            create_data_dir(sms_kaldi_dir, db=sms_db, data_type='wsj_8k')
+            create_data_dir(sms_kaldi_dir, db=sms_db, data_type='wsj_8k',
+                            target_speaker=[0, 1])
             print('Start training tri3 model on wsj_8k')
             run_process([
                 f'{sms_kaldi_dir}/local_sms/get_tri3_model.bash',
@@ -102,13 +103,13 @@ def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
     if stage <= 3 < end_stage and not ali_data_type == train_data_type:
         create_data_dir(
             sms_kaldi_dir, db=sms_db, data_type=ali_data_type,
-            ref_channels=[0, 1, 2, 3, 4, 5]
+            ref_channels=[0, 2, 4], target_speaker=[0, 1]
         )
 
     if stage <= 4 < end_stage:
         create_data_dir(
             sms_kaldi_dir, db=sms_db, data_type=train_data_type,
-            ref_channels=[0, 1, 2, 3, 4, 5]
+            ref_channels=[0, 2, 4], target_speaker=[0, 1]
         )
 
     if stage <= 16 < end_stage:
@@ -127,7 +128,7 @@ def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
             stdout=None, stderr=None
         )
 
-    if stage <= 17:
+    if stage <= 20 and end_stage >= 17:
         print('Start training nnet3 model on sms_wsj')
         run_process([
             f'{sms_kaldi_dir}/local_sms/get_nnet3_model.bash',
