@@ -197,7 +197,7 @@ def default():
 
     # only used with audio_dir
     id_to_file_name = '{ex_id}_0.wav'
-    target_speaker = 0
+    target_speaker = [0, 1]
     ref_channels = 0
 
     if ref_channels > 0 and isinstance(data_type, (list, tuple)):
@@ -296,7 +296,8 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
             elif kaldi_data_dir is None:
                 create_data_dir(
                     base_dir, db=db, data_type=d_type, dataset_names=dset,
-                    ref_channels=_config['ref_channels']
+                    ref_channels=_config['ref_channels'],
+                    target_speaker=_config['target_speaker']
                 )
             else:
                 assert len(data_type) == 1, (

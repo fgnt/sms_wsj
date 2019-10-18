@@ -83,12 +83,17 @@ def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
 def _get_wer_command_for_json(example, ref_ch, spk, audio_key):
     if isinstance(audio_key, (list, tuple)):
         mix_command = 'sox -m -v 1 ' + ' -v 1 '.join(
-            [str(example['audio_path'][audio][spk]) for audio in audio_key]
+            [str(example['audio_path'][audio][spk])
+             if isinstance(example['audio_path'][audio], (list, tuple))
+             else str(example['audio_path'][audio]) for audio in audio_key]
         )
         wav_command = f'{mix_command} -t wav - | sox -t wav -' \
             f' -t wav -b 16 - remix {ref_ch + 1} |'
     else:
-        wav = example['audio_path'][audio_key][spk]
+        if isinstance(example['audio_path'][audio_key], (list, tuple)):
+            wav = example['audio_path'][audio_key][spk]
+        else:
+            wav = example['audio_path'][audio_key]
         wav_command = f'sox {wav} -t wav  -b 16 - remix {ref_ch + 1} |'
     return wav_command
 
@@ -216,11 +221,12 @@ def _create_data_dir(
     dataset = db.get_dataset(dataset_names)
     for example in dataset:
         for ref_ch in ref_channels:
+            org_example_id = example['example_id']
+            dataset_name = example['dataset']
             for t_spk in target_speaker:
-                example_id = example['example_id']
-                dataset_name = example['dataset']
+                speaker_id = example['speaker_id'][t_spk]
+                example_id = speaker_id + '_' + org_example_id
                 example_id += f'_c{ref_ch}' if len(ref_channels) > 1 else ''
-                example_id += f'_spk{t_spk}' if len(target_speaker) > 1 else ''
                 example_id_to_wav[example_id] = get_wer_command_fn(
                     example, ref_ch=ref_ch, spk=t_spk)
                 try:
@@ -228,10 +234,7 @@ def _create_data_dir(
                 except KeyError:
                     transcription = example['transcription'][t_spk]
                 example_id_to_trans[example_id] = transcription
-                if t_spk == 0:
-                    speaker_id = example['speaker_id'][t_spk]
-                else:
-                    speaker_id = '_'.join(example['speaker_id'][:t_spk])
+
                 example_id_to_speaker[example_id] = speaker_id
                 gender = example['gender'][t_spk]
                 speaker_to_gender[dataset_name][speaker_id] = gender
