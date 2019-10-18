@@ -178,7 +178,7 @@ if [ $stage -le 19 ]; then
   utils/mkgraph.sh \
     --self-loop-scale 1.0 data/lang_test_tgpr \
     $tree_dir $tree_dir/graph_tgpr || exit 1;
-
+fi
 if [ $stage -le 20 ]; then
   frames_per_chunk=$(echo $chunk_width | cut -d, -f1)
   rm $dir/.error 2>/dev/null || true
