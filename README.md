@@ -8,7 +8,7 @@ If you are using this code please cite the following paper:
 ```
 @Article{SmsWsj19,
   author    = {Lukas Drude, Jens Heitkaemper, Christoph Boeddeker, Reinhold Haeb-Umbach},
-  title     = {{SMS-WSJ: A database for in-depth analysis of multi-channel source separation algorithm}},
+  title     = {{SMS-WSJ: Database, performance measures, and baseline recipe for multi-channel source separation and recognition}},
   year      = {2019},
 }
 ```
@@ -31,6 +31,10 @@ Get the RIR by downloading them (recommended)
 or create them yourself using
 ```bash
 $ make rirs RIR_DIR=/path/to/write/rirs/to
+```
+Then Set your KALDI_ROOT
+```bash
+$ export KALDI_ROOT=/path/to/kaldi
 ```
 Afterwards you can create the database:
 ```bash
@@ -55,4 +59,8 @@ The example id is a composition of the sperakers, the utterances and an scenario
 ![Example ID](doc/images/example_id.svg)
 =======
 
-The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"
+B: What to do if kaldi uses python3 instead of python2?
+Add the follwing line to the ${KALDI_ROOT}/tools/envh.sh file:
+```
+export PATH=path/to/your/python2/bin/${PATH}
+```
