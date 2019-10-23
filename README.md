@@ -36,10 +36,14 @@ or create them yourself using
 ```bash
 $ make rirs RIR_DIR=/path/to/write/rirs/to
 ```
-Then Set your KALDI_ROOT
+Then set your KALDI_ROOT
 ```bash
 $ export KALDI_ROOT=/path/to/kaldi
 ```
+We assume that the KALDI wsj baseline has been created with the `run.sh` script.
+To build the database the structures created during the first stage of
+the `run.sh` script are required.
+The ASR baseline uses the language models created during the same stage.
 Afterwards you can create the database:
 ```bash
 $ make SMS_WSJ_DIR=/path/to/write/db/to WSJ_DIR=/path/to/wsj
