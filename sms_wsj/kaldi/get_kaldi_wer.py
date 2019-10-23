@@ -14,7 +14,7 @@ $ python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR decode with kaldi_data_dir=/
 
 
 Example call on pc2 (HPC system in paderborn):
-$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:vmem=2G:mem=2G:ncpus=1 -t 6h python -m sms_wsj.kaldi.get_kaldi_wer -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
+$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:mem=2G:ncpus=1 -t 2h ompi -- python -m sms_wsj.kaldi.get_kaldi_wer -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
 
 """
 
@@ -196,7 +196,7 @@ def default():
         data_type = 'sms_enh'
 
     # only used with audio_dir
-    id_to_file_name = '{ex_id}_0.wav'
+    id_to_file_name = '{}_0.wav'
     target_speaker = [0, 1]
     ref_channels = 0
 
