@@ -53,16 +53,16 @@ The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37
 
 
 ## FAQ
-### Q: What does the example id `0_4k0c0301_4k6c030t` mean?
-A: The example id is a unique identifier for an example (sometime also knwon as utterance id).
-The example id is a composition of the sperakers, the utterances and an scenario counter:
+### Q: What does the example ID `0_4k0c0301_4k6c030t` mean?
+A: The example ID is a unique identifier for an example (sometime also known as utterance ID).
+The example ID is a composition of the sperakers, the utterances and an scenario counter:
 
 ![Example ID](doc/images/example_id.svg)
 =======
 
 ### Q: What to do if kaldi uses python3 instead of python2??
 
-Add the follwing line to the ${KALDI_ROOT}/tools/envh.sh file:
+Add the follwing line to the `${KALDI_ROOT}/tools/envh.sh` file:
 ```
 export PATH=path/to/your/python2/bin/:${PATH}
 ```
