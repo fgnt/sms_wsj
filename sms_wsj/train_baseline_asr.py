@@ -46,6 +46,8 @@ def config():
     kaldi_cmd = 'run.pl'
     ali_data_type = 'sms_early'
     train_data_type = 'sms_single_speaker'
+    target_speaker = [0, 1]
+    channels = [0, 2, 4]
     gmm_dir = None
     # ToDo: change to kaldi_root/egs/ if no egs_path is defined?
     assert egs_path is not None, \
@@ -59,7 +61,8 @@ def config():
 
 @ex.automain
 def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
-        ali_data_type, train_data_type, kaldi_cmd, num_jobs):
+        ali_data_type, train_data_type, target_speaker, channels,
+        kaldi_cmd, num_jobs):
     sms_db = JsonDatabase(json_path)
     sms_kaldi_dir = Path(egs_path).resolve().expanduser()
     sms_kaldi_dir = sms_kaldi_dir / train_data_type / 's5'
@@ -85,7 +88,7 @@ def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
     if stage <= 2 < end_stage:
         if gmm_dir is None:
             create_data_dir(sms_kaldi_dir, db=sms_db, data_type='wsj_8k',
-                            target_speaker=[0, 1])
+                            target_speaker=target_speaker)
             print('Start training tri3 model on wsj_8k')
             run_process([
                 f'{sms_kaldi_dir}/local_sms/get_tri3_model.bash',
@@ -103,13 +106,13 @@ def run(_config, egs_path, json_path, stage, end_stage, gmm_dir,
     if stage <= 3 < end_stage and not ali_data_type == train_data_type:
         create_data_dir(
             sms_kaldi_dir, db=sms_db, data_type=ali_data_type,
-            ref_channels=[0, 2, 4], target_speaker=[0, 1]
+            ref_channels=channels, target_speaker=target_speaker
         )
 
     if stage <= 4 < end_stage:
         create_data_dir(
             sms_kaldi_dir, db=sms_db, data_type=train_data_type,
-            ref_channels=[0, 2, 4], target_speaker=[0, 1]
+            ref_channels=channels, target_speaker=target_speaker
         )
 
     if stage <= 16 < end_stage:
