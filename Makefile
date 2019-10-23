@@ -6,6 +6,8 @@ JSON_PATH ?= cache
 WSJ_8K_DIR ?= $(SMS_WSJ_DIR)/wsj_8k
 WRITE_ALL = True # if True the reverberated data will be calculated on the fly and not saved to SMS_WSJ_DIR
 num_jobs = $(nproc --all)
+# example for call on the paderborn parallel computing center
+# ccsalloc --res=rset=1:mem=2G:ncpus=8 -t 4h make all --num_jobs=8
 
 echo using $num_jobs parallel jobs
 all: sms_wsj
@@ -16,7 +18,7 @@ cache:
 wsj_8k: $(WSJ_8K_DIR)
 $(WSJ_8K_DIR): $(WSJ_DIR)
 	@echo creating $(WSJ_8K_DIR)
-	mpiexec -n ${num_jobs} python -m sms_wsj.database.wsj.write_wav with dst_dir=$(WSJ_8K_DIR) wsj_root=$(WSJ_DIR) sample_rate=8000
+	mpiexec -np ${num_jobs} python -m sms_wsj.database.wsj.write_wav with dst_dir=$(WSJ_8K_DIR) wsj_root=$(WSJ_DIR) sample_rate=8000
 
 wsj_8k.json: $(WSJ_8K_DIR) $(JSON_PATH)
 $(JSON_PATH)/wsj_8k.json: $(WSJ_8K_DIR)
@@ -31,13 +33,13 @@ $(JSON_PATH)/sms_wsj.json: $(RIR_DIR) $(JSON_PATH)/wsj_8k.json
 sms_wsj: $(SMS_WSJ_DIR)/sms_wsj $(SMS_WSJ_DIR)
 $(SMS_WSJ_DIR)/sms_wsj: $(JSON_PATH)/sms_wsj.json $(SMS_WSJ_DIR)
 	@echo creating $(SMS_WSJ_DIR) files
-	mpiexec -np $(num_jobs) python -m sms_wsj.database.write_files with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_PATH)/sms_wsj.json write_all=$(WRITE_ALL) new_json_path=$(JSON_PATH)/sms_wsj.json
+	mpiexec -np ${num_jobs} python -m sms_wsj.database.write_files with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_PATH)/sms_wsj.json write_all=$(WRITE_ALL) new_json_path=$(JSON_PATH)/sms_wsj.json
 
 # The room impuls responses can be downloaded, so that they do not have to be created
 # however if you want to recreate them use "make rirs RIR_DIR=/path/to/storage/"
 rirs:
 	@echo creating $(RIR_DIR)
-	mpiexec -np $(num_jobs) python -m sms_wsj.database.create_rirs with database_path=$(RIR_DIR)
+	mpiexec -np ${num_jobs} python -m sms_wsj.database.create_rirs with database_path=$(RIR_DIR)
 
 $(RIR_DIR):
 	@echo "RIR directory does not exist, either download it from ... or use 'make rirs' to create it."
