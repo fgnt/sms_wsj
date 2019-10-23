@@ -60,9 +60,11 @@ The example ID is a composition of the sperakers, the utterances and an scenario
 ![Example ID](doc/images/example_id.svg)
 =======
 
-### Q: What to do if kaldi uses python3 instead of python2??
-
-Add the follwing line to the `${KALDI_ROOT}/tools/envh.sh` file:
+### Q: What to do if kaldi uses python3 instead of python2?
+The python code in this repository requires python 3.6. However, Kaldi runs
+on python 2.7. To solve this mismatch Kaldi has to be forced to switch the
+python version using the path.sh. Therefore, add the follwing line to
+the `${KALDI_ROOT}/tools/envh.sh` file:
 ```
 export PATH=path/to/your/python2/bin/:${PATH}
 ```
