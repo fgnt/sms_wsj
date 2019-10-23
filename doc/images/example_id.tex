@@ -24,15 +24,16 @@
 
 \tikzstyle{part}=[inner sep=0, anchor=west]
 
-% Example id: 4k0c0301\_4k6c030t\_0
+% Example id: 0_4k6c0303_4k4c0319_0
 
-\node[part] (spk1)                              {\Huge 4k0};
-\node[part] (spk1utt)     at (spk1.east)        {\Huge c0301};
+
+\node[part] (scenario)                          {\Huge 0};
+\node[part] (underscore2) at (scenario.east)    {\Huge \vphantom{A}\_};
+\node[part] (spk1)        at (underscore2.east) {\Huge 4k6};
+\node[part] (spk1utt)     at (spk1.east)        {\Huge c0303};
 \node[part] (underscore1) at (spk1utt.east)     {\Huge \vphantom{A}\_};
-\node[part] (spk2)        at (underscore1.east) {\Huge 4k6};
-\node[part] (spk2utt)     at (spk2.east)        {\Huge c030t};
-\node[part] (underscore2) at (spk2utt.east)     {\Huge \vphantom{A}\_};
-\node[part] (scenario)    at (underscore2.east) {\Huge 0};
+\node[part] (spk2)        at (underscore1.east) {\Huge 4k4};
+\node[part] (spk2utt)     at (spk2.east)        {\Huge c0319};
 
 
 \tikzstyle{brace1}=[
@@ -46,6 +47,7 @@
 	decorate,
 ]
 \tikzstyle{brace1text}=[pos=0.5,anchor=north,yshift=-0.5em-0.2em, scale=1]
+\tikzstyle{brace1textUp}=[pos=0.5,anchor=south,yshift=0.5em+0.2em, scale=1]
 
 \tikzstyle{brace2}=[
 	thick,
@@ -61,7 +63,7 @@
 
 \draw [brace1] (spk1.south west) -- (spk1.south east) node [brace1text] {Speaker 0}; 
 \draw [brace1] (spk2.south west) -- (spk2.south east) node [brace1text] {Speaker 1}; 
-\draw [brace1] (scenario.south west) -- (scenario.south east) node [brace1text] {Scenario counter}; 
+\draw [brace1] (scenario.north east) -- (scenario.north west) node [brace1textUp] {Scenario counter};
 
 \draw [brace2] (spk1.south west) -- (spk1utt.south east) node [brace2text] {WSJ utterance 0}; 
 \draw [brace2] (spk2.south west) -- (spk2utt.south east) node [brace2text] {WSJ utterance 1}; 
