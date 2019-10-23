@@ -4,8 +4,8 @@ python -m sms_wsj.database.wsj.write_wav --database_dir-dir /destination/dir --j
 
 
 """
-
 import json
+import os
 import re
 import tempfile
 from pathlib import Path
@@ -15,7 +15,10 @@ import sh
 import soundfile as sf
 
 ex = sacred.Experiment('Create wsj json')
-
+kaldi_root = Path(os.environ['KALDI_ROOT'])
+kaldi_wsj_egs_dir = kaldi_root / 'egs' / 'wsj' / 's5'
+kaldi_wsj_data_dir = kaldi_wsj_egs_dir / 'data' / 'local' / 'data'
+kaldi_wsj_tools = kaldi_wsj_egs_dir / 'data' / 'local' / 'data'
 
 def create_official_datasets(
         official_sets, official_names, wsj_root, as_wav, genders, transcript
@@ -154,7 +157,6 @@ def get_transcriptions(root: Path, wsj_root: Path):
         word.update({utt_id: trans for trans, utt_id in matches})
 
     kaldi = dict()
-    kaldi_wsj_data_dir = wsj_root / "kaldi_data"
     files = list(kaldi_wsj_data_dir.glob('*.txt'))
     for file in files:
         with open(file) as fid:
@@ -187,7 +189,7 @@ def normalize_transcription(transcriptions, wsj_root: Path):
                 f.write('{} {}\n'.format(key, value))
         result = sh.perl(
             sh.cat(str(temporary_directory / 'dirty.txt')),
-            wsj_root / 'kaldi_tools' / 'normalize_transcript.pl',
+            kaldi_wsj_tools / 'normalize_transcript.pl',
             '<NOISE>'
         )
     result = [line.split(maxsplit=1) for line in result.strip().split('\n')]
@@ -198,7 +200,7 @@ def normalize_transcription(transcriptions, wsj_root: Path):
 def get_gender_mapping(wsj_root: Path):
 
     spkrinfo = list(wsj_root.glob('*/wsj?/doc/**/*spkrinfo.txt')) + \
-               list(wsj_root.glob('kaldi_data/**/*spkrinfo.txt'))
+               list(kaldi_wsj_data_dir.glob('**/*spkrinfo.txt'))
 
     _spkr_gender_mapping = dict()
 
