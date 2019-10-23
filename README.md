@@ -10,7 +10,7 @@ If you are using this code please cite the following paper:
 ```
 @Article{SmsWsj19,
   author    = {Lukas Drude, Jens Heitkaemper, Christoph Boeddeker, Reinhold Haeb-Umbach},
-  title     = {{SMS-WSJ: Database, performance measures, and baseline recipe for multi-channel source separation and recognition}},
+  title     = {{SMS-WSJ}: Database, performance measures, and baseline recipe for multi-channel source separation and recognition},
   year      = {2019},
 }
 ```
@@ -49,7 +49,6 @@ Use the following command to train the baseline asr model:
 ```bash
 $ python -m sms_wsj.train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=/path/to/sms_wsj.json
 ```
-For more informationon possible 
 The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"
 
 
