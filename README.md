@@ -53,7 +53,7 @@ The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37
 
 
 ## FAQ
-### Q: What does the example ID `0_4k0c0301_4k6c030t` mean?
+### Q: What does the example ID `0_4k6c0303_4k4c0319` mean?
 A: The example ID is a unique identifier for an example (sometime also known as utterance ID).
 The example ID is a composition of the sperakers, the utterances and an scenario counter:
 
