@@ -1,5 +1,7 @@
 # uses environment variable WSJ_DIR if it is defined, otherwise falls back to default /net/fastdb/wsj
 WSJ_DIR ?= /net/fastdb/wsj
+WSJ0_DIR ?= $(WSJ_DIR)
+WSJ1_DIR ?= $(WSJ_DIR)
 SMS_WSJ_DIR ?= cache
 RIR_DIR = $(SMS_WSJ_DIR)/rirs
 JSON_PATH ?= cache
@@ -18,7 +20,7 @@ cache:
 wsj_8k: $(WSJ_8K_DIR)
 $(WSJ_8K_DIR): $(WSJ_DIR)
 	@echo creating $(WSJ_8K_DIR)
-	mpiexec -np ${num_jobs} python -m sms_wsj.database.wsj.write_wav with dst_dir=$(WSJ_8K_DIR) wsj_root=$(WSJ_DIR) sample_rate=8000
+	mpiexec -np ${num_jobs} python -m sms_wsj.database.wsj.write_wav with dst_dir=$(WSJ_8K_DIR) wsj0_root=$(WSJ0_DIR) wsj1_root=$(WSJ1_DIR) sample_rate=8000
 
 wsj_8k.json: $(WSJ_8K_DIR) $(JSON_PATH)
 $(JSON_PATH)/wsj_8k.json: $(WSJ_8K_DIR)
