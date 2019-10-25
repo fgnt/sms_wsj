@@ -199,7 +199,7 @@ def normalize_transcription(transcriptions, wsj_root: Path):
 
 def get_gender_mapping(wsj_root: Path):
 
-    spkrinfo = list(wsj_root.glob('*/wsj?/doc/**/*spkrinfo.txt')) + \
+    spkrinfo = list(wsj_root.glob('**/wsj?/doc/**/*spkrinfo.txt')) + \
                list(kaldi_wsj_data_dir.glob('**/*spkrinfo.txt'))
 
     _spkr_gender_mapping = dict()

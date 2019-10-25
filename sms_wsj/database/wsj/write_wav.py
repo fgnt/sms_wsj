@@ -32,7 +32,7 @@ def read_nist_wsj(path, expected_sample_rate=16000):
     :return:
     """
     tmp_file = tempfile.NamedTemporaryFile(delete=False)
-    cmd = "{}/sph2pipe -f wav {path} {dest_file}".format(
+    cmd = "{}/sph2pipe -f wav '{path}' '{dest_file}'".format(
         kaldi_root / 'tools/sph2pipe_v2.5', path=path, dest_file=tmp_file.name
     )
     subprocess.run(
@@ -68,50 +68,66 @@ def resample_with_sox(x, rate_in, rate_out):
 def config():
     dst_dir = None
     wsj_root = None
+    wsj0_root = wsj_root
+    wsj1_root = wsj_root
     sample_rate = 16000
     assert dst_dir is not None, 'You have to specify a destination dir'
-    assert wsj_root is not None, 'You have to specify a wsj_root'
+    assert wsj0_root is not None, 'You have to specify a wsj0_root'
+    assert wsj1_root is not None, 'You have to specify a wsj1_root'
 
 
 @ex.automain
-def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
-    wsj_root = Path(wsj_root).expanduser().resolve()
+def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
+    wsj0_root = Path(wsj0_root).expanduser().resolve()
+    wsj1_root = Path(wsj1_root).expanduser().resolve()
     dst_dir = Path(dst_dir).expanduser().resolve()
-    assert wsj_root.exists(), wsj_root
+    assert wsj0_root.exists(), wsj0_root
+    assert wsj1_root.exists(), wsj1_root
 
-    assert not dst_dir == wsj_root, (wsj_root, dst_dir)
+    assert not dst_dir == wsj0_root, (wsj0_root, dst_dir)
+    assert not dst_dir == wsj1_root, (wsj1_root, dst_dir)
     # Expect, that the dst_dir does not exist to make sure to not overwrite.
     if dlp_mpi.IS_MASTER:
         dst_dir.mkdir(parents=True, exist_ok=False)
 
     if dlp_mpi.IS_MASTER:
+        cds_0 = list(wsj0_root.rglob("*-*.*"))
+        cds_1 = list(wsj1_root.rglob("*-*.*"))
+        cds = set(cds_0 + cds_1)
         for suffix in 'pl ndx ptx dot txt'.split():
-            files = list(wsj_root.rglob(f"*.{suffix}"))
-            print(f"About to write {len(files)} {suffix} files.")
-            for file in files:
-                target = dst_dir / file.relative_to(wsj_root)
-                target.parent.mkdir(parents=True, exist_ok=True)
-                if not target.is_file():
-                    shutil.copy(file, target.parent)
+            files_0 = list(wsj0_root.rglob(f"*.{suffix}"))
+            files_1 = list(wsj1_root.rglob(f"*.{suffix}"))
+            files = set(files_0 + files_1)
+            # the readme.txt file in the parent directory is not copied
+            print(f"About to write ca. {len(files)} {suffix} files.")
+            for cd in cds:
+                cd_files = list(cd.rglob(f"*.{suffix}"))
+                for file in cd_files:
+                    target = dst_dir / file.relative_to(cd.parent)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    if not target.is_file():
+                        shutil.copy(file, target.parent)
             written_files = list(dst_dir.rglob(f"*.{suffix}"))
-            print(f"Writing {len(files)} {suffix} files.")
-            assert len(written_files) == len(files), (files, written_files)
+            print(f"Writing {len(written_files)} {suffix} files.")
+            # assert len(written_files) == len(files), (files, written_files)
 
     if dlp_mpi.IS_MASTER:
         # Ignore .wv2 files since they are not referenced in our database
         # anyway
-        wsj_nist_files = list(wsj_root.rglob("*.wv1"))
+        wsj_nist_files = [(cd, nist_file) for cd in cds
+                          for nist_file in cd.rglob("*.wv1")]
         print(f"About to write {len(wsj_nist_files)} wav files.")
     else:
         wsj_nist_files = None
 
     wsj_nist_files = dlp_mpi.bcast(wsj_nist_files)
 
-    for nist_file in dlp_mpi.split_managed(wsj_nist_files):
+    for nist_file_tuple in dlp_mpi.split_managed(wsj_nist_files):
+        cd, nist_file = nist_file_tuple
         assert isinstance(nist_file, Path), nist_file
         signal = read_nist_wsj(nist_file, expected_sample_rate=16000)
-
-        target = dst_dir / nist_file.with_suffix('.wav').relative_to(wsj_root)
+        file = nist_file.with_suffix('.wav')
+        target = dst_dir / file.relative_to(cd.parent)
         assert not target == nist_file, (nist_file, target)
         target.parent.mkdir(parents=True, exist_ok=True)
         # normalization:
@@ -130,6 +146,4 @@ def write_wavs(dst_dir: Path, wsj_root: Path, sample_rate):
     if dlp_mpi.IS_MASTER:
         created_files = list(set(list(dst_dir.rglob("*.wav"))))
         print(f"Written {len(created_files)} wav files.")
-        assert len(wsj_nist_files) == len(created_files), list(set([
-            file.name.split('.wav')[0] for file in created_files
-        ]) - set([file.name.split('.wv1')[0] for file in wsj_nist_files]))
+        assert len(wsj_nist_files) == len(created_files), (len(wsj_nist_files), len(created_files))
