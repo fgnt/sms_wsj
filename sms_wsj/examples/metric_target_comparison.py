@@ -216,7 +216,6 @@ def main(_run, out):
             ]:
                 scores = get_scores(ex, prediction=prediction, source=source)
                 for score_name, score_value in scores.items():
-                    # score_value, = score_value
                     data.append(dict(
                         score_name=score_name,
                         prediction=prediction,
