@@ -88,7 +88,6 @@ class SmsWsj(lazy_dataset.database.JsonDatabase):
         super().__init__(json_path)
 
 
-@dataclasses.dataclass
 class AudioReader:
     """
     Reads the audio data of an example.
@@ -111,25 +110,35 @@ class AudioReader:
      'speech_image': array(shape=(2, 6, 103650), dtype=float64),
      'noise_image': array(shape=(6, 103650), dtype=float64)}
     """
+    def __init__(
+            self,
+            keys=[
+                'observation',
+                'speech_source',
+                'speech_reverberation_early',
+                'speech_reverberation_tail',
+                'speech_image',
+                'noise_image',
+                # 'rir'
+            ],
+            sync_speech_source: bool = True,
+    ):
+        keys = list(keys)
+        if 'speech_image' in keys:
+            if 'speech_reverberation_early' not in keys:
+                keys.append('speech_reverberation_early')
+            if 'speech_reverberation_tail' not in keys:
+                keys.append('speech_reverberation_tail')
+            self.speech_image = True
+            keys.remove('speech_image')
+        else:
+            self.speech_image = False
 
-    observation: bool = True
-
-    speech_source: bool = True
-    sync_speech_source: bool = True
-    # If true, pad or cut to match num samples of observation
-
-    speech_reverberation_early: bool = True
-    speech_reverberation_tail: bool = True
-    speech_image: bool = True
-
-    noise_image: bool = True
-
-    rir: bool = False
-
-    def __post_init__(self):
-        if self.speech_image:
-            self.speech_reverberation_early = True
-            self.speech_reverberation_tail = True
+        self.keys = tuple(keys)
+        if 'speech_source' in keys:
+            self.sync_speech_source = sync_speech_source
+        else:
+            self.sync_speech_source = False
 
     @classmethod
     def _rec_audio_read(cls, file):
@@ -144,29 +153,19 @@ class AudioReader:
             return data.T
 
     def __call__(self, example):
-        # ToDo: np.squeeze
-
         data = {}
         path = example['audio_path']
 
-        if self.observation:
-            data['observation'] = self._rec_audio_read(path['observation'])
-        if self.speech_source:
-            data['speech_source'] = self._rec_audio_read(path['speech_source'])
-            if self.sync_speech_source:
-                from sms_wsj.database.utils import synchronize_speech_source
-                data['speech_source'] = synchronize_speech_source(
-                    data['speech_source'],
-                    example['offset'],
-                    T = example['num_samples']['observation'],
-                )
+        for k in self.keys:
+            data[k] = self._rec_audio_read(path[k])
 
-        if self.speech_reverberation_early:
-            data['speech_reverberation_early'] = self._rec_audio_read(
-                path['speech_reverberation_early'])
-        if self.speech_reverberation_tail:
-            data['speech_reverberation_tail'] = self._rec_audio_read(
-                path['speech_reverberation_tail'])
+        if self.sync_speech_source:
+            from sms_wsj.database.utils import synchronize_speech_source
+            data['speech_source'] = synchronize_speech_source(
+                data['speech_source'],
+                example['offset'],
+                T=example['num_samples']['observation'],
+            )
 
         if self.speech_image:
             data['speech_image'] = (
@@ -174,12 +173,5 @@ class AudioReader:
                 + data['speech_reverberation_tail']
             )
 
-        if self.noise_image:
-            data['noise_image'] = self._rec_audio_read(path['noise_image'])
-
-        if self.rir:
-            data['rir'] = self._rec_audio_read(path['rir'])
-
         example['audio_data'] = data
-
         return example
