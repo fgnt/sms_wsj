@@ -1,13 +1,21 @@
 """
 
-Example call:
-$ cd /net/vol/boeddeker/sacred/sms_wsj
-$ mpiexec -np 16 python -m sms_wsj.examples.metric_target_comparison with dataset=cv_dev93 out=oracle_experiment_dev.json  # takes approx 30 min
-$ mpiexec -np 16 python -m sms_wsj.examples.metric_target_comparison with dataset=test_eval92 out=oracle_experiment_eval.json  # takes approx 90 min
+### Description how to start this script
 
-Display the summary again from the json:
-$ python -m sms_wsj.examples.metric_target_comparison summary with out=oracle_experiment_dev.json
-$ python -m sms_wsj.examples.metric_target_comparison summary with out=oracle_experiment_eval.json
+# Define how you want to parallelize.
+# ccsalloc is an HPC scheduler, and this command requests 100 workers and each has 2GB memory
+run="ccsalloc --group=hpc-prf-nt1 --res=rset=100:mem=2g:ncpus=1 --tracefile=ompi.%reqid.trace -t 2h ompi -- "
+# To run on the machine, where you are logged in, use mpiexec:
+run="mpiexec -np 16 "
+
+# To start the experiment you can then execute the following commands.
+# They will generate two files in your current working directory.
+${run} python -m sms_wsj.examples.metric_target_comparison with dataset=cv_dev93 out=oracle_experiment_dev.json  # takes approx 30 min with 16 workers
+${run} python -m sms_wsj.examples.metric_target_comparison with dataset=test_eval92 out=oracle_experiment_eval.json  # takes approx 40 min with 16 workers
+
+# Display the summary again from the json:
+python -m sms_wsj.examples.metric_target_comparison summary with out=oracle_experiment_dev.json
+python -m sms_wsj.examples.metric_target_comparison summary with out=oracle_experiment_eval.json
 
 """
 
@@ -16,14 +24,13 @@ import json
 from IPython.lib.pretty import pprint
 import numpy as np
 import pandas as pd
-import soundfile
 import sacred
 
 from pb_bss.evaluation.wrapper import OutputMetrics
 import dlp_mpi
 
+from sms_wsj.io import dump_json
 from sms_wsj.database import SmsWsj, AudioReader
-
 
 experiment = sacred.Experiment('Oracle Experiment')
 
@@ -88,26 +95,25 @@ def get_scores(ex, prediction, source):
      'mir_eval_sxr_sdr': array([9.55425598]),
      'si_sdr': array([-0.16858895])}
     """
-
     def get_signal(ex, name):
         assert isinstance(ex, dict), ex
         assert 'audio_data' in ex, ex
         assert isinstance(ex['audio_data'], dict), ex
         if name == 'source':
-            return ex['audio_data']['speech_source'][0]
+            return ex['audio_data']['speech_source'][:]
         elif name == 'early_0':
-            return ex['audio_data']['speech_reverberation_early'][0, 0]
+            return ex['audio_data']['speech_reverberation_early'][:, 0]
         elif name == 'early_1':
-            return ex['audio_data']['speech_reverberation_early'][0, 1]
+            return ex['audio_data']['speech_reverberation_early'][:, 1]
         elif name == 'image_0':
-            return ex['audio_data']['speech_image'][0, 0]
+            return ex['audio_data']['speech_image'][:, 0]
         elif name == 'image_1':
-            return ex['audio_data']['speech_image'][0, 1]
+            return ex['audio_data']['speech_image'][:, 1]
         elif name == 'image_0_noise':
-            return ex['audio_data']['speech_image'][0, 0] + \
+            return ex['audio_data']['speech_image'][:, 0] + \
                    ex['audio_data']['noise_image'][0]
         elif name == 'image_1_noise':
-            return ex['audio_data']['speech_image'][0, 1] + \
+            return ex['audio_data']['speech_image'][:, 1] + \
                    ex['audio_data']['noise_image'][0]
         else:
             raise ValueError(name)
@@ -116,8 +122,8 @@ def get_scores(ex, prediction, source):
     speech_source = get_signal(ex, source)
 
     metric = OutputMetrics(
-        speech_prediction=speech_prediction[None, :],
-        speech_source=speech_source[None, :],
+        speech_prediction=speech_prediction,
+        speech_source=speech_source,
         sample_rate=8000,
         enable_si_sdr=True,
     )
@@ -210,7 +216,7 @@ def main(_run, out):
             ]:
                 scores = get_scores(ex, prediction=prediction, source=source)
                 for score_name, score_value in scores.items():
-                    score_value, = score_value
+                    # score_value, = score_value
                     data.append(dict(
                         score_name=score_name,
                         prediction=prediction,
@@ -232,7 +238,6 @@ def main(_run, out):
             assert isinstance(out, str), out
             assert out.endswith('.json'), out
             print(f'Write details to {out}.')
-            with open(out, 'w') as fd:
-                json.dump(data, fd)
+            dump_json(data, out)
 
         summary(data)
