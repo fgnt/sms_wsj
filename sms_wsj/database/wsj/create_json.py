@@ -18,7 +18,7 @@ ex = sacred.Experiment('Create wsj json')
 kaldi_root = Path(os.environ['KALDI_ROOT'])
 kaldi_wsj_egs_dir = kaldi_root / 'egs' / 'wsj' / 's5'
 kaldi_wsj_data_dir = kaldi_wsj_egs_dir / 'data' / 'local' / 'data'
-kaldi_wsj_tools = kaldi_wsj_egs_dir / 'data' / 'local' / 'data'
+kaldi_wsj_tools = kaldi_wsj_egs_dir / 'local'
 
 def create_official_datasets(
         official_sets, official_names, wsj_root, as_wav, genders, transcript
