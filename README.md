@@ -28,13 +28,7 @@ $ cd sms_wsj
 $ pip install --user -e ./
 ```
 
-Get the RIR by downloading them (recommended)
-```bash
-
-```
-To generate them yourself see [here](#q-i-want-to-generate-the-rirs-myself-how-can-i-do-that).
-
-Then set your KALDI_ROOT
+Set your KALDI_ROOT
 ```bash
 $ export KALDI_ROOT=/path/to/kaldi
 ```
@@ -48,6 +42,10 @@ $ make SMS_WSJ_DIR=/path/to/write/db/to WSJ_DIR=/path/to/wsj
 ```
 If desired the number of parallel jobs may be specified using the additonal
 input num_jobs. Per default 16 parallel jobs are used.
+
+
+The RIRs are downloaded by default, to generate them yourself see [here](#q-i-want-to-generate-the-rirs-myself-how-can-i-do-that).
+
 
 Use the following command to train the baseline asr model:
 ```bash
