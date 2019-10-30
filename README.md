@@ -32,6 +32,8 @@ Get the RIR by downloading them (recommended)
 ```bash
 
 ```
+To generate them yourself see [here].(#q:-i-want-to-generate-the-rirs-myself.-How-can-I-do-that?)
+
 Then set your KALDI_ROOT
 ```bash
 $ export KALDI_ROOT=/path/to/kaldi
