@@ -32,10 +32,6 @@ Get the RIR by downloading them (recommended)
 ```bash
 
 ```
-or create them yourself using
-```bash
-$ make rirs RIR_DIR=/path/to/write/rirs/to
-```
 Then set your KALDI_ROOT
 ```bash
 $ export KALDI_ROOT=/path/to/kaldi
@@ -74,3 +70,12 @@ the `${KALDI_ROOT}/tools/envh.sh` file:
 ```
 export PATH=path/to/your/python2/bin/:${PATH}
 ```
+
+### Q: I want to generate the RIRs myself. How can I do that?
+To generate the RIRs you can run the following command:
+```bash
+$ mpiexec -np $(nproc --all) python -m sms_wsj.database.create_rirs with database_path=cache/rirs
+```
+The expected runtime will be around `1900/(ncpus - 1)` hours.
+When you have access to an HPC system, you can replace `mpiexec -np $(nproc --all)` with an HPC command.
+It is enough, when each job has access to 2GB RAM.
