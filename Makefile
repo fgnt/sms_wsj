@@ -45,9 +45,14 @@ rirs:
 	mpiexec -np ${num_jobs} python -m sms_wsj.database.create_rirs with database_path=$(RIR_DIR)
 
 $(RIR_DIR):
-	@echo "RIR directory does not exist, either download it from ... or use 'make rirs' to create it."
-	@echo "Use the RIR_DIR variable to point to the RIR directory, RIR_DIR =" $(RIR_DIR)
-	exit 1
+	@echo "RIR directory does not exist, starting download, to recreate the RIRs use 'make rirs'."
+	mkdir -p $(RIR_DIR)
+	echo $(RIR_DIR)
+	for i in a b c d e; do \
+		wget -P $(RIR_DIR) https://zenodo.org/record/3517889/files/sms_wsj.tar.gz.parta$${i};\
+	done
+	cat $(RIR_DIR)/sms_wsj.tar.gz.* > $(RIR_DIR)/sms_wsj.tar.gz
+	tar -C $(RIR_DIR)/ -zxvf $(RIR_DIR)/sms_wsj.tar.gz
 
 $(WSJ_DIR):
 	@echo "WSJ directory does not exist."
