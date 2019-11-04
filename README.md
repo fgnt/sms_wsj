@@ -51,7 +51,7 @@ Use the following command to train the baseline ASR model:
 ```bash
 $ python -m sms_wsj.train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=/path/to/sms_wsj.json
 ```
-The script has been tested with the KALDI hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"
+The script has been tested with the KALDI Git hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"
 
 
 ## FAQ
