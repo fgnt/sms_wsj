@@ -5,7 +5,7 @@
 At the moment this repository is still under construction
 
 This repository includes the scripts required to create the sms_wsj database
-and a baseline asr system using KALDI (http://github.com/kaldi-asr/kaldi).
+and a baseline ASR system using KALDI (http://github.com/kaldi-asr/kaldi).
 
 If you are using this code please cite the following paper:
 
@@ -47,7 +47,7 @@ input num_jobs. Per default 16 parallel jobs are used.
 The RIRs are downloaded by default, to generate them yourself see [here](#q-i-want-to-generate-the-rirs-myself-how-can-i-do-that).
 
 
-Use the following command to train the baseline asr model:
+Use the following command to train the baseline ASR model:
 ```bash
 $ python -m sms_wsj.train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=/path/to/sms_wsj.json
 ```
