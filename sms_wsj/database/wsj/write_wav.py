@@ -130,12 +130,14 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
         target = dst_dir / file.relative_to(cd.parent)
         assert not target == nist_file, (nist_file, target)
         target.parent.mkdir(parents=True, exist_ok=True)
+        signal = resample_with_sox(signal, rate_in=16000, rate_out=sample_rate)
         # normalization:
         #   Correction, because the allowed values are in the range [-1, 1).
         #       => "1" is not a vaild value
-        signal = resample_with_sox(signal, rate_in=16000, rate_out=sample_rate)
         correction = (2 ** 15 - 1) / (2 ** 15)
         signal = signal * (correction / np.amax(np.abs(signal)))
+        # normalization to mean 0:
+        signal -= np.mean(signal)
         with soundfile.SoundFile(
                 str(target), samplerate=sample_rate, channels=1,
                 subtype='FLOAT', mode='w',
