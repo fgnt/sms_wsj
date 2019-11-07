@@ -6,7 +6,7 @@ with audio signals.
 import numpy as np
 import scipy
 import scipy.signal
-from . import rirgen
+import rirgen
 
 eps = 1e-60
 window_length = 256

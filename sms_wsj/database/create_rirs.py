@@ -165,8 +165,6 @@ def rirs(
     database = dlp_mpi.bcast(database)
 
     for dataset_name, dataset in database['datasets'].items():
-        print(f'RANK={dlp_mpi.RANK}, SIZE={dlp_mpi.SIZE}:'
-              f' Starting {dataset_name}.')
 
         for _example_id, example in dlp_mpi.split_managed(
                 list(sorted(dataset.items())),
