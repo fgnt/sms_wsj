@@ -103,6 +103,9 @@ def decode(model_egs_dir, dataset_dir, base_dir=None, model_data_type='sms',
         copytree(dataset_dir, base_dir / 'data' / dataset_dir.name,
                  symlinks=True)
         dataset_dir = base_dir / 'data' / dataset_dir.name
+        run_process([
+            f'utils/fix_data_dir.sh', f'{dataset_dir}'],
+            cwd=str(base_dir), stdout=None, stderr=None)
     else:
         base_dir = base_dir.expanduser().resolve()
     model_egs_dir = Path(model_egs_dir).expanduser().resolve()
@@ -306,6 +309,9 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
                     'command directly'
                 )
                 copytree(kaldi_data_dir / dset, dataset_dir, symlinks=True)
+                run_process([
+                    f'utils/fix_data_dir.sh', f'{dataset_dir}'],
+                    cwd=str(base_dir), stdout=None, stderr=None)
 
             decode(
                 base_dir=base_dir,
