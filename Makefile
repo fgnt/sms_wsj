@@ -1,3 +1,5 @@
+SHELL = /bin/bash
+
 # uses environment variable WSJ_DIR if it is defined, otherwise falls back to default /net/fastdb/wsj
 WSJ_DIR ?= /net/fastdb/wsj
 WSJ0_DIR ?= $(WSJ_DIR)
@@ -50,11 +52,10 @@ $(RIR_DIR):
 	@echo "RIR directory does not exist, starting download, to recreate the RIRs use 'make rirs'."
 	mkdir -p $(RIR_DIR)
 	echo $(RIR_DIR)
-	for i in a b c d e; do \
-		wget -qO- https://zenodo.org/record/3517889/files/sms_wsj.tar.gz.parta$${i};\
-	done | tar -C $(RIR_DIR)/ -zx --checkpoint=10000 --checkpoint-action=echo="%c"
+	wget -qO- https://zenodo.org/record/3517889/files/sms_wsj.tar.gz.parta{a,b,c,d,e} \
+	| tar -C $(RIR_DIR)/ -zx --checkpoint=10000 --checkpoint-action=echo="%u/5530000 %c"
 
-	# To manually download adn extract the rirs, exectue the following after downloading from https://zenodo.org/record/3517889 all files
+	# To manually download and extract the rirs, execute the following after downloading all files from https://zenodo.org/record/3517889
 	# cat $(RIR_DIR)/sms_wsj.tar.gz.* > $(RIR_DIR)/sms_wsj.tar.gz
 	# tar -C $(RIR_DIR)/ -zxvf $(RIR_DIR)/sms_wsj.tar.gz
 
