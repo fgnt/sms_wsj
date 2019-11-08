@@ -51,10 +51,12 @@ $(RIR_DIR):
 	mkdir -p $(RIR_DIR)
 	echo $(RIR_DIR)
 	for i in a b c d e; do \
-		wget -P $(RIR_DIR) https://zenodo.org/record/3517889/files/sms_wsj.tar.gz.parta$${i};\
-	done
-	cat $(RIR_DIR)/sms_wsj.tar.gz.* > $(RIR_DIR)/sms_wsj.tar.gz
-	tar -C $(RIR_DIR)/ -zxvf $(RIR_DIR)/sms_wsj.tar.gz
+		wget -qO- https://zenodo.org/record/3517889/files/sms_wsj.tar.gz.parta$${i};\
+	done | tar -C $(RIR_DIR)/ -zx --checkpoint=10000 --checkpoint-action=echo="%c"
+
+	# To manually download adn extract the rirs, exectue the following after downloading from https://zenodo.org/record/3517889 all files
+	# cat $(RIR_DIR)/sms_wsj.tar.gz.* > $(RIR_DIR)/sms_wsj.tar.gz
+	# tar -C $(RIR_DIR)/ -zxvf $(RIR_DIR)/sms_wsj.tar.gz
 
 $(WSJ_DIR):
 	@echo "WSJ directory does not exist."
