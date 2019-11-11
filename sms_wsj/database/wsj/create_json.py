@@ -20,6 +20,7 @@ kaldi_wsj_egs_dir = kaldi_root / 'egs' / 'wsj' / 's5'
 kaldi_wsj_data_dir = kaldi_wsj_egs_dir / 'data' / 'local' / 'data'
 kaldi_wsj_tools = kaldi_wsj_egs_dir / 'local'
 
+
 def create_official_datasets(
         official_sets, official_names, wsj_root, as_wav, genders, transcript
 ):
@@ -122,6 +123,7 @@ def process_example_paths(example_paths, genders, transcript):
 
         speaker_id = example_id[0:3]
         nsamples = read_nsamples(path)
+
         gender = genders[speaker_id]
 
         example = {
@@ -198,9 +200,24 @@ def normalize_transcription(transcriptions, wsj_root: Path):
 
 
 def get_gender_mapping(wsj_root: Path):
+    spkrinfo_wsj = list(wsj_root.glob('**/wsj?/doc/**/*spkrinfo.txt'))
+    spkrinfo_kaldi = list(kaldi_wsj_data_dir.glob('**/*spkrinfo.txt'))
+    spkrinfo = spkrinfo_wsj + spkrinfo_kaldi
 
-    spkrinfo = list(wsj_root.glob('**/wsj?/doc/**/*spkrinfo.txt')) + \
-               list(kaldi_wsj_data_dir.glob('**/*spkrinfo.txt'))
+    if len(spkrinfo) == 0:
+        raise RuntimeError(
+            f'Could not find "{wsj_root}/**/wsj?/doc/**/*spkrinfo.txt" and'
+            f'"{kaldi_wsj_data_dir}/**/*spkrinfo.txt".'
+        )
+    if len(spkrinfo_wsj) == 0:
+        raise RuntimeError(
+            f'Could not find "{wsj_root}/**/wsj?/doc/**/*spkrinfo.txt".'
+        )
+    if len(spkrinfo_kaldi) == 0:
+        raise RuntimeError(
+            f'Could not find "{kaldi_wsj_data_dir}/**/*spkrinfo.txt". '
+            f'Did you forget to run the data preparation for WSJ in Kaldi?'
+        )
 
     _spkr_gender_mapping = dict()
 
@@ -211,6 +228,11 @@ def get_gender_mapping(wsj_root: Path):
                     line = line.split()
                     _spkr_gender_mapping[line[0].lower()] = 'male' \
                         if line[1] == 'M' else 'female'
+
+    if len(_spkr_gender_mapping) == 0 or '01i' not in _spkr_gender_mapping:
+        raise RuntimeError(
+            f'Could not read the gender information from "{spkrinfo}".'
+        )
 
     return _spkr_gender_mapping
 
