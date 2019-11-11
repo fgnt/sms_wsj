@@ -99,7 +99,7 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
                 del audio_dict['speech_reverberation_tail']
                 del audio_dict['noise_image']
             assert all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()]), (
-                example_id, [np.max(np.abs(v)) for v in audio_dict.values()])
+                example_id, {k: np.max(np.abs(v)) for k, v in audio_dict.items()})
             for key, value in audio_dict.items():
                 if key not in type_mapper:
                     continue
