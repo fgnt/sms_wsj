@@ -7,6 +7,7 @@ mpiexec -np 20 python -m sms_wsj.database.wsj.write_wav with dst_dir=/DEST/DIR w
 """
 
 import os
+import fnmatch
 import shutil
 import subprocess
 import tempfile
@@ -91,6 +92,7 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
         dst_dir.mkdir(parents=True, exist_ok=False)
 
     if dlp_mpi.IS_MASTER:
+        # Search for CD numbers, e.g. "13-34.1"
         cds_0 = list(wsj0_root.rglob("*-*.*"))
         cds_1 = list(wsj1_root.rglob("*-*.*"))
         cds = set(cds_0 + cds_1)
@@ -98,6 +100,13 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
             files_0 = list(wsj0_root.rglob(f"*.{suffix}"))
             files_1 = list(wsj1_root.rglob(f"*.{suffix}"))
             files = set(files_0 + files_1)
+            # Filter files that do not have a folder that matches "*-*.*".
+            files = {
+                file
+                for file in files
+                if any([fnmatch.fnmatch(part, "*-*.*") for part in file.parts])
+            }
+
             # the readme.txt file in the parent directory is not copied
             print(f"About to write ca. {len(files)} {suffix} files.")
             for cd in cds:
@@ -109,6 +118,18 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
                         shutil.copy(file, target.parent)
             written_files = list(dst_dir.rglob(f"*.{suffix}"))
             print(f"Writing {len(written_files)} {suffix} files.")
+
+            expected_number_of_writte_files = {
+                'pl': 3, 'ndx': 106, 'ptx': 3547, 'dot': 3585, 'txt': 256}
+
+            if expected_number_of_writte_files[suffix] != written_files:
+                raise RuntimeError(
+                    f'Something went wrong.'
+                    f'Expected that {expected_number_of_writte_files[suffix]} '
+                    f'files with the {suffix} are written. But only '
+                    f'{written_files} are written.'
+                )
+
             # assert len(written_files) == len(files), (files, written_files)
 
     if dlp_mpi.IS_MASTER:
