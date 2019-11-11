@@ -91,11 +91,4 @@ setup(
         'dev': ['check-manifest'],
         'test': ['coverage'],
     },
-
-    ext_modules=cythonize([
-        'sms_wsj/reverb/rirgen/pyrirgen.pyx'
-    ],
-        annotate=True,
-    ),
-    include_dirs=[numpy.get_include()],
 )
