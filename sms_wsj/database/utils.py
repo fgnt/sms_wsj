@@ -200,8 +200,8 @@ def scenario_map_fn(
 
     # Rescale such that invasive SIR is as close as possible to `log_weights`.
     scale = (10 ** (np.asarray(log_weights)[:, None, None] / 20)) / std
-    # divide by 70 to ensure that all values are between -1 and 1
-    scale /= 70
+    # divide by 71 to ensure that all values are between -1 and 1
+    scale /= 71
 
     x *= scale
     example['audio_data']['speech_image'] = x
