@@ -40,7 +40,7 @@ the `run.sh` script are required.
 The ASR baseline uses the language models created during the same stage.
 Afterwards you can create the database:
 ```bash
-$ make SMS_WSJ_DIR=/path/to/write/db/to WSJ_DIR=/path/to/wsj
+$ make WSJ_DIR=/path/to/wsj SMS_WSJ_DIR=/path/to/write/db/to
 ```
 If desired the number of parallel jobs may be specified using the additonal
 input num_jobs. Per default 16 parallel jobs are used.
