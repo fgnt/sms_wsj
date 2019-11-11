@@ -11,9 +11,6 @@ from codecs import open
 from distutils.core import setup
 from os import path
 
-import numpy
-from Cython.Build import cythonize
-
 here = path.abspath(path.dirname(__file__))
 
 # Get the long description from the relevant file
@@ -69,7 +66,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     install_requires=[
-        # TODO 'dlp_mpi',
+        'dlp_mpi',
         'lazy_dataset',
         'sacred',
         'sh',
