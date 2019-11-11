@@ -6,7 +6,6 @@ with audio signals.
 import numpy as np
 import scipy
 import scipy.signal
-import rirgen
 
 eps = 1e-60
 window_length = 256
@@ -45,6 +44,7 @@ def generate_rir(
     Returns: Numpy array of room impulse respones with
         shape (number_of_sources, number_of_sensors, filter_length).
     """
+    import rirgen
     room_dimensions = np.array(room_dimensions)
     source_positions = np.array(source_positions)
     sensor_positions = np.array(sensor_positions)
