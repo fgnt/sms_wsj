@@ -6,12 +6,15 @@ WSJ0_DIR ?= $(WSJ_DIR)
 WSJ1_DIR ?= $(WSJ_DIR)
 SMS_WSJ_DIR ?= cache
 RIR_DIR = $(SMS_WSJ_DIR)/rirs
-JSON_PATH ?= cache
+JSON_PATH ?= $(SMS_WSJ_DIR)
 WSJ_8K_DIR ?= $(SMS_WSJ_DIR)/wsj_8k_zeromean
 WRITE_ALL = True # if True the reverberated data will be calculated on the fly and not saved to SMS_WSJ_DIR
 num_jobs = $(shell nproc --all)
 # example for call on the paderborn parallel computing center
 # ccsalloc --res=rset=1:mem=2G:ncpus=8 -t 4h make all --num_jobs=8
+
+OMP_NUM_THREADS = 1
+MKL_NUM_THREADS = 1
 
 all: sms_wsj
 
