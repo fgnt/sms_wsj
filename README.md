@@ -7,12 +7,14 @@ At the moment this repository is still under construction
 This repository includes the scripts required to create the sms_wsj database
 and a baseline ASR system using KALDI (http://github.com/kaldi-asr/kaldi).
 
-If you are using this code please cite the following paper:
+The preprint of the associated paper can be found here: https://arxiv.org/abs/1910.13934
+If you are using this code please cite the paper as follows:
 
 ```
 @Article{SmsWsj19,
-  author    = {Lukas Drude, Jens Heitkaemper, Christoph Boeddeker, Reinhold Haeb-Umbach},
+  author    = {Drude, Lukas and Heitkaemper, Jens and Boeddeker, Christoph and Haeb-Umbach, Reinhold},
   title     = {{SMS-WSJ}: Database, performance measures, and baseline recipe for multi-channel source separation and recognition},
+  journal   = {arXiv preprint arXiv:1910.13934},
   year      = {2019},
 }
 ```
