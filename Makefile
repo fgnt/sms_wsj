@@ -13,8 +13,8 @@ num_jobs = $(shell nproc --all)
 # example for call on the paderborn parallel computing center
 # ccsalloc --res=rset=1:mem=2G:ncpus=8 -t 4h make all --num_jobs=8
 
-OMP_NUM_THREADS = 1
-MKL_NUM_THREADS = 1
+export OMP_NUM_THREADS = 1
+export MKL_NUM_THREADS = 1
 
 all: sms_wsj
 
