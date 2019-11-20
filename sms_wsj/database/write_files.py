@@ -20,24 +20,24 @@ import dlp_mpi
 
 ex = sacred.Experiment('Write WSJ BSS files')
 
-type_mapper = {
+KEY_MAPPER = {
     'speech_reverberation_early': 'early',
     'speech_reverberation_tail': 'tail',
     'noise_image': 'noise',
-    'observation': 'observation'
+    'observation': 'observation',
 }
 
 
 def check_files(dst_dir):
     return [
         p for p in dst_dir.rglob("*.wav") if any(
-        [
-            (
-                    p.match(str(dst_dir / f'{data_type}/**/*.wav')) or
-                    p.match(str(dst_dir / f'{data_type}/*.wav'))
-            ) for data_type in type_mapper.values()
-        ]
-    )
+            [
+                (
+                        p.match(str(dst_dir / f'{data_type}/**/*.wav')) or
+                        p.match(str(dst_dir / f'{data_type}/*.wav'))
+                ) for data_type in KEY_MAPPER.values()
+            ]
+        )
     ]
 
 
@@ -66,7 +66,7 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
     if write_all:
         if dlp_mpi.IS_MASTER:
             [(dst_dir / data_type).mkdir(exist_ok=False)
-             for data_type in type_mapper.values()]
+             for data_type in KEY_MAPPER.values()]
         map_fn = partial(
             scenario_map_fn,
             snr_range=snr_range,
@@ -86,24 +86,34 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
         )
     for dataset in ['train_si284', 'cv_dev93', 'test_eval92']:
         if dlp_mpi.IS_MASTER:
-            [(dst_dir / data_type / dataset).mkdir(exist_ok=False)
-             for data_type in type_mapper.values()]
+            [
+                (dst_dir / data_type / dataset).mkdir(exist_ok=False)
+                for data_type in KEY_MAPPER.values()
+            ]
         ds = db.get_dataset(dataset).map(audio_read).map(map_fn)
         for example in dlp_mpi.split_managed(
-                ds, is_indexable=True,
-                allow_single_worker=True, progress_bar=True):
+                ds,
+                is_indexable=True,
+                allow_single_worker=True,
+                progress_bar=True,
+        ):
             audio_dict = example['audio_data']
             example_id = example['example_id']
             if not write_all:
                 del audio_dict['speech_reverberation_early']
                 del audio_dict['speech_reverberation_tail']
                 del audio_dict['noise_image']
-            assert all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()]), (
-                example_id, {k: np.max(np.abs(v)) for k, v in audio_dict.items()})
+            assert (
+                all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()])
+            ), (
+                example_id, {
+                    k: np.max(np.abs(v)) for k, v in audio_dict.items()
+                }
+            )
             for key, value in audio_dict.items():
-                if key not in type_mapper:
+                if key not in KEY_MAPPER:
                     continue
-                path = dst_dir / type_mapper[key] / dataset
+                path = dst_dir / KEY_MAPPER[key] / dataset
                 if key in ['observation', 'noise_image']:
                     value = value[None]
                 for idx, signal in enumerate(value):
@@ -123,6 +133,7 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
         created_files = check_files(dst_dir)
         print(f"Written {len(created_files)} wav files.")
         if write_all:
+            # TODO Less, if you do a test run.
             expect = (2 * 2 + 2) * 35875
             assert len(created_files) == expect, (
                 len(created_files), expect
@@ -134,23 +145,24 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
 def create_json(dst_dir, db, write_all, snr_range=(20, 30)):
     json_dict = dict(datasets=dict())
     database_dict = db.data['datasets']
+
+    if write_all:
+        key_mapper = KEY_MAPPER
+    else:
+        key_mapper = {'observation': 'observation'}
+
     for dataset_name, dataset in database_dict.items():
         dataset_dict = dict()
         for ex_id, ex in dataset.items():
-            if write_all:
-                for key, data_type in type_mapper.items():
-                    if key in ['observation', 'noise_image']:
-                        ex['audio_path'][key] = str(dst_dir / data_type / dataset_name / (
-                                ex_id + '.wav'))
-                    else:
-                        ex['audio_path'][key] = [
-                            str(dst_dir / data_type / dataset_name / (ex_id + '_0.wav')),
-                            str(dst_dir / data_type / dataset_name / (ex_id + '_1.wav'))
-                        ]
-            else:
-                ex['audio_path'].update({
-                    'observation': str(dst_dir / 'observation' / dataset_name / (ex_id + '.wav'))
-                })
+            for key, data_type in key_mapper.items():
+                current_path = dst_dir / data_type / dataset_name
+                if key in ['observation', 'noise_image']:
+                    ex['audio_path'][key] = str(current_path / f'{ex_id}.wav')
+                else:
+                    ex['audio_path'][key] = [
+                        str(current_path / f'{ex_id}_{k}.wav')
+                        for k in range(len(ex['speaker_id']))
+                    ]
             rng = _example_id_to_rng(ex_id)
             snr = rng.uniform(*snr_range)
             del ex['dataset']
@@ -164,11 +176,21 @@ def create_json(dst_dir, db, write_all, snr_range=(20, 30)):
 def config():
     dst_dir = None
     json_path = None
+
+    # If `False`, only write observation, else write all intermediate signals.
     write_all = True
+
+    # Default behavior is to overwrite an existing `sms_wsj.json`. You may
+    # specify a different path here to change where the JSON is written to.
     new_json_path = None
+
     snr_range = (20, 30)
+
     assert dst_dir is not None, 'You have to specify a destination dir'
     assert json_path is not None, 'You have to specify a path to sms_wsj.json'
+
+    debug = False
+
 
 @ex.automain
 def main(dst_dir, json_path, write_all, new_json_path, snr_range):
@@ -177,21 +199,27 @@ def main(dst_dir, json_path, write_all, new_json_path, snr_range):
     if dlp_mpi.IS_MASTER:
         assert json_path.exists(), json_path
         dst_dir.mkdir(exist_ok=True, parents=True)
-        if not any([(dst_dir / data_type).exists()
-                    for data_type in type_mapper.keys()]):
+        if not any([
+            (dst_dir / data_type).exists()
+            for data_type in KEY_MAPPER.keys()
+        ]):
             write_files = True
         else:
             write_files = False
             num_wav_files = len(check_files(dst_dir))
+            # TODO Less, if you do a test run.
             if write_all and num_wav_files == (2 * 2 + 2) * 32000:
                 print('Wav files seem to exist. They are not overwritten.')
-            elif not write_all and num_wav_files == 32000 and (
-                    dst_dir / 'observation').exists():
+            elif (
+                not write_all and num_wav_files == 32000
+                and (dst_dir / 'observation').exists()
+            ):
                 print('Wav files seem to exist. They are not overwritten.')
             else:
                 raise ValueError(
-                    'Not all wav files exist. However, the directory structure'
-                    ' already exists.')
+                    'Not all wav files exist. '
+                    'However, the directory structure already exists.'
+                )
     else:
         write_files = None
     write_files = dlp_mpi.COMM.bcast(write_files, root=dlp_mpi.MASTER)
@@ -206,4 +234,4 @@ def main(dst_dir, json_path, write_all, new_json_path, snr_range):
         new_json_path.parent.mkdir(exist_ok=True, parents=True)
         with new_json_path.open('w') as f:
             json.dump(updated_json, f, indent=4, ensure_ascii=False)
-        print(f'{json_path} written')
+        print(f'{json_path} written.')
