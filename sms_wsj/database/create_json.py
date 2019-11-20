@@ -4,6 +4,7 @@ import functools
 from collections import defaultdict
 from copy import copy
 from pathlib import Path
+import warnings
 
 import numpy as np
 import sacred
@@ -61,6 +62,9 @@ PUNCTUATION_SYMBOLS = set('''
 '''.split())
 
 
+DEBUG_EXAMPLE_LIMIT = 10
+
+
 def filter_punctuation_pronunciation(example):
     transcription = example['kaldi_transcription'].split()
     return len(PUNCTUATION_SYMBOLS.intersection(transcription)) == 0
@@ -103,7 +107,7 @@ def test_example_composition(a, b, speaker_ids):
     assert len(set(tuple(tmp))) == len(a), ('duplicate pair', len(a) - len(set(tuple(tmp))))
 
 
-def extend_example_composition_greedy(rng, speaker_ids, example_compositions=None, tries=500):
+def extend_composition_example_greedy(rng, speaker_ids, example_compositions=None, tries=500):
     """
 
     Args:
@@ -116,21 +120,21 @@ def extend_example_composition_greedy(rng, speaker_ids, example_compositions=Non
 
     >>> rng = np.random.RandomState(0)
     >>> speaker_ids = np.array(['Alice', 'Bob', 'Carol', 'Dave', 'Eve'])
-    >>> comp = extend_example_composition_greedy(rng, speaker_ids)
+    >>> comp = extend_composition_example_greedy(rng, speaker_ids)
     >>> comp
     array([[2],
            [0],
            [1],
            [3],
            [4]])
-    >>> comp = extend_example_composition_greedy(rng, speaker_ids, comp)
+    >>> comp = extend_composition_example_greedy(rng, speaker_ids, comp)
     >>> comp
     array([[2, 3],
            [0, 4],
            [1, 2],
            [3, 0],
            [4, 1]])
-    >>> comp = extend_example_composition_greedy(rng, speaker_ids, comp)
+    >>> comp = extend_composition_example_greedy(rng, speaker_ids, comp)
     >>> comp
     array([[2, 3, 1],
            [0, 4, 2],
@@ -262,10 +266,17 @@ def config():
     assert json_path is not None, 'You have to specify a path for the new json'
 
     num_speakers = 2
+    debug = False  # If `True`, only creates a few examples per dataset.
 
 
 @ex.automain
-def main(json_path: Path, rir_dir: Path, wsj_json_path: Path, num_speakers):
+def main(
+        json_path: Path,
+        rir_dir: Path,
+        wsj_json_path: Path,
+        num_speakers: int,
+        debug: bool,
+):
     wsj_json_path = Path(wsj_json_path).expanduser().resolve()
     json_path = Path(json_path).expanduser().resolve()
     if json_path.exists():
@@ -323,7 +334,8 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path, num_speakers):
         info = soundfile.SoundFile(ex_wsj['audio_path']['observation'])
         sample_rate_wsj = info.samplerate
         assert sample_rate_rir == sample_rate_wsj, (
-            sample_rate_rir, sample_rate_wsj)
+            sample_rate_rir, sample_rate_wsj
+        )
 
         rir_iterator = rir_iterator.sort(
             sort_fn=functools.partial(sorted, key=int)
@@ -334,29 +346,26 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path, num_speakers):
         repeats = len(rir_iterator) // len(source_iterator)
         source_iterator = source_iterator.tile(repeats)
 
-        speaker_ids = [
-            example['speaker_id']
-            for example in source_iterator
-        ]
+        speaker_ids = [example['speaker_id'] for example in source_iterator]
 
         rng = get_rng(dataset_name, 'example_compositions')
 
-        example_compositions = None
+        composition_examples = None
         for _ in range(num_speakers):
-            example_compositions = extend_example_composition_greedy(
-                rng, speaker_ids, example_compositions=example_compositions,
+            composition_examples = extend_composition_example_greedy(
+                rng, speaker_ids, example_compositions=composition_examples,
             )
 
         ex_dict = dict()
-        assert len(rir_iterator) == len(example_compositions)
-        for rir_example, example_composition in zip(
-                rir_iterator, example_compositions
+        assert len(rir_iterator) == len(composition_examples)
+        for rir_example, composition_example in zip(
+                rir_iterator, composition_examples
         ):
-            source_examples = source_iterator[example_composition]
+            source_examples = source_iterator[composition_example]
 
             example_id = "_".join([
                 rir_example['example_id'],
-                *[ex["example_id"] for ex in source_examples],
+                *[source_ex["example_id"] for source_ex in source_examples],
             ])
 
             rng = get_rng(dataset_name, example_id)
@@ -368,10 +377,17 @@ def main(json_path: Path, rir_dir: Path, wsj_json_path: Path, num_speakers):
                 rir_dir,
             )
             ex_dict[example_id] = example
+            if debug and len(ex_dict) >= DEBUG_EXAMPLE_LIMIT:
+                warnings.warn(
+                    f'DEBUG_EXAMPLE_LIMIT={DEBUG_EXAMPLE_LIMIT} reached for '
+                    f'dataset_name={dataset_name}. Skipping remaining '
+                    f'examples.'
+                )
+                break
 
         target_db['datasets'][dataset_name] = ex_dict
 
     json_path.parent.mkdir(exist_ok=True, parents=True)
     with json_path.open('w') as f:
         json.dump(target_db, f, indent=2, ensure_ascii=False)
-    print(f'{json_path} written')
+    print(f'{json_path} written.')
