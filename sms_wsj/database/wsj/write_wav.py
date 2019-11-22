@@ -138,13 +138,20 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
                 f'Expected that '
                 f'{expected_number_of_files[suffix]} '
                 f'files with the {suffix} are written. '
-                f'But only {number_of_written_files} are written.'
+                f'But only {number_of_written_files} are written. '
             )
             if (
                 number_of_written_files[suffix]
                 != expected_number_of_files[suffix]
             ):
                 warnings.warn(message)
+
+            if suffix == 'pl' and number_of_written_files[suffix] == 1:
+                raise RuntimeError(
+                    'Found only one pl file although we expected three. '
+                    'A typical reason is having only WSJ0. '
+                    'Please make sure you have WSJ0+1 = WSJ COMPLETE.'
+                )
 
     if dlp_mpi.IS_MASTER:
         # Ignore .wv2 files since they are not referenced in our database
