@@ -144,10 +144,7 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
                 number_of_written_files[suffix]
                 != expected_number_of_files[suffix]
             ):
-                if suffix in 'ndx ptx dot'.split():
-                    raise RuntimeError(message)
-                else:
-                    warnings.warn(message)
+                warnings.warn(message)
 
     if dlp_mpi.IS_MASTER:
         # Ignore .wv2 files since they are not referenced in our database
