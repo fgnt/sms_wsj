@@ -102,7 +102,7 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
         expected_number_of_files = {
             'pl': 3, 'ndx': 106, 'ptx': 3547, 'dot': 3585, 'txt': 256
         }
-        written_files = dict()
+        number_of_written_files = dict()
         for suffix in expected_number_of_files.keys():
             files_0 = list(wsj0_root.rglob(f"*.{suffix}"))
             files_1 = list(wsj1_root.rglob(f"*.{suffix}"))
@@ -123,18 +123,25 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     if not target.is_file():
                         shutil.copy(file, target.parent)
-            written_files[suffix] = list(dst_dir.rglob(f"*.{suffix}"))
-            print(f"Writing {len(written_files)} {suffix} files.")
-            print(f'Expected {expected_number_of_files[suffix]} {suffix} files.')
+            number_of_written_files[suffix] = len(
+                list(dst_dir.rglob(f"*.{suffix}"))
+            )
+            print(f"Writing {number_of_written_files} {suffix} files.")
+            print(
+                f'Expected {expected_number_of_files[suffix]} {suffix} files.'
+            )
 
         for suffix in expected_number_of_files.keys():
             message = (
                 f'Expected that '
                 f'{expected_number_of_files[suffix]} '
                 f'files with the {suffix} are written. '
-                f'But only {written_files} are written.'
+                f'But only {len(number_of_written_files)} are written.'
             )
-            if written_files[suffix] != expected_number_of_files[suffix]:
+            if (
+                number_of_written_files[suffix]
+                != expected_number_of_files[suffix]
+            ):
                 if suffix in 'ndx ptx dot'.split():
                     raise RuntimeError(message)
                 else:
