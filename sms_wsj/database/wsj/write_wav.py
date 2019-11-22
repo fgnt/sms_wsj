@@ -126,7 +126,9 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
             number_of_written_files[suffix] = len(
                 list(dst_dir.rglob(f"*.{suffix}"))
             )
-            print(f"Writing {number_of_written_files} {suffix} files.")
+            print(
+                f"Writing {number_of_written_files[suffix]} {suffix} files."
+            )
             print(
                 f'Expected {expected_number_of_files[suffix]} {suffix} files.'
             )
@@ -136,7 +138,7 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
                 f'Expected that '
                 f'{expected_number_of_files[suffix]} '
                 f'files with the {suffix} are written. '
-                f'But only {len(number_of_written_files)} are written.'
+                f'But only {number_of_written_files} are written.'
             )
             if (
                 number_of_written_files[suffix]
