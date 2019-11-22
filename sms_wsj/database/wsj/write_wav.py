@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import sacred
 import soundfile
+import warnings
 
 import dlp_mpi
 
@@ -93,10 +94,16 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
 
     if dlp_mpi.IS_MASTER:
         # Search for CD numbers, e.g. "13-34.1"
+        # CD stands for compact disk.
         cds_0 = list(wsj0_root.rglob("*-*.*"))
         cds_1 = list(wsj1_root.rglob("*-*.*"))
         cds = set(cds_0 + cds_1)
-        for suffix in 'pl ndx ptx dot txt'.split():
+
+        expected_number_of_files = {
+            'pl': 3, 'ndx': 106, 'ptx': 3547, 'dot': 3585, 'txt': 256
+        }
+        written_files = dict()
+        for suffix in expected_number_of_files.keys():
             files_0 = list(wsj0_root.rglob(f"*.{suffix}"))
             files_1 = list(wsj1_root.rglob(f"*.{suffix}"))
             files = set(files_0 + files_1)
@@ -116,21 +123,22 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
                     target.parent.mkdir(parents=True, exist_ok=True)
                     if not target.is_file():
                         shutil.copy(file, target.parent)
-            written_files = list(dst_dir.rglob(f"*.{suffix}"))
+            written_files[suffix] = list(dst_dir.rglob(f"*.{suffix}"))
             print(f"Writing {len(written_files)} {suffix} files.")
+            print(f'Expected {expected_number_of_files[suffix]} {suffix} files.')
 
-            expected_number_of_writte_files = {
-                'pl': 3, 'ndx': 106, 'ptx': 3547, 'dot': 3585, 'txt': 256}
-
-            if expected_number_of_writte_files[suffix] != written_files:
-                raise RuntimeError(
-                    f'Something went wrong.'
-                    f'Expected that {expected_number_of_writte_files[suffix]} '
-                    f'files with the {suffix} are written. But only '
-                    f'{written_files} are written.'
-                )
-
-            # assert len(written_files) == len(files), (files, written_files)
+        for suffix in expected_number_of_files.keys():
+            message = (
+                f'Expected that '
+                f'{expected_number_of_files[suffix]} '
+                f'files with the {suffix} are written. '
+                f'But only {written_files} are written.'
+            )
+            if written_files[suffix] != expected_number_of_files[suffix]:
+                if suffix in 'ndx ptx dot'.split():
+                    raise RuntimeError(message)
+                else:
+                    warnings.warn(message)
 
     if dlp_mpi.IS_MASTER:
         # Ignore .wv2 files since they are not referenced in our database
