@@ -7,10 +7,10 @@ mpiexec -np 20 python -m sms_wsj.database.wsj.write_wav with dst_dir=/DEST/DIR w
 """
 
 import os
+import io
 import fnmatch
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -33,18 +33,19 @@ def read_nist_wsj(path, expected_sample_rate=16000):
     :param audioread_function: Function to use to read the resulting audio file
     :return:
     """
-    tmp_file = tempfile.NamedTemporaryFile(delete=False)
-    cmd = "{}/sph2pipe -f wav '{path}' '{dest_file}'".format(
-        kaldi_root / 'tools/sph2pipe_v2.5', path=path, dest_file=tmp_file.name
-    )
-    subprocess.run(
-        cmd, universal_newlines=True, shell=True, stdout=subprocess.PIPE,
+    cmd = [
+        kaldi_root / 'tools' / 'sph2pipe_v2.5' / 'sph2pipe',
+        '-f', 'wav',
+        str(path),
+    ]
+
+    completed_process = subprocess.run(
+        cmd, universal_newlines=False, shell=False, stdout=subprocess.PIPE,
         stderr=subprocess.PIPE, check=True, env=None, cwd=None
     )
-    with soundfile.SoundFile(tmp_file.name, mode='r') as f:
-        assert f.samplerate == expected_sample_rate, f.samplerate
-        signal = f.read()
-    os.remove(tmp_file.name)
+
+    signal, sample_rate = soundfile.read(io.BytesIO(completed_process.stdout))
+    assert sample_rate == expected_sample_rate, (sample_rate, expected_sample_rate)
     return signal
 
 
