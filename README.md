@@ -61,7 +61,7 @@ The script has been tested with the KALDI Git hash "7637de77e0a77bf280bef9bf484e
 A: The total disc usage is 442.1 GiB.  
 
 directory         | disc usage
-------------------|:-------------
+:------------------|--------------:
 tail              |      120.1 GiB  
 early             |      120.1 GiB  
 observation       |      60.0 GiB  
