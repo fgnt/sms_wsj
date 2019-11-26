@@ -57,6 +57,20 @@ The script has been tested with the KALDI Git hash "7637de77e0a77bf280bef9bf484e
 
 
 ## FAQ
+### Q: How large is the disc capacity required for the database?
+A: The total disc usage is 442.1 GiB, with 533675 items.
+  tail:             120.1 GiB                                                                              
+  early:            120.1 GiB 
+  observation:      60.0 GiB
+  noise:            60.0 GiB 
+  rirs:             52.6 GiB
+  wsj_8k_zeromean:  29.2 GiB
+  sms_wsj.json:     139,7 MiB
+  wsj_8k.json:      31,6 MiB
+
+### Q: How many hours takes the database creation?
+A: Using 32 cores the database creation without recalculating the RIRs takes around 4 hours.
+
 ### Q: What does the example ID `0_4k6c0303_4k4c0319` mean?
 A: The example ID is a unique identifier for an example (sometime also known as utterance ID).
 The example ID is a composition of the sperakers, the utterances and an scenario counter:
