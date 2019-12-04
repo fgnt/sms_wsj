@@ -57,6 +57,7 @@ def config():
     stft_shift = 128
     stft_window_length = None
     stft_window = 'hann'
+    json_path = None
 
 
 @experiment.named_config
@@ -323,7 +324,7 @@ def get_multi_speaker_metrics(
 
 
 @experiment.capture
-def get_dataset(dataset):
+def get_dataset(dataset, json_path):
     """
     >>> np.set_string_function(lambda a: f'array(shape={a.shape}, dtype={a.dtype})')
     >>> pprint(get_dataset('cv_dev93')[0])  # doctest: +ELLIPSIS
@@ -346,7 +347,7 @@ def get_dataset(dataset):
       'Observation': array(shape=(6, 733, 257), dtype=complex128)}}
 
     """
-    db = SmsWsj()
+    db = SmsWsj(json_path=json_path)
     ds = db.get_dataset(dataset)
     ds = ds.map(AudioReader())
 
