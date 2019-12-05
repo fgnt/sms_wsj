@@ -20,7 +20,6 @@ ${run} python -m sms_wsj.examples.reference_systems with image_early
 
 """
 
-from IPython.lib.pretty import pprint
 import numpy as np
 from pathlib import Path
 import sacred
@@ -326,6 +325,7 @@ def get_multi_speaker_metrics(
 @experiment.capture
 def get_dataset(dataset, json_path):
     """
+    >>> from IPython.lib.pretty import pprint
     >>> np.set_string_function(lambda a: f'array(shape={a.shape}, dtype={a.dtype})')
     >>> pprint(get_dataset('cv_dev93')[0])  # doctest: +ELLIPSIS
     {...
@@ -435,6 +435,7 @@ def get_scores(
 
     Example:
 
+        >>> from IPython.lib.pretty import pprint
         >>> ex = get_dataset('cv_dev93')[0]
         >>> mask = get_mask_from_oracle(ex, 'IBM')
         >>> metric, result = get_scores(ex, mask)
