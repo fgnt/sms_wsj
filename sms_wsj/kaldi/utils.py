@@ -185,6 +185,8 @@ def _create_data_dir(
     if db is None:
         db = JsonDatabase(json_path)
 
+    kaldi_dir = Path(kaldi_dir).expanduser().resolve()
+
     data_dir = kaldi_dir / 'data' / data_type
     data_dir.mkdir(exist_ok=True, parents=True)
 
