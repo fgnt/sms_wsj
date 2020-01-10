@@ -2,8 +2,6 @@
 
 ![Example ID](doc/images/room.svg)
 
-At the moment this repository is still under construction
-
 This repository includes the scripts required to create the sms_wsj database
 and a baseline ASR system using KALDI (http://github.com/kaldi-asr/kaldi).
 
