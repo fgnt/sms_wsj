@@ -13,7 +13,7 @@ from lazy_dataset.database import JsonDatabase
 
 from sms_wsj.database.create_rirs import get_rng
 
-ex = sacred.Experiment('Create sms_wsj json')
+ex = sacred.Experiment('Create original sms_wsj json')
 
 PUNCTUATION_SYMBOLS = set('''
     &AMPERSAND
@@ -279,8 +279,6 @@ def main(
 ):
     wsj_json_path = Path(wsj_json_path).expanduser().resolve()
     json_path = Path(json_path).expanduser().resolve()
-    if json_path.exists():
-        raise FileExistsError(json_path)
     rir_dir = Path(rir_dir).expanduser().resolve()
     assert wsj_json_path.is_file(), json_path
     assert rir_dir.exists(), rir_dir

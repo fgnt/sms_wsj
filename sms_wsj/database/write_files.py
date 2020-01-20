@@ -18,7 +18,7 @@ from sms_wsj.database.utils import scenario_map_fn, _example_id_to_rng
 import dlp_mpi
 
 
-ex = sacred.Experiment('Write WSJ BSS files')
+ex = sacred.Experiment('Write SMS-WSJ files')
 
 KEY_MAPPER = {
     'speech_reverberation_early': 'early',
@@ -62,7 +62,8 @@ def audio_read(example):
     return example
 
 
-def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
+def write_wavs(dst_dir, json_path, write_all=False, snr_range=(20, 30)):
+    db = JsonDatabase(json_path)
     if write_all:
         if dlp_mpi.IS_MASTER:
             [(dst_dir / data_type).mkdir(exist_ok=False)
@@ -142,36 +143,6 @@ def write_wavs(dst_dir, db, write_all=False, snr_range=(20, 30)):
             assert len(created_files) == 35875, len(created_files)
 
 
-def create_json(dst_dir, db, write_all, snr_range=(20, 30)):
-    json_dict = dict(datasets=dict())
-    database_dict = db.data['datasets']
-
-    if write_all:
-        key_mapper = KEY_MAPPER
-    else:
-        key_mapper = {'observation': 'observation'}
-
-    for dataset_name, dataset in database_dict.items():
-        dataset_dict = dict()
-        for ex_id, ex in dataset.items():
-            for key, data_type in key_mapper.items():
-                current_path = dst_dir / data_type / dataset_name
-                if key in ['observation', 'noise_image']:
-                    ex['audio_path'][key] = str(current_path / f'{ex_id}.wav')
-                else:
-                    ex['audio_path'][key] = [
-                        str(current_path / f'{ex_id}_{k}.wav')
-                        for k in range(len(ex['speaker_id']))
-                    ]
-            rng = _example_id_to_rng(ex_id)
-            snr = rng.uniform(*snr_range)
-            del ex['dataset']
-            ex["snr"] = snr
-            dataset_dict[ex_id] = ex
-            json_dict['datasets'][dataset_name] = dataset_dict
-    return json_dict
-
-
 @ex.config
 def config():
     dst_dir = None
@@ -179,10 +150,6 @@ def config():
 
     # If `False`, only write observation, else write all intermediate signals.
     write_all = True
-
-    # Default behavior is to overwrite an existing `sms_wsj.json`. You may
-    # specify a different path here to change where the JSON is written to.
-    new_json_path = None
 
     snr_range = (20, 30)
 
@@ -193,7 +160,7 @@ def config():
 
 
 @ex.automain
-def main(dst_dir, json_path, write_all, new_json_path, snr_range):
+def main(dst_dir, json_path, write_all, snr_range):
     json_path = Path(json_path).expanduser().resolve()
     dst_dir = Path(dst_dir).expanduser().resolve()
     if dlp_mpi.IS_MASTER:
@@ -208,10 +175,10 @@ def main(dst_dir, json_path, write_all, new_json_path, snr_range):
             write_files = False
             num_wav_files = len(check_files(dst_dir))
             # TODO Less, if you do a test run.
-            if write_all and num_wav_files == (2 * 2 + 2) * 32000:
+            if write_all and num_wav_files == (2 * 2 + 2) * 35875:
                 print('Wav files seem to exist. They are not overwritten.')
             elif (
-                not write_all and num_wav_files == 32000
+                not write_all and num_wav_files == 35875
                 and (dst_dir / 'observation').exists()
             ):
                 print('Wav files seem to exist. They are not overwritten.')
@@ -223,15 +190,5 @@ def main(dst_dir, json_path, write_all, new_json_path, snr_range):
     else:
         write_files = None
     write_files = dlp_mpi.COMM.bcast(write_files, root=dlp_mpi.MASTER)
-    db = JsonDatabase(json_path)
     if write_files:
-        write_wavs(dst_dir, db, write_all=write_all, snr_range=snr_range)
-
-    if dlp_mpi.IS_MASTER and new_json_path:
-        print(f'Creating a new json and saving it to {new_json_path}')
-        new_json_path = Path(new_json_path).expanduser().resolve()
-        updated_json = create_json(dst_dir, db, write_all, snr_range=snr_range)
-        new_json_path.parent.mkdir(exist_ok=True, parents=True)
-        with new_json_path.open('w') as f:
-            json.dump(updated_json, f, indent=4, ensure_ascii=False)
-        print(f'{json_path} written.')
+        write_wavs(dst_dir, json_path, write_all=write_all, snr_range=snr_range)
