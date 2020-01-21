@@ -13,7 +13,7 @@ from lazy_dataset.database import JsonDatabase
 
 from sms_wsj.database.create_rirs import get_rng
 
-ex = sacred.Experiment('Create original sms_wsj json')
+ex = sacred.Experiment('Create intermediate SMS-WSJ json')
 
 PUNCTUATION_SYMBOLS = set('''
     &AMPERSAND

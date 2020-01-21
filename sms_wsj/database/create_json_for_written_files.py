@@ -13,8 +13,8 @@ from lazy_dataset.database import JsonDatabase
 ex = sacred.Experiment('Write SMS-WSJ json after wav files are written')
 
 
-def create_json(db_dir, original_json_path, write_all, snr_range=(20, 30)):
-    db = JsonDatabase(original_json_path)
+def create_json(db_dir, intermediate_json_path, write_all, snr_range=(20, 30)):
+    db = JsonDatabase(intermediate_json_path)
     json_dict = dict(datasets=dict())
     database_dict = db.data['datasets']
 
@@ -49,7 +49,7 @@ def create_json(db_dir, original_json_path, write_all, snr_range=(20, 30)):
 @ex.config
 def config():
     db_dir = None
-    original_json_path = None
+    intermed_json_path = None
 
     # If `False`, expects only observation to exist,
     # else expect all intermediate signals.
@@ -62,20 +62,20 @@ def config():
     snr_range = (20, 30)
 
     assert db_dir is not None, 'You have to specify a database dir'
-    assert original_json_path is not None, 'You have to specify a path to' \
-                                           ' the original sms_wsj.json'
+    assert intermed_json_path is not None, 'You have to specify a path' \
+                                               ' to the original sms_wsj.json'
 
     debug = False
 
 
 @ex.automain
-def main(db_dir, original_json_path, write_all, json_path, snr_range):
-    original_json_path = Path(original_json_path).expanduser().resolve()
+def main(db_dir, intermed_json_path , write_all, json_path, snr_range):
+    intermed_json_path = Path(intermed_json_path).expanduser().resolve()
     db_dir = Path(db_dir).expanduser().resolve()
     if json_path is not None:
         json_path = Path(json_path).expanduser().resolve()
     else:
-        json_path = original_json_path
+        json_path = intermed_json_path
     print(f'Creating a new json and saving it to {json_path}')
     num_wav_files = len(check_files(db_dir))
     message = f'Not all wav files seem to exists, you have {num_wav_files},' \
@@ -84,7 +84,8 @@ def main(db_dir, original_json_path, write_all, json_path, snr_range):
         assert num_wav_files == (2 * 2 + 2) * 35875, message
     else:
         assert num_wav_files == 35875, message
-    updated_json = create_json(db_dir, original_json_path, write_all, snr_range=snr_range)
+    updated_json = create_json(db_dir, intermed_json_path , write_all,
+                               snr_range=snr_range)
     json_path.parent.mkdir(exist_ok=True, parents=True)
     with json_path.open('w') as f:
         json.dump(updated_json, f, indent=4, ensure_ascii=False)
