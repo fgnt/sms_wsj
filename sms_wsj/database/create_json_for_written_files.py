@@ -1,6 +1,14 @@
 """
 This script writes a new json which includes the files
 written to disk with sms_wsj.database.write_files.py
+
+Additionally, the script allows to update the paths
+in case of a change in the database location by using
+the old sms_wsj.json as intermediate json.
+However, this script does not change the speaker
+and utterance combination, log weights, etc. which are
+specified in the intermediate json.
+
 """
 
 from sms_wsj.database.write_files import check_files, KEY_MAPPER
