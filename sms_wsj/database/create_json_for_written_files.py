@@ -46,7 +46,8 @@ def config():
     db_dir = None
     original_json_path = None
 
-    # If `False`, only write observation, else write all intermediate signals.
+    # If `False`, expects only observation to exist,
+    # else expect all intermediate signals.
     write_all = True
 
     # Default behavior is to overwrite an existing `sms_wsj.json`. You may
