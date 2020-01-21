@@ -42,7 +42,7 @@ $(JSON_DIR)/original_sms_wsj.json: $(JSON_DIR)/wsj_8k_zeromean.json | $(JSON_DIR
 	with json_path=$(JSON_DIR)/original_sms_wsj.json rir_dir=$(RIR_DIR) wsj_json_path=$(JSON_DIR)/wsj_8k_zeromean.json debug=$(DEBUG)
 
 sms_wsj: $(SMS_WSJ_DIR)/sms_wsj
-$(SMS_WSJ_DIR)/observation: | $(SMS_WSJ_DIR) $(JSON_DIR)/original_sms_wsj.json
+$(SMS_WSJ_DIR)/observation: $(JSON_DIR)/original_sms_wsj.json | $(SMS_WSJ_DIR)
 	@echo creating $(SMS_WSJ_DIR) files
 	@echo using $(num_jobs) parallel jobs
 	mpiexec -np ${num_jobs} python -m sms_wsj.database.write_files \
