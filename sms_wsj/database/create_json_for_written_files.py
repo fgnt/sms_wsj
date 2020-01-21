@@ -1,3 +1,8 @@
+"""
+This script writes a new json which includes the files
+written to disk with sms_wsj.database.write_files.py
+"""
+
 from sms_wsj.database.write_files import check_files, KEY_MAPPER
 from sms_wsj.database.utils import _example_id_to_rng
 import json
