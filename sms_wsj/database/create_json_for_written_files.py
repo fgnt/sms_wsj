@@ -53,7 +53,6 @@ def create_json(db_dir, intermediate_json_path, write_all, snr_range=(20, 30)):
     return json_dict
 
 
-
 @ex.config
 def config():
     db_dir = None
