@@ -35,19 +35,25 @@ $(JSON_DIR)/wsj_8k_zeromean.json: $(WSJ_8K_ZEROMEAN_DIR) | $(JSON_DIR)
 	python -m sms_wsj.database.wsj.create_json \
 	with json_path=$(JSON_DIR)/wsj_8k_zeromean.json database_dir=$(WSJ_8K_ZEROMEAN_DIR) as_wav=True
 
-sms_wsj.json: $(JSON_DIR)/sms_wsj.json
-$(JSON_DIR)/sms_wsj.json: $(RIR_DIR) $(JSON_DIR)/wsj_8k_zeromean.json | $(JSON_DIR)
-	@echo creating $(JSON_DIR)/sms_wsj.json
-	python -m sms_wsj.database.create_json \
-	with json_path=$(JSON_DIR)/sms_wsj.json rir_dir=$(RIR_DIR) wsj_json_path=$(JSON_DIR)/wsj_8k_zeromean.json debug=$(DEBUG)
+intermediate_sms_wsj.json: $(JSON_DIR)/intermediate_sms_wsj.json
+$(JSON_DIR)/intermediate_sms_wsj.json: $(JSON_DIR)/wsj_8k_zeromean.json | $(JSON_DIR) $(RIR_DIR)
+	@echo creating $(JSON_DIR)/intermediate_sms_wsj.json
+	python -m sms_wsj.database.create_intermediate_json \
+	with json_path=$(JSON_DIR)/intermediate_sms_wsj.json rir_dir=$(RIR_DIR) wsj_json_path=$(JSON_DIR)/wsj_8k_zeromean.json debug=$(DEBUG)
 
-sms_wsj: $(SMS_WSJ_DIR)/sms_wsj
-$(SMS_WSJ_DIR)/sms_wsj: $(JSON_DIR)/sms_wsj.json | $(SMS_WSJ_DIR)
+sms_wsj: $(SMS_WSJ_DIR)/observation
+$(SMS_WSJ_DIR)/observation: $(JSON_DIR)/intermediate_sms_wsj.json | $(SMS_WSJ_DIR)
 	@echo creating $(SMS_WSJ_DIR) files
-	@echo This amends the sms_wsj.json with the new paths.
 	@echo using $(num_jobs) parallel jobs
 	mpiexec -np ${num_jobs} python -m sms_wsj.database.write_files \
-	with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_DIR)/sms_wsj.json write_all=$(WRITE_ALL) new_json_path=$(JSON_DIR)/sms_wsj.json debug=$(DEBUG)
+	with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_DIR)/intermediate_sms_wsj.json write_all=$(WRITE_ALL) debug=$(DEBUG)
+
+sms_wsj.json: $(JSON_DIR)/sms_wsj.json
+$(JSON_DIR)/sms_wsj.json: $(JSON_DIR)/intermediate_sms_wsj.json | $(SMS_WSJ_DIR)
+	@echo creating $(JSON_DIR)/sms_wsj.json
+	@echo This amends the sms_wsj.json with the new paths.
+	python -m sms_wsj.database.create_json_for_written_files \
+	with db_dir=$(SMS_WSJ_DIR) intermed_json_path=$(JSON_DIR)/intermediate_sms_wsj.json write_all=$(WRITE_ALL) json_path=$(JSON_DIR)/sms_wsj.json debug=$(DEBUG)
 
 # The room impuls responses can be downloaded, so that they do not have to be created
 # however if you want to recreate them use "make rirs RIR_DIR=/path/to/storage/"
