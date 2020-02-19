@@ -2,10 +2,21 @@
 
 ![Example ID](doc/images/room.svg)
 
-This repository includes the scripts required to create the sms_wsj database
-and a baseline ASR system using KALDI (http://github.com/kaldi-asr/kaldi).
+This repository includes the scripts required to create the SMS-WSJ database, a spatial clustering baseline for separation,
+and a baseline ASR system using Kaldi (http://github.com/kaldi-asr/kaldi).
 
-The preprint of the associated paper can be found here: https://arxiv.org/abs/1910.13934
+## Why does this database exist?
+
+In multi-speaker ASR the [WSJ0-2MIX database](https://www.merl.com/demos/deep-clustering) and the spatialized version thereof are widely used.
+Observing that research in multi-speaker ASR is often hard to compare because some researchers pretrain on WSJ, while others train only on WSJ0-2MIX or create other sub-lists of WSJ we decided to roll a fixed file list which is suitable for training an ASR system without additional audio data.
+Punctuation pronunciation utterances are filtered to further facilitate end-to-end ASR experiments.
+
+Further, we argue that the tooling around [WSJ0-2MIX database](https://www.merl.com/demos/deep-clustering) and the spatialized version thereof is very limited.
+Therefore, we provide a spatial clustering baseline and a Kaldi ASR baseline.
+Researchers can now easily improve parts of the pipeline while ensuring that they can fairly compare with baseline results reported in the associated Arxiv paper.
+
+## How can I cite this work? Where are baseline results?
+The associated paper can be found here: https://arxiv.org/abs/1910.13934
 If you are using this code please cite the paper as follows:
 
 ```
@@ -21,18 +32,19 @@ If you are using this code please cite the paper as follows:
 
 Does not work with Windows.
 
-Clone this Repo and install the package 
+Clone this repository and install the package:
 ```bash
 $ git clone https://github.com/fgnt/sms_wsj.git
 $ cd sms_wsj
 $ pip install --user -e ./
 ```
 
-Set your KALDI_ROOT
+Set your KALDI_ROOT environment variable:
 ```bash
 $ export KALDI_ROOT=/path/to/kaldi
 ```
-We assume that the KALDI wsj baseline has been created with the `run.sh` script.
+We assume that the Kaldi WSJ baseline has been created with the `run.sh` script.
+This is important to be able to use the Kaldi language model.
 To build the database the structures created during the first stage of
 the `run.sh` script are required.
 The ASR baseline uses the language models created during the same stage.
@@ -79,10 +91,10 @@ The example ID is a composition of the sperakers, the utterances and an scenario
 ![Example ID](doc/images/example_id.svg)
 =======
 
-### Q: What to do if kaldi uses python3 instead of python2?
-The python code in this repository requires python 3.6. However, Kaldi runs
-on python 2.7. To solve this mismatch Kaldi has to be forced to switch the
-python version using the path.sh. Therefore, add the follwing line to
+### Q: What to do if Kaldi uses Python 3 instead of Python 2?
+The Python code in this repository requires Python 3.6. However, Kaldi runs
+on Python 2.7. To solve this mismatch Kaldi has to be forced to switch the
+Python version using the `path.sh`. Therefore, add the follwing line to
 the `${KALDI_ROOT}/tools/envh.sh` file:
 ```
 export PATH=path/to/your/python2/bin/:${PATH}
