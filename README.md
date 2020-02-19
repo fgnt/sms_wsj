@@ -45,7 +45,7 @@ $ export KALDI_ROOT=/path/to/kaldi
 ```
 We assume that the Kaldi WSJ baseline has been created with the `run.sh` script.
 This is important to be able to use the Kaldi language model.
-To build the database the structures created during the first stage of
+To build the ASR baseline the structures created during the first stage of
 the `run.sh` script are required.
 The ASR baseline uses the language models created during the same stage.
 Afterwards you can create the database:
