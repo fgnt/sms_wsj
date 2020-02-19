@@ -8,7 +8,7 @@ and a baseline ASR system using Kaldi (http://github.com/kaldi-asr/kaldi).
 ## Why does this database exist?
 
 In multi-speaker ASR the [WSJ0-2MIX database](https://www.merl.com/demos/deep-clustering) and the spatialized version thereof are widely used.
-Observing that research in multi-speaker ASR is often hard to compare because some researchers pretrain on WSJ, while others train only on WSJ0-2MIX or create other sub-lists of WSJ we decided to roll a fixed file list which is suitable for training an ASR system without additional audio data.
+Observing that research in multi-speaker ASR is often hard to compare because some researchers pretrain on WSJ, while others train only on WSJ0-2MIX or create other sub-lists of WSJ we decided to use a fixed file list which is suitable for training an ASR system without additional audio data.
 Punctuation pronunciation utterances are filtered to further facilitate end-to-end ASR experiments.
 
 Further, we argue that the tooling around [WSJ0-2MIX database](https://www.merl.com/demos/deep-clustering) and the spatialized version thereof is very limited.
