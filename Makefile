@@ -19,9 +19,6 @@ export MKL_NUM_THREADS = 1
 
 all: sms_wsj
 
-cache:
-	mkdir cache
-
 wsj_8k_zeromean: $(WSJ_8K_ZEROMEAN_DIR)
 $(WSJ_8K_ZEROMEAN_DIR): $(WSJ_DIR)
 	@echo creating $(WSJ_8K_ZEROMEAN_DIR)
@@ -83,3 +80,6 @@ $(WSJ_DIR):
 	@echo "WSJ directory does not exist."
 	@echo "Please specify an existing WSJ directory using the WSJ_DIR variable, WSJ_DIR =" $(WSJ_DIR)
 	exit 1
+
+cache:
+	mkdir cache
