@@ -17,7 +17,7 @@ DEBUG = False # If True, create less entries in sms_wsj.json just for debugging.
 export OMP_NUM_THREADS = 1
 export MKL_NUM_THREADS = 1
 
-all: sms_wsj
+all: sms_wsj sms_wsj.json
 
 wsj_8k_zeromean: $(WSJ_8K_ZEROMEAN_DIR)
 $(WSJ_8K_ZEROMEAN_DIR): $(WSJ_DIR)
@@ -45,7 +45,7 @@ $(SMS_WSJ_DIR)/observation: $(JSON_DIR)/intermediate_sms_wsj.json | $(SMS_WSJ_DI
 	mpiexec -np ${num_jobs} python -m sms_wsj.database.write_files \
 	with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_DIR)/intermediate_sms_wsj.json write_all=$(WRITE_ALL) debug=$(DEBUG)
 
-sms_wsj.json: $(JSON_DIR)/sms_wsj.json
+sms_wsj.json: $(JSON_DIR)/sms_wsj.json | $(SMS_WSJ_DIR)/observation
 $(JSON_DIR)/sms_wsj.json: $(JSON_DIR)/intermediate_sms_wsj.json | $(SMS_WSJ_DIR)
 	@echo creating $(JSON_DIR)/sms_wsj.json
 	@echo This amends the sms_wsj.json with the new paths.
