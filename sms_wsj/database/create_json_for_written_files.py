@@ -46,13 +46,13 @@ def create_json(db_dir, intermediate_json_path, write_all, snr_range=(20, 30)):
 
             ex['audio_path']['speech_source'] = [
                 # .../sms_wsj/cache/wsj_8k_zeromean/13-11.1/wsj1/si_tr_s/4ax/4axc0218.wav
-                db_dir.joinpath(*Path(rir).parts[-6:])
+                str(db_dir.joinpath(*Path(rir).parts[-6:]))
                 for rir in ex['audio_path']['speech_source']
             ]
 
             ex['audio_path']['rir'] = [
                 # .../sms_wsj/cache/rirs/train_si284/0/h_0.wav
-                db_dir.joinpath(*Path(rir).parts[-4:])
+                str(db_dir.joinpath(*Path(rir).parts[-4:]))
                 for rir in ex['audio_path']['rir']
             ]
 
