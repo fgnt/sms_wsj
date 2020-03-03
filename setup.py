@@ -10,6 +10,7 @@ from codecs import open
 # Always prefer setuptools over distutils
 from distutils.core import setup
 from os import path
+from setuptools import find_packages
 
 here = path.abspath(path.dirname(__file__))
 
@@ -60,6 +61,10 @@ setup(
 
     # What does your project relate to?
     keywords='database, multi channel, multi speaker, simulated',
+
+    # You can just specify the packages manually here if your project is
+    # simple. Or you can use find_packages().
+    packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
 
     # List run-time dependencies here.  These will be installed by pip when
     # your project is installed. For an analysis of "install_requires" vs pip's
