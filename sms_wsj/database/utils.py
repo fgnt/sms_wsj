@@ -126,6 +126,8 @@ def scenario_map_fn(
         add_speech_reverberation_early=True,
         add_speech_reverberation_tail=True,
 
+        early_rir_samples: int = int(8000 * 0.05),  # 50 milli seconds
+
         details=False,
 ):
     """
@@ -158,7 +160,8 @@ def scenario_map_fn(
     # rir_stop_sample = rir_start_sample + int(SAMPLE_RATE * 0.05)
     # Use 50 milliseconds as early rir part, excluding the propagation delay
     #    (i.e. "rir_start_sample")
-    rir_stop_sample = rir_start_sample + int(8000 * 0.05)
+    assert isinstance(early_rir_samples, int), (type(early_rir_samples), early_rir_samples)
+    rir_stop_sample = rir_start_sample + early_rir_samples
 
     log_weights = example['log_weights']
 
