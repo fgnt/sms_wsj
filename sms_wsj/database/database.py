@@ -115,15 +115,25 @@ class AudioReader:
             keys=[
                 'observation',
                 'speech_source',
+                'original_source',
                 'speech_reverberation_early',
                 'speech_reverberation_tail',
                 'speech_image',
                 'noise_image',
                 # 'rir'
             ],
-            sync_speech_source: bool = True,
+            sync_speech_source: bool = True,  # legacy
     ):
         keys = list(keys)
+
+        if 'speech_source' in keys:
+            if 'original_source' not in keys:
+                keys.append('original_source')
+            keys.remove('speech_source')
+            self.speech_source = True
+        else:
+            self.speech_source = False
+
         if 'speech_image' in keys:
             if 'speech_reverberation_early' not in keys:
                 keys.append('speech_reverberation_early')
@@ -159,13 +169,17 @@ class AudioReader:
         for k in self.keys:
             data[k] = self._rec_audio_read(path[k])
 
-        if self.sync_speech_source:
-            from sms_wsj.database.utils import synchronize_speech_source
-            data['speech_source'] = synchronize_speech_source(
-                data['speech_source'],
-                example['offset'],
-                T=example['num_samples']['observation'],
-            )
+        if self.speech_source:
+            if self.sync_speech_source:
+                from sms_wsj.database.utils import synchronize_speech_source
+                data['speech_source'] = synchronize_speech_source(
+                    data['original_source'],
+                    example['offset'],
+                    T=example['num_samples']['observation'],
+                )
+            else:
+                # legacy code
+                data['speech_source'] = data['original_source']
 
         if self.speech_image:
             data['speech_image'] = (
