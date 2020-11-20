@@ -45,6 +45,9 @@ $(SMS_WSJ_DIR)/observation: $(JSON_DIR)/intermediate_sms_wsj.json | $(SMS_WSJ_DI
 	mpiexec -np ${num_jobs} python -m sms_wsj.database.write_files \
 	with dst_dir=$(SMS_WSJ_DIR) json_path=$(JSON_DIR)/intermediate_sms_wsj.json write_all=$(WRITE_ALL) debug=$(DEBUG)
 
+clean_write_files:
+	rm -rf $(SMS_WSJ_DIR)/{observation,noise,early,tail,speech_source}
+
 sms_wsj.json: $(JSON_DIR)/sms_wsj.json | $(SMS_WSJ_DIR)/observation
 $(JSON_DIR)/sms_wsj.json: $(JSON_DIR)/intermediate_sms_wsj.json | $(SMS_WSJ_DIR)
 	@echo creating $(JSON_DIR)/sms_wsj.json
