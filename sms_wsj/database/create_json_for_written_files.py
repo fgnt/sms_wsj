@@ -44,10 +44,14 @@ def create_json(db_dir, intermediate_json_path, write_all, snr_range=(20, 30)):
                         for k in range(len(ex['speaker_id']))
                     ]
 
-            ex['audio_path']['speech_source'] = [
+            if 'original_source' not in ex['audio_path']:
+                # legacy code
+                ex['audio_path']['original_source'] = ex['audio_path']['speech_source']
+
+            ex['audio_path']['original_source'] = [
                 # .../sms_wsj/cache/wsj_8k_zeromean/13-11.1/wsj1/si_tr_s/4ax/4axc0218.wav
                 str(db_dir.joinpath(*Path(rir).parts[-6:]))
-                for rir in ex['audio_path']['speech_source']
+                for rir in ex['audio_path']['original_source']
             ]
 
             ex['audio_path']['rir'] = [
