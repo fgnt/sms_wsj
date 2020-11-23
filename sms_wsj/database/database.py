@@ -167,6 +167,9 @@ class AudioReader:
         path = example['audio_path']
 
         for k in self.keys:
+            if k == 'original_source' and k not in path:
+                # legacy code
+                path[k] = path['speech_source']
             data[k] = self._rec_audio_read(path[k])
 
         if self.speech_source:

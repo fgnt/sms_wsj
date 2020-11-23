@@ -171,6 +171,9 @@ def scenario_map_fn(
     if 'original_source' not in example['audio_data']:
         # legacy code
         example['audio_data']['original_source'] = example['audio_data']['speech_source']
+    if 'original_source' not in example['num_samples']:
+        # legacy code
+        example['num_samples']['original_source'] = example['num_samples']['speech_source']
     s = example['audio_data']['original_source']
 
     def get_convolved_signals(h):
