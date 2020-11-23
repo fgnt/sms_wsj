@@ -105,7 +105,7 @@ def main(db_dir, intermed_json_path , write_all, json_path, snr_range):
     message = f'Not all wav files seem to exists, you have {num_wav_files},' \
         f' please check your db directory: {db_dir}'
     if write_all:
-        assert num_wav_files == (2 * 2 + 2) * 35875, message
+        assert num_wav_files in [(2 * speakers + 2) * 35875 for speakers in [2, 3, 4]], message
     else:
         assert num_wav_files == 35875, message
     updated_json = create_json(db_dir, intermed_json_path , write_all,
