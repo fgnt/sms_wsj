@@ -112,7 +112,7 @@ class AudioReader:
     """
     def __init__(
             self,
-            keys=[
+            keys=(
                 'observation',
                 'speech_source',
                 'original_source',
@@ -120,8 +120,8 @@ class AudioReader:
                 'speech_reverberation_tail',
                 'speech_image',
                 'noise_image',
-                # 'rir'
-            ],
+                # 'rir',
+            ),
             sync_speech_source: bool = True,  # legacy
     ):
         keys = list(keys)
@@ -145,10 +145,7 @@ class AudioReader:
             self.speech_image = False
 
         self.keys = tuple(keys)
-        if 'speech_source' in keys:
-            self.sync_speech_source = sync_speech_source
-        else:
-            self.sync_speech_source = False
+        self.sync_speech_source = sync_speech_source
 
     @classmethod
     def _rec_audio_read(cls, file):
