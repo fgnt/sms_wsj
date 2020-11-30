@@ -1,13 +1,18 @@
+from pathlib import Path
+
 import numpy as np
+
+import sms_wsj
 from sms_wsj.database.database import SmsWsj, AudioReader
 
-from paderbox.database.wsj_bss import WsjBss, scenario_map_fn
+
+json_path = Path(sms_wsj.__file__) / 'cache' / 'sms_wsj.json'
 
 
 def test_first_example():
-    db = SmsWsj()
+    db = SmsWsj(json_path)
     ds = db.get_dataset('cv_dev93')
-    ds = ds.map(AudioReader(rir=True))
+    ds = ds.map(AudioReader(AudioReader.all_keys))
 
     example = ds[0]
 
@@ -21,7 +26,7 @@ def test_first_example():
         atol=1e-7
     )
 
-    assert len(example['audio_data']) == 7
+    assert len(example['audio_data']) == 8
     assert example['audio_data']['observation'].shape == (6, 93389)
     assert example['audio_data']['noise_image'].shape == (6, 93389)
     assert example['audio_data']['speech_reverberation_early'].shape == (2, 6, 93389)
@@ -29,6 +34,8 @@ def test_first_example():
     assert example['audio_data']['speech_source'].shape == (2, 93389)
     assert example['audio_data']['speech_image'].shape == (2, 6, 93389)
     assert example['audio_data']['rir'].shape == (2, 6, 8192)
+    assert example['audio_data']['original_source'][0].shape == (31633,)
+    assert example['audio_data']['original_source'][1].shape == (93389,)
 
     assert list(example.keys()) == [
         'room_dimensions', 'sound_decay_time', 'source_position',
@@ -49,13 +56,13 @@ def test_first_example():
     assert example['offset'] == [52476, 0]
     assert example['log_weights'] == [0.9885484337248203, -0.9885484337248203]
     assert example['num_samples'] == {'observation': 93389,
-                                      'speech_source': [31633, 93389]}
+                                      'original_source': [31633, 93389]}
 
 
 def test_random_example():
-    db = SmsWsj()
+    db = SmsWsj(json_path)
     ds = db.get_dataset('cv_dev93')
-    ds = ds.map(AudioReader(rir=True))
+    ds = ds.map(AudioReader(AudioReader.all_keys))
 
     example = ds.random_choice()
 
@@ -71,7 +78,7 @@ def test_random_example():
 
 
 def test_order():
-    db = SmsWsj()
+    db = SmsWsj(json_path)
 
     ds = db.get_dataset('cv_dev93')
     for scenario_id, example in enumerate(ds):

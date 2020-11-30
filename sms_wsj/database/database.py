@@ -110,6 +110,17 @@ class AudioReader:
      'speech_image': array(shape=(2, 6, 103650), dtype=float64),
      'noise_image': array(shape=(6, 103650), dtype=float64)}
     """
+    all_keys = (
+        'observation',
+        'speech_source',
+        'original_source',
+        'speech_reverberation_early',
+        'speech_reverberation_tail',
+        'speech_image',
+        'noise_image',
+        'rir',
+    )
+
     def __init__(
             self,
             keys=(
