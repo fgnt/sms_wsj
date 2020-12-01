@@ -221,25 +221,25 @@ def get_randomized_example(
             return num_samples
 
     example['num_samples'] = dict()
-    example['num_samples']['speech_source'] = [
+    example['num_samples']['original_source'] = [
         _get_num_samples(exa['num_samples']['observation'])
         for exa in source_examples
     ]
     example['num_samples']['observation'] = max(
-        example['num_samples']['speech_source']
+        example['num_samples']['original_source']
     )
 
     example["offset"] = []
     for k in range(example['num_speakers']):
         excess_samples = (
             example['num_samples']['observation']
-            - example['num_samples']['speech_source'][k]
+            - example['num_samples']['original_source'][k]
         )
         assert excess_samples >= 0, excess_samples
         example["offset"].append(rng.randint(0, excess_samples + 1))
 
     example['audio_path'] = dict()
-    example['audio_path']['speech_source'] = [
+    example['audio_path']['original_source'] = [
         exa['audio_path']['observation'] for exa in source_examples
     ]
     example['audio_path']['rir'] = [

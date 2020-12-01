@@ -53,7 +53,7 @@ Afterwards you can create the database:
 $ make WSJ_DIR=/path/to/wsj SMS_WSJ_DIR=/path/to/write/db/to
 ```
 If desired the number of parallel jobs may be specified using the additonal
-input num_jobs. Per default 16 parallel jobs are used.
+input num_jobs. Per default `nproc --all` parallel jobs are used.
 
 
 The RIRs are downloaded by default, to generate them yourself see [here](#q-i-want-to-generate-the-rirs-myself-how-can-i-do-that).

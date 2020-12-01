@@ -44,16 +44,14 @@ def create_json(db_dir, intermediate_json_path, write_all, snr_range=(20, 30)):
                         for k in range(len(ex['speaker_id']))
                     ]
 
-            ex['audio_path']['speech_source'] = [
+            if 'original_source' not in ex['audio_path']:
+                # legacy code
+                ex['audio_path']['original_source'] = ex['audio_path']['speech_source']
+
+            ex['audio_path']['original_source'] = [
                 # .../sms_wsj/cache/wsj_8k_zeromean/13-11.1/wsj1/si_tr_s/4ax/4axc0218.wav
                 str(db_dir.joinpath(*Path(rir).parts[-6:]))
-                for rir in ex['audio_path']['speech_source']
-            ]
-
-            ex['audio_path']['rir'] = [
-                # .../sms_wsj/cache/rirs/train_si284/0/h_0.wav
-                str(db_dir.joinpath(*Path(rir).parts[-4:]))
-                for rir in ex['audio_path']['rir']
+                for rir in ex['audio_path']['original_source']
             ]
 
             rng = _example_id_to_rng(ex_id)
@@ -101,7 +99,7 @@ def main(db_dir, intermed_json_path , write_all, json_path, snr_range):
     message = f'Not all wav files seem to exists, you have {num_wav_files},' \
         f' please check your db directory: {db_dir}'
     if write_all:
-        assert num_wav_files == (2 * 2 + 2) * 35875, message
+        assert num_wav_files in [(2 * speakers + 2) * 35875 for speakers in [2, 3, 4]], message
     else:
         assert num_wav_files == 35875, message
     updated_json = create_json(db_dir, intermed_json_path , write_all,

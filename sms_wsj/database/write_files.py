@@ -25,6 +25,7 @@ KEY_MAPPER = {
     'speech_reverberation_tail': 'tail',
     'noise_image': 'noise',
     'observation': 'observation',
+    'speech_source': 'speech_source',
 }
 
 
@@ -46,8 +47,12 @@ def audio_read(example):
     :param example: example dict
     :return: example dict with audio_data added
     """
-    audio_keys = ['rir', 'speech_source']
     keys = list(example['audio_path'].keys())
+    if 'wsj_source' in keys:
+        audio_keys = ['rir', 'wsj_source']
+    else:
+        # legacy code
+        audio_keys = ['rir', 'original_source']
     example['audio_data'] = dict()
     for audio_key in audio_keys:
         assert audio_key in keys, (
@@ -104,11 +109,23 @@ def write_wavs(dst_dir, json_path, write_all=False, snr_range=(20, 30)):
                 del audio_dict['speech_reverberation_early']
                 del audio_dict['speech_reverberation_tail']
                 del audio_dict['noise_image']
-            assert (
-                all([np.max(np.abs(v)) <= 1 for v in audio_dict.values()])
-            ), (
+
+            def get_abs_max(a):
+                if isinstance(a, np.ndarray):
+                    if a.dtype == np.object:
+                        return np.max(list(map(get_abs_max, a)))
+                    else:
+                        return np.max(np.abs(a))
+                elif isinstance(a, (tuple, list)):
+                    return np.max(list(map(get_abs_max, a)))
+                elif isinstance(a, dict):
+                    return np.max(list(map(get_abs_max, a.values())))
+                else:
+                    raise TypeError(a)
+
+            assert get_abs_max(audio_dict), (
                 example_id, {
-                    k: np.max(np.abs(v)) for k, v in audio_dict.items()
+                    k: get_abs_max(v) for k, v in audio_dict.items()
                 }
             )
             for key, value in audio_dict.items():
@@ -135,7 +152,10 @@ def write_wavs(dst_dir, json_path, write_all=False, snr_range=(20, 30)):
         print(f"Written {len(created_files)} wav files.")
         if write_all:
             # TODO Less, if you do a test run.
-            expect = (2 * 2 + 2) * 35875
+            num_speakers = 2  # todo infer num_speakers from json
+            # 2 files for: early, tail, speech_source
+            # 1 file for: observation, noise
+            expect = (3 * num_speakers + 2) * 35875
             assert len(created_files) == expect, (
                 len(created_files), expect
             )
