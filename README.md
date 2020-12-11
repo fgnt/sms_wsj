@@ -15,53 +15,6 @@ Further, we argue that the tooling around [WSJ0-2MIX database](https://www.merl.
 Therefore, we provide a spatial clustering baseline and a Kaldi ASR baseline.
 Researchers can now easily improve parts of the pipeline while ensuring that they can fairly compare with baseline results reported in the associated Arxiv paper.
 
-## Properties
-
- - Simulated
- - Two speaker mixtures
-   - 33561 train, 982 dev and 1332 test mixtures
-   - Longest speaker utterance determines mixture length:
-     - ASR on both speakers possible
- - WSJ based: As clean utterances WSJ0 and WSJ1 are used.
- - Sample rate: 8 kHz
- - Reverberated
-   - RIR generator: [Habets](https://github.com/ehabets/RIR-Generator). We use
-     [this](https://github.com/boeddeker/rirgen) python port.
-   - Random room with 6 microphones, see first image in this README.
-   - T60: 200-500 ms
-   - Time of Flight (ToF) compensation jointly over all channels without RIR
-     truncation
-     - A ToF compensation allows to use the source signal as target
-       for signal level metrics like BSSEval SDR and PESQ, but it also allows 
-       the use of ASR alignments for an ASR training.
-     - We do not remove the samples in the RIR before the estimated ToF,
-       because that would imply, that we assume there is an error in the RIR
-       generator.
-   - Early-Late split
-     - We propose a split of the RIR in the early and late part. In this way
-       the early RIR convolved with the speech source can be used as target
-       for NN losses (e.g. negative SDR). Note: This is not a target signal 
-       for metrics, because it is far away from a unique definition (Don't
-       modify the target signal if you want to judge your system).
-     - Proposed default: 50 ms (Motivated by the REVERB challange)
- - Noise
-   - 20-30 dB Additive white Gaussian noise (AWGN)
-      - We decided to use just simple noise, because we don't know, how to
-        simulate realistic multichannel noise.
-        (e.g. a point noise source is unrealistic)
-      - We used low volume noise, because it is just AWGN noise.
- - **Each unique utterance exactly equally often**
-    - While the utterances that are used to create are randomly chosen, 
-      we used a sampling algorithm, that guarantees, that each utterance is 
-      equally often used. This ensures, that the "Word" distribution is exactly
-      the same as the distribution of WSJ0 and WSJ1.
-    - Many other mixture databases just sample randomly the utterances and
-      don't ensure that each utterance appears equally often.
-    - Randomization approach can be generalized to more speakers.
- - Random and deterministic
- - Exclude verbalized punctuation
- 
-
 ## How can I cite this work? Where are baseline results?
 The associated paper can be found here: https://arxiv.org/abs/1910.13934
 If you are using this code please cite the paper as follows:
@@ -111,6 +64,53 @@ Use the following command to train the baseline ASR model:
 $ python -m sms_wsj.train_baseline_asr with egs_path=$KALDI_ROOT/egs/ json_path=/path/to/sms_wsj.json
 ```
 The script has been tested with the KALDI Git hash "7637de77e0a77bf280bef9bf484e4f37c4eb9475"
+
+
+## Properties
+
+ - Simulated
+ - Two speaker mixtures
+   - 33561 train, 982 dev and 1332 test mixtures
+   - Longest speaker utterance determines mixture length:
+     - ASR on both speakers possible
+ - WSJ based: As clean utterances WSJ0 and WSJ1 are used.
+ - Sample rate: 8 kHz
+ - Reverberated
+   - RIR generator: [Habets](https://github.com/ehabets/RIR-Generator). We use
+     [this](https://github.com/boeddeker/rirgen) python port.
+   - Random room with 6 microphones, see first image in this README.
+   - T60: 200-500 ms
+   - Time of Flight (ToF) compensation jointly over all channels without RIR
+     truncation
+     - A ToF compensation allows to use the source signal as target
+       for signal level metrics like BSSEval SDR and PESQ, but it also allows
+       the use of ASR alignments for an ASR training.
+     - We do not remove the samples in the RIR before the estimated ToF,
+       because that would imply, that we assume there is an error in the RIR
+       generator.
+   - Early-Late split
+     - We propose a split of the RIR in the early and late part. In this way
+       the early RIR convolved with the speech source can be used as target
+       for NN losses (e.g. negative SDR). Note: This is not a target signal
+       for metrics, because it is far away from a unique definition (Don't
+       modify the target signal if you want to judge your system).
+     - Proposed default: 50 ms (Motivated by the REVERB challange)
+ - Noise
+   - 20-30 dB Additive white Gaussian noise (AWGN)
+      - We decided to use just simple noise, because we don't know, how to
+        simulate realistic multichannel noise.
+        (e.g. a point noise source is unrealistic)
+      - We used low volume noise, because it is just AWGN noise.
+ - **Each unique utterance exactly equally often**
+    - While the utterances that are used to create are randomly chosen,
+      we used a sampling algorithm, that guarantees, that each utterance is
+      equally often used. This ensures, that the "Word" distribution is exactly
+      the same as the distribution of WSJ0 and WSJ1.
+    - Many other mixture databases just sample randomly the utterances and
+      don't ensure that each utterance appears equally often.
+    - Randomization approach can be generalized to more speakers.
+ - Random and deterministic
+ - Exclude verbalized punctuation
 
 
 ## FAQ
