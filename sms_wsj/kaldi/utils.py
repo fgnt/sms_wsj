@@ -10,7 +10,7 @@ from lazy_dataset.database import JsonDatabase
 from sms_wsj import git_root
 
 DB2AudioKeyMapper = dict(
-    wsj_8k='speech_source',
+    wsj_8k='original_source',
     sms_early='speech_reverberation_early',
     sms='observation',
     noise='noise_image',
