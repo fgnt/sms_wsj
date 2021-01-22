@@ -112,6 +112,73 @@ The script has been tested with the KALDI Git hash "7637de77e0a77bf280bef9bf484e
  - Random and deterministic
  - Exclude verbalized punctuation
 
+## How to use this database?
+
+Once you installed this repository and created the sms_wsj database,
+there are a few ways, how you can use this database:
+
+ - Manually read the files from the filesystem (Recommented, when you don't work with python or don't want to use the provided code)
+ - Manually read the json (Not recommented)
+ - Use some helper from us to:
+   - Load all interested files from the disk (Recommented for local file systems)
+   - Load only original WSJ utterances and the RIRs and generate the examples on the fly with the help of the json. (Recommented for remote file systems, we mainly use this)
+     - This requires some CPU time. This can be done in a backgroud threadpool, e.g. `lazy_dataset.Dataset.prefetch`, for NN experiments, where the CPU often idls, while the GPU is working.
+     - This allows dynamic mixing of the examples, e.g. nearly infinitely large training dataset.
+
+On the file system you will find files like `.../observation/train_si284/0_4axc0218_01kc020f.wav`.
+Here an explanation, how the name is generated:
+-  `observation`: signal type
+    -  `observation` = `early` + `tail` + `noise`
+    -  `speech_source` convolved with `rirs` = `early` + `tail`
+    -  `speech_source`: The padded signal from WSJ.
+    -  `early`/`tail`: `speech_source` convolved with inital/late part of `rirs`
+-  `train_si284`: This is the original WSJ dataset name.
+-  `0_4axc0218_01kc020f`:
+    -  The first part is a running index for the generated `rirs`
+    -  The second and third part are the speaker ids
+    -  An optional fourth part is added, when the file is speaker specific, e.g. `speech_source`, `early` and `tail`
+
+The database creation generated a json file. This file contains all information about the database.
+The pattern is as follows:
+```python
+{
+  "datasets": {
+    dataset_name: {  # "train_si284", "cv_dev93" or "test_eval92"
+      example_id: {  # <rir_index>_<first_speaker_id>_<second_speaker_id>
+        "room_dimensions": [[...], [...], [...]]],
+        "sound_decay_time": ...,
+        "source_position": [[..., ...], [..., ...], [..., ...]]
+        "sensor_position": [[..., ..., ..., ..., ..., ...], [..., ..., ..., ..., ..., ...], [..., ..., ..., ..., ..., ...]],
+        "example_id": "...",
+        "num_speakers": 2,
+        "speaker_id": ["...", "..."],
+        "gender": ["...", "..."],  # "male" or "female"
+        "kaldi_transcription": ["...", "..."],
+        "log_weights": [..., ...],  # weights of utterances before the are added
+        "num_samples": {
+          "original_source": [..., ...],
+          "observation": ...,
+        },
+        "offset": [..., ...]  # Offset of utterance start in samples
+        "snr": ...,
+        "audio_path": {
+          "original_source": ["...", "..."],
+          "speech_source": ["...", "..."],
+          "rir": ["...", "..."],
+          "speech_reverberation_early": ["...", "..."],
+          "speech_reverberation_tail": ["...", "..."],
+          "noise_image": "...",
+          "observation": "...",
+        }
+      }
+    }
+  }
+}
+```
+
+ToDo: example codes how to load examples with our code.
+
+
 
 ## FAQ
 ### Q: How large is the disc capacity required for the database?
