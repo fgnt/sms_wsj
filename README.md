@@ -180,6 +180,7 @@ To read it with python, we have some helper functions:
 <!-- To access now one (or multiple) examples, you can use the following setup code: -->
 
 ```python
+from sms_wsj.database import SmsWsj, AudioReader
 db = SmsWsj(json_path='.../sms_wsj.json')
 ds = db.get_dataset('train_si284')  # "train_si284", "cv_dev93" or "test_eval92"
 ds = ds.map(AudioReader((
@@ -199,11 +200,13 @@ ds = ds.shuffle(reshuffle=True)
 ```
 
 Now you can access the examples with the dataset instance.
-You can iterate over the dataset (e.g. `for example in ds: ...`) or access examples by their ID, e.g. `ds['0_4axc0218_01kc020f']` (Access with an index (e.g. `ds[42]` only works, when the dataset is not shuffled.)).
-The audio files, that are requested from the `AudioReader` will be loaded on demand and will be available under the key `audio_data` in the `example`
+You can iterate over the dataset (e.g. `for example in ds: ...`) or access examples by their ID, e.g. `ds['0_4axc0218_01kc020f']`
+(Access with an index (e.g. `ds[42]`) only works, when the dataset is not shuffled.).
+The audio files, that are requested from the `AudioReader` will be loaded on demand and will be available under the key `audio_data` in the `example`.
 
 When you want to reduce the IO, you can use the `scenario_map_fn`:
 ```python
+from sms_wsj.database import SmsWsj, AudioReader, scenario_map_fn
 db = SmsWsj(json_path='.../sms_wsj.json')
 ds = db.get_dataset('cv_dev93')  # "train_si284", "cv_dev93" or "test_eval92"
 ds = ds.map(AudioReader((
@@ -217,8 +220,28 @@ ds = ds.shuffle(reshuffle=True)
 # ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
 ```
 This will avoid the reading of the multi channel signals.
-Since the `scenario_map_fn` calculates the convolutions, it can be usefull to use the `prefetch`, so the convolution is done in the backgroud (Note: The [GIL](https://en.wikipedia.org/wiki/Global_interpreter_lock) will be released, so a ThreadPool is enough.).
+Since the `scenario_map_fn` calculates the convolutions, it can be usefull to use the `prefetch`, so the convolution is done in the backgroud
+(Note: The [GIL](https://en.wikipedia.org/wiki/Global_interpreter_lock) will be released, so a ThreadPool is enough.).
 
+The last option, that we provide, is dynamic mixing.
+With each iteration over the dataset, you will get a different utterance.
+The `rir` will always be the same, but the utterances will differ (The calculation of the RIR is to expensive to do it on demand):
+```python
+from sms_wsj.database import SmsWsj, AudioReader, scenario_map_fn
+from sms_wsj.database.dynamic_mixing import SMSWSJRandomDataset
+db = SmsWsj(json_path='.../sms_wsj.json')
+ds = db.get_dataset('train_si284')
+ds = SMSWSJRandomDataset(ds)
+ds = ds.map(AudioReader((
+    'original_source',
+    'rir',
+)))
+ds = ds.map(scenario_map_fn)  # Calculates all signals from `original_source` and `RIR`
+ds = ds.shuffle(reshuffle=True)
+# ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
+# ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
+# ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
+```
 
 ## FAQ
 ### Q: How large is the disc capacity required for the database?
