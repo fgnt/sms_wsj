@@ -119,7 +119,7 @@ there are a few ways, how you can use this database:
 
  - Manually read the files from the filesystem (Recommented, when you don't work with python or don't want to use the provided code)
  - Manually read the json (Not recommented)
- - Use some helper from us to:
+ - Use some helper functions from us to:
    - Load all interested files from the disk (Recommented for local file systems)
    - Load only original WSJ utterances and the RIRs and generate the examples on the fly with the help of the json. (Recommented for remote file systems, we mainly use this)
      - This requires some CPU time. This can be done in a backgroud threadpool, e.g. `lazy_dataset.Dataset.prefetch`, for NN experiments, where the CPU often idls, while the GPU is working.
@@ -130,9 +130,9 @@ Here an explanation, how the name is generated:
 -  `observation`: signal type
     -  `observation` = `early` + `tail` + `noise`
     -  `speech_source` convolved with `rirs` = `early` + `tail`
-    -  `speech_source`: The padded signal from WSJ.
+    -  `speech_source`: The padded signal from WSJ (i.e. `original_source`).
     -  `early`/`tail`: `speech_source` convolved with inital/late part of `rirs`
--  `train_si284`: This is the original WSJ dataset name.
+-  `train_si284`/`cv_dev93`/`test_eval92`: This is the original WSJ dataset name.
 -  `0_4axc0218_01kc020f`:
     -  The first part is a running index for the generated `rirs`
     -  The second and third part are the speaker ids
@@ -175,9 +175,49 @@ The pattern is as follows:
   }
 }
 ```
+This file can be used to get all details for each example.
+To read it with python, we have some helper functions:
+<!-- To access now one (or multiple) examples, you can use the following setup code: -->
 
-ToDo: example codes how to load examples with our code.
+```python
+db = SmsWsj(json_path='.../sms_wsj.json')
+ds = db.get_dataset('train_si284')  # "train_si284", "cv_dev93" or "test_eval92"
+ds = ds.map(AudioReader((
+    'observation',
+    'speech_source',
+    # 'original_source',
+    # 'speech_reverberation_early',
+    # 'speech_reverberation_tail',
+    'speech_image',
+    # 'noise_image',
+    # 'rir',
+)))
+ds = ds.shuffle(reshuffle=True)
+# ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
+# ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
+# ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
+```
 
+Now you can access the examples with the dataset instance.
+You can iterate over the dataset (e.g. `for example in ds: ...`) or access examples by their ID, e.g. `ds['0_4axc0218_01kc020f']` (Access with an index (e.g. `ds[42]` only works, when the dataset is not shuffled.)).
+The audio files, that are requested from the `AudioReader` will be loaded on demand and will be available under the key `audio_data` in the `example`
+
+When you want to reduce the IO, you can use the `scenario_map_fn`:
+```python
+db = SmsWsj(json_path='.../sms_wsj.json')
+ds = db.get_dataset('cv_dev93')  # "train_si284", "cv_dev93" or "test_eval92"
+ds = ds.map(AudioReader((
+    'original_source',
+    'rir',
+)))
+ds = ds.map(scenario_map_fn)  # Calculates all signals from `original_source` and `RIR`
+ds = ds.shuffle(reshuffle=True)
+# ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
+# ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
+# ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
+```
+This will avoid the reading of the multi channel signals.
+Since the `scenario_map_fn` calculates the convolutions, it can be usefull to use the `prefetch`, so the convolution is done in the backgroud (Note: The [GIL](https://en.wikipedia.org/wiki/Global_interpreter_lock) will be released, so a ThreadPool is enough.).
 
 
 ## FAQ
