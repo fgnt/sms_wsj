@@ -201,8 +201,7 @@ def split_rirs_and_sources(
                 },
             )
 
-    source_ds = lazy_dataset.new(
-        dict(list(filter_duplicates(ds.map(get_sources).unbatch()))))
+    source_ds = lazy_dataset.new(dict(list(ds.map(get_sources).unbatch())))
 
     def get_rir_ex(ex):
         example_id = ex['example_id'].split('_')[0]
@@ -220,7 +219,7 @@ def split_rirs_and_sources(
             }
         )
 
-    rir_ds = lazy_dataset.from_dict(dict(list(ds.map(get_rir_ex))))
+    rir_ds = lazy_dataset.new(dict(list(ds.map(get_rir_ex))))
     assert len(rir_ds) == len(ds), (len(rir_ds), len(ds))
 
     return rir_ds, source_ds
