@@ -117,28 +117,28 @@ The script has been tested with the KALDI Git hash "7637de77e0a77bf280bef9bf484e
 Once you installed this repository and created the sms_wsj database,
 there are a few ways, how you can use this database:
 
- - Manually read the files from the filesystem (Recommented, when you don't work with python or don't want to use the provided code)
- - Manually read the json (Not recommented)
+ - Manually read the files from the filesystem (Recommended, when you don't work with python or don't want to use the provided code)
+ - Manually read the json (Not recommended)
  - Use some helper functions from us to:
-   - Load all interested files from the disk (Recommented for local file systems)
-   - Load only original WSJ utterances and the RIRs and generate the examples on the fly with the help of the json. (Recommented for remote file systems, we mainly use this)
-     - This requires some CPU time. This can be done in a backgroud threadpool, e.g. `lazy_dataset.Dataset.prefetch`, for NN experiments, where the CPU often idls, while the GPU is working.
-     - This allows dynamic mixing of the examples, e.g. nearly infinitely large training dataset.
+   - Load all desired files from the disk (Recommended for local file systems)
+   - Load only original WSJ utterances and the RIRs and generate the examples on the fly with the help of the json. (Recommended for remote file systems, we mainly use this)
+     - This requires some CPU time. It can be done in a backgroud threadpool, e.g. `lazy_dataset.Dataset.prefetch`, for NN experiments, where the CPU often idles, while the GPU is working.
+     - This allows dynamic mixing of the examples, e.g. creating a nearly infinitely large training dataset.
 
 On the file system you will find files like `.../observation/train_si284/0_4axc0218_01kc020f.wav`.
-Here an explanation, how the name is generated:
+Here an explanation, how the path and file name are generated:
 -  `observation`: signal type
     -  `observation` = `early` + `tail` + `noise`
     -  `speech_source` convolved with `rirs` = `early` + `tail`
     -  `speech_source`: The padded signal from WSJ (i.e. `original_source`).
     -  `early`/`tail`: `speech_source` convolved with inital/late part of `rirs`
--  `train_si284`/`cv_dev93`/`test_eval92`: This is the original WSJ dataset name.
+-  `train_si284`/`cv_dev93`/`test_eval92`: The original WSJ dataset name.
 -  `0_4axc0218_01kc020f`:
     -  The first part is a running index for the generated `rirs`
     -  The second and third part are the speaker ids
     -  An optional fourth part is added, when the file is speaker specific, e.g. `speech_source`, `early` and `tail`
 
-The database creation generated a json file. This file contains all information about the database.
+The database creation generates a json file. This file contains all information about the database.
 The pattern is as follows:
 ```python
 {
@@ -177,7 +177,7 @@ The pattern is as follows:
 ```
 This file can be used to get all details for each example.
 To read it with python, we have some helper functions:
-<!-- To access now one (or multiple) examples, you can use the following setup code: -->
+<!-- To access one (or multiple) examples, you can use the following setup code: -->
 
 ```python
 from sms_wsj.database import SmsWsj, AudioReader
@@ -204,7 +204,7 @@ You can iterate over the dataset (e.g. `for example in ds: ...`) or access examp
 (Access with an index (e.g. `ds[42]`) only works, when the dataset is not shuffled.).
 The audio files, that are requested from the `AudioReader` will be loaded on demand and will be available under the key `audio_data` in the `example`.
 
-When you want to reduce the IO, you can use the `scenario_map_fn`:
+If you want to reduce the IO, you can use the `scenario_map_fn`:
 ```python
 from sms_wsj.database import SmsWsj, AudioReader, scenario_map_fn
 db = SmsWsj(json_path='.../sms_wsj.json')
@@ -225,7 +225,7 @@ Since the `scenario_map_fn` calculates the convolutions, it can be usefull to us
 
 The last option, that we provide, is dynamic mixing.
 With each iteration over the dataset, you will get a different utterance.
-The `rir` will always be the same, but the utterances will differ (The calculation of the RIR is to expensive to do it on demand):
+The `rir` will always be the same, but the utterances will differ (The simulation of the RIR is too expensive to do it on demand):
 ```python
 from sms_wsj.database import SmsWsj, AudioReader, scenario_map_fn
 from sms_wsj.database.dynamic_mixing import SMSWSJRandomDataset
