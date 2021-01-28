@@ -125,18 +125,27 @@ there are a few ways, how you can use this database:
      - This requires some CPU time. It can be done in a backgroud threadpool, e.g. `lazy_dataset.Dataset.prefetch`, for NN experiments, where the CPU often idles, while the GPU is working.
      - This allows dynamic mixing of the examples, e.g. creating a nearly infinitely large training dataset.
 
-On the file system you will find files like `.../observation/train_si284/0_4axc0218_01kc020f.wav`.
-Here an explanation, how the path and file name are generated:
--  `observation`: signal type
-    -  `observation` = `early` + `tail` + `noise`
-    -  `speech_source` convolved with `rirs` = `early` + `tail`
-    -  `speech_source`: The padded signal from WSJ (i.e. `original_source`).
-    -  `early`/`tail`: `speech_source` convolved with inital/late part of `rirs`
--  `train_si284`/`cv_dev93`/`test_eval92`: The original WSJ dataset name.
--  `0_4axc0218_01kc020f`:
-    -  The first part is a running index for the generated `rirs`
-    -  The second and third part are the speaker ids
-    -  An optional fourth part is added, when the file is speaker specific, e.g. `speech_source`, `early` and `tail`
+On the file system you will find files like `.../<signal_type>/<dataset>/<rir_id>_<1_wsj_id>_<2_wsj_id>[_<utt_index>].wav` (e.g. `.../observation/train_si284/0_4axc0218_01kc020f.wav`).
+Here an explanation, how the path and file names are generated:
+-  `<signal_type>`:
+    - Possible values: `observation`, `speech_source`, `early`, `tail` or `noise`
+    - `observation` = `early` + `tail` + `noise`
+    - `speech_source` convolved with `rirs` = `early` + `tail`
+    - `speech_source`: The padded signal from WSJ (i.e. `original_source`).
+    - `early`/`tail`: `speech_source` convolved with inital/late part of `rirs`
+    - Note: `speech_image` must be calculated as `early` + `tail`
+    - Note: The WSJ files are mirrored to `wsj_8k_zeromean` and converted to `wav` files and downsamples. Because we simply mirror, the easiest way to find the `original_source` is to use the json.
+-  `<dataset>`:
+    - Possible values: `train_si284`/`cv_dev93`/`test_eval92`
+    - The original WSJ dataset name.
+- `<rir_id>`:
+    - A running index for the generated room impulse responses (RIR).
+- `<1_wsj_id>`, `<2_wsj_id>`:
+    - The WSJ utterance IDs that are used to generate the mixture.
+- `<utt_index>`:
+    - Possible values: `0` and `1`
+    - An index, which WSJ utterance/speaker is present in the wav file.
+    - Omitted for the observation.
 
 The database creation generates a json file. This file contains all information about the database.
 The pattern is as follows:
@@ -193,7 +202,7 @@ ds = ds.map(AudioReader((
     # 'noise_image',
     # 'rir',
 )))
-ds = ds.shuffle(reshuffle=True)
+# ds = ds.shuffle(reshuffle=True)
 # ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
 # ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
 # ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
@@ -214,7 +223,7 @@ ds = ds.map(AudioReader((
     'rir',
 )))
 ds = ds.map(scenario_map_fn)  # Calculates all signals from `original_source` and `RIR`
-ds = ds.shuffle(reshuffle=True)
+# ds = ds.shuffle(reshuffle=True)
 # ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
 # ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
 # ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
@@ -237,7 +246,7 @@ ds = ds.map(AudioReader((
     'rir',
 )))
 ds = ds.map(scenario_map_fn)  # Calculates all signals from `original_source` and `RIR`
-ds = ds.shuffle(reshuffle=True)
+# ds = ds.shuffle(reshuffle=True)
 # ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
 # ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
 # ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
