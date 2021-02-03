@@ -471,12 +471,12 @@ def get_scores(
         )
 
     result = metric.as_dict()
-    del result['mir_eval_sxr_selection']
-    del result['mir_eval_sxr_sar']
-    del result['mir_eval_sxr_sir']
+    del result['mir_eval_selection']
+    del result['mir_eval_sar']
+    del result['mir_eval_sir']
     if 'invasive_sxr_sir' in result:
-        del result['invasive_sxr_sir']
-        del result['invasive_sxr_snr']
+        del result['invasive_sir']
+        del result['invasive_snr']
 
     return metric, result
 
