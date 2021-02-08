@@ -130,10 +130,10 @@ Here an explanation, how the path and file names are generated:
 -  `<signal_type>`:
     - Possible values: `observation`, `speech_source`, `early`, `tail` or `noise`
     - `observation` = `early` + `tail` + `noise`
-    - `speech_source` convolved with `rirs` = `early` + `tail`
     - `speech_source`: The padded signal from WSJ (i.e. `original_source`).
     - `early`/`tail`: `speech_source` convolved with inital/late part of `rirs`
     - Note: `speech_image` must be calculated as `early` + `tail`
+      - `speech_image` = `early` + `tail` = `speech_source` convolved with `rirs`
     - Note: The WSJ files are mirrored to `wsj_8k_zeromean` and converted to `wav` files and downsamples. Because we simply mirror, the easiest way to find the `original_source` is to use the json.
 -  `<dataset>`:
     - Possible values: `train_si284`/`cv_dev93`/`test_eval92`
@@ -202,10 +202,6 @@ ds = ds.map(AudioReader((
     # 'noise_image',
     # 'rir',
 )))
-# ds = ds.shuffle(reshuffle=True)
-# ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
-# ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
-# ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
 ```
 
 Now you can access the examples with the dataset instance.
@@ -223,10 +219,6 @@ ds = ds.map(AudioReader((
     'rir',
 )))
 ds = ds.map(scenario_map_fn)  # Calculates all signals from `original_source` and `RIR`
-# ds = ds.shuffle(reshuffle=True)
-# ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
-# ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
-# ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
 ```
 This will avoid the reading of the multi channel signals.
 Since the `scenario_map_fn` calculates the convolutions, it can be usefull to use the `prefetch`, so the convolution is done in the backgroud
@@ -246,10 +238,15 @@ ds = ds.map(AudioReader((
     'rir',
 )))
 ds = ds.map(scenario_map_fn)  # Calculates all signals from `original_source` and `RIR`
-# ds = ds.shuffle(reshuffle=True)
-# ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
-# ds = ds.batch(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
-# ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
+```
+
+Once you have a `Dataset` instance, you can perfrom shuffeling, batching (with a collate function) and prefetching with a thead/process pool:
+
+```python
+ds = ds.shuffle(reshuffle=True)
+ds = ds.batch(batch_size)  # Create a list from `batch_size` consecutive examples
+ds = ds.map(my_collate_fn)  # e.g. sort the batch, pad/cut examples, move outer list to batch axis, ...
+ds = ds.prefetch(4, 8)  # Use a ThreadPool with 4 threads to prefetch examples
 ```
 
 ## FAQ
