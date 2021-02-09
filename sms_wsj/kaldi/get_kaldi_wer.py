@@ -199,8 +199,10 @@ def default():
         data_type = 'sms_enh'
 
     # only used with audio_dir
-    id_to_file_name = '{}_0.wav'
+    id_to_file_name = '{}_{}.wav'
     target_speaker = [0, 1]
+    if isinstance(target_speaker, (list, tuple)) and len(target_speaker) > 1:
+        assert id_to_file_name.count('{}') == 2, id_to_file_name
     ref_channels = 0
 
     if ref_channels > 0 and isinstance(data_type, (list, tuple)):
