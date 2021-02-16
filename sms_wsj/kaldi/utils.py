@@ -137,7 +137,7 @@ def create_data_dir(
 
 
 def create_data_dir_from_audio_dir(
-        audio_dir, kaldi_dir, id_to_file_name='{}_0.wav', db=None,
+        audio_dir, kaldi_dir, id_to_file_name='{id}_{spk}.wav', db=None,
         json_path=None, dataset_names=None, data_type='wsj_8k',
         target_speaker=0, ref_channels=0
 ):
@@ -145,7 +145,11 @@ def create_data_dir_from_audio_dir(
     Wrapper calling _create_data_dir for data_dirs from audio_dir
     """
     if isinstance(id_to_file_name, str):
-        id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(_id, spk)
+        if '{}' in id_to_file_name:
+            id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(_id, spk)
+        else:
+            id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(
+                id=_id, spk=spk)
     else:
         id_to_file_name_fn = id_to_file_name
     assert callable(id_to_file_name_fn), id_to_file_name_fn
