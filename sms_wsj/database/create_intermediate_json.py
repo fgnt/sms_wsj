@@ -183,20 +183,28 @@ def extend_composition_example_greedy(rng, speaker_ids, example_compositions=Non
 
 
 def get_randomized_example(
-    rir_example, source_examples, rng, dataset_name, database_path
+    rir_example, source_examples, rng, dataset_name
 ):
+    example_id = "_".join([
+        rir_example['example_id'],
+        *[source_ex["example_id"] for source_ex in source_examples],
+    ])
+    rng = get_rng(dataset_name, example_id)
+
     example = copy(rir_example)
+    example['example_id'] = example_id
+    example['dataset'] = dataset_name
+
     assert len(source_examples) <= len(example['source_position'][0])
     num_speakers = len(source_examples)
 
+    # Remove unused source positions and rirs (i.e. the scenarios.json was
+    # maybe generated with more speakers)
     example['source_position'] = [
-        source_position[:num_speakers]
-        for source_position in example['source_position']
-    ]
+        v[:num_speakers] for v in example['source_position']]
+    example['audio_path']['rir'] = example['audio_path']['rir'][:num_speakers]
 
     example['num_speakers'] = num_speakers
-
-    rir_id = rir_example['example_id']
 
     example['speaker_id'] = [exa['speaker_id'] for exa in source_examples]
 
@@ -222,7 +230,7 @@ def get_randomized_example(
 
     example['num_samples'] = dict()
     example['num_samples']['original_source'] = [
-        _get_num_samples(exa['num_samples']['observation'])
+        _get_num_samples(exa['num_samples'])
         for exa in source_examples
     ]
     example['num_samples']['observation'] = max(
@@ -238,16 +246,55 @@ def get_randomized_example(
         assert excess_samples >= 0, excess_samples
         example["offset"].append(rng.randint(0, excess_samples + 1))
 
-    example['audio_path'] = dict()
     example['audio_path']['original_source'] = [
         exa['audio_path']['observation'] for exa in source_examples
     ]
-    example['audio_path']['rir'] = [
-        str(database_path / dataset_name / rir_id / f"h_{k}.wav")
-        for k in range(example['num_speakers'])
-    ]
-
+    # example['audio_path']['rir']: Already defined in rir_example.
     return example
+
+
+def combine_rirs_and_sources(
+        rir_dataset,
+        source_dataset,
+        num_speakers,
+        dataset_name,
+):
+    # The keys of rir_dataset are integers. Sort the rirs based on this
+    # integer.
+    rir_dataset = rir_dataset.sort(sort_fn=functools.partial(sorted, key=int))
+
+    assert len(rir_dataset) % len(source_dataset) == 0, (len(rir_dataset), len(source_dataset))
+    repetitions = len(rir_dataset) // len(source_dataset)
+
+    source_dataset = source_dataset.sort()
+    source_dataset = list(source_dataset.tile(repetitions))
+
+    speaker_ids = [example['speaker_id'] for example in source_dataset]
+
+    rng = get_rng(dataset_name, 'example_compositions')
+
+    composition_examples = None
+    for _ in range(num_speakers):
+        composition_examples = extend_composition_example_greedy(
+            rng, speaker_ids, example_compositions=composition_examples,
+        )
+
+    ex_dict = dict()
+    assert len(rir_dataset) == len(composition_examples), (len(rir_dataset), len(composition_examples))
+    for rir_example, composition_example in zip(
+            rir_dataset, composition_examples
+    ):
+        source_examples = [source_dataset[i] for i in composition_example]
+
+        example = get_randomized_example(
+            rir_example,
+            source_examples,
+            rng,
+            dataset_name,
+        )
+        ex_dict[example['example_id']] = example
+
+    return ex_dict
 
 
 @ex.config
@@ -283,6 +330,7 @@ def main(
     assert wsj_json_path.is_file(), json_path
     assert rir_dir.exists(), rir_dir
 
+    # ToDo: What was the motivation for defining this "setup"?
     setup = dict(
         train_si284=dict(source_dataset_name="train_si284"),
         cv_dev93=dict(source_dataset_name="cv_dev93"),
@@ -298,25 +346,25 @@ def main(
 
     for dataset_name in setup.keys():
         source_dataset_name = setup[dataset_name]["source_dataset_name"]
-        source_iterator = source_db.get_dataset(source_dataset_name)
-        print(f'length of source {dataset_name}: {len(source_iterator)}')
-        source_iterator = source_iterator.filter(
+        source_dataset = source_db.get_dataset(source_dataset_name)
+        print(f'length of source {dataset_name}: {len(source_dataset)}')
+        source_dataset = source_dataset.filter(
             filter_fn=filter_punctuation_pronunciation, lazy=False
         )
         print(
-            f'length of source {dataset_name}: {len(source_iterator)} '
+            f'length of source {dataset_name}: {len(source_dataset)} '
             '(after punctuation filter)'
         )
 
-        rir_iterator = rir_db.get_dataset(dataset_name)
+        rir_dataset = rir_db.get_dataset(dataset_name)
 
-        assert len(rir_iterator) % len(source_iterator) == 0, (
+        assert len(rir_dataset) % len(source_dataset) == 0, (
             f'To avoid a bias towards certain utterance the len '
-            f'rir_iterator ({len(rir_iterator)}) should be an integer '
-            f'multiple of len source_iterator ({len(source_iterator)}).'
+            f'rir_dataset ({len(rir_dataset)}) should be an integer '
+            f'multiple of len source_dataset ({len(source_dataset)}).'
         )
 
-        print(f'length of rir {dataset_name}: {len(rir_iterator)}')
+        print(f'length of rir {dataset_name}: {len(rir_dataset)}')
 
         probe_path = rir_dir / dataset_name / "0"
         available_speaker_positions = len(list(probe_path.glob('h_*.wav')))
@@ -328,60 +376,26 @@ def main(
         info = soundfile.info(str(rir_dir / dataset_name / "0" / "h_0.wav"))
         sample_rate_rir = info.samplerate
 
-        ex_wsj = source_iterator.random_choice(1)[0]
+        ex_wsj = source_dataset.random_choice(1)[0]
         info = soundfile.SoundFile(ex_wsj['audio_path']['observation'])
         sample_rate_wsj = info.samplerate
         assert sample_rate_rir == sample_rate_wsj, (
             sample_rate_rir, sample_rate_wsj
         )
 
-        rir_iterator = rir_iterator.sort(
-            sort_fn=functools.partial(sorted, key=int)
+        if debug:
+            rir_dataset = rir_dataset[:DEBUG_EXAMPLE_LIMIT]
+            # Use step_size to avoid that only one speaker is in
+            # source_iterator.
+            step_size = len(source_dataset) // DEBUG_EXAMPLE_LIMIT
+            source_dataset = source_dataset[::step_size]
+
+        ex_dict = combine_rirs_and_sources(
+            rir_dataset=rir_dataset,
+            source_dataset=source_dataset,
+            num_speakers=num_speakers,
+            dataset_name=dataset_name,
         )
-
-        source_iterator = source_iterator.sort()
-        assert len(rir_iterator) % len(source_iterator) == 0
-        repeats = len(rir_iterator) // len(source_iterator)
-        source_iterator = source_iterator.tile(repeats)
-
-        speaker_ids = [example['speaker_id'] for example in source_iterator]
-
-        rng = get_rng(dataset_name, 'example_compositions')
-
-        composition_examples = None
-        for _ in range(num_speakers):
-            composition_examples = extend_composition_example_greedy(
-                rng, speaker_ids, example_compositions=composition_examples,
-            )
-
-        ex_dict = dict()
-        assert len(rir_iterator) == len(composition_examples)
-        for rir_example, composition_example in zip(
-                rir_iterator, composition_examples
-        ):
-            source_examples = source_iterator[composition_example]
-
-            example_id = "_".join([
-                rir_example['example_id'],
-                *[source_ex["example_id"] for source_ex in source_examples],
-            ])
-
-            rng = get_rng(dataset_name, example_id)
-            example = get_randomized_example(
-                rir_example,
-                source_examples,
-                rng,
-                dataset_name,
-                rir_dir,
-            )
-            ex_dict[example_id] = example
-            if debug and len(ex_dict) >= DEBUG_EXAMPLE_LIMIT:
-                warnings.warn(
-                    f'DEBUG_EXAMPLE_LIMIT={DEBUG_EXAMPLE_LIMIT} reached for '
-                    f'dataset_name={dataset_name}. Skipping remaining '
-                    f'examples.'
-                )
-                break
 
         target_db['datasets'][dataset_name] = ex_dict
 

@@ -11,9 +11,14 @@ __all__ = [
 
 
 def _example_id_to_rng(example_id):
+    """
+    >>> _example_id_to_rng('example_id').get_state()[1][0]
+    2915193065
+    """
     hash_value = md5(example_id.encode())
     hash_value = int(hash_value.hexdigest(), 16)
-    hash_value = hash_value % 2 ** 32 - 1
+    hash_value -= 1  # legacy operation
+    hash_value = hash_value % 2 ** 32
     return np.random.RandomState(hash_value)
 
 
