@@ -203,8 +203,7 @@ def default():
     # id_to_file_name = '{}_{}.wav' is another possible default, but only
     # if the first {} represents the example id and the second the speaker id
     target_speaker = [0, 1]
-    if isinstance(target_speaker, (list, tuple)) and len(target_speaker) > 1:
-        assert id_to_file_name.count('{}') == 2, id_to_file_name
+
     ref_channels = 0
 
     if ref_channels > 0 and isinstance(data_type, (list, tuple)):

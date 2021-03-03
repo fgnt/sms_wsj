@@ -108,6 +108,7 @@ def _get_wer_command_for_audio_dir(
     except AssertionError:
         audio_path = audio_dir / id_to_file_name_fn(ex_id, spk)
         assert audio_path.exists(), audio_path
+
     wav_command = f'sox {audio_path} -t wav  -b 16 - remix {ref_ch + 1} |'
     return wav_command
 
@@ -146,6 +147,8 @@ def create_data_dir_from_audio_dir(
     """
     if isinstance(id_to_file_name, str):
         if '{}' in id_to_file_name:
+            if isinstance(target_speaker, (list, tuple)) and len(target_speaker) > 1:
+                assert id_to_file_name.count('{}') == 2, id_to_file_name
             id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(_id, spk)
         else:
             id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(
