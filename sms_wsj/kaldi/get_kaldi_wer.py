@@ -14,7 +14,7 @@ $ python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR decode with kaldi_data_dir=/
 
 
 Example call on pc2 (HPC system in paderborn):
-$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:mem=2G:ncpus=1 -t 2h -- python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR decode with kaldi_data_dir=/KALDI/DATA/DIR model_egs_dir=/MODEL/EGS/DIR dataset=test_eval92
+$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:mem=2G:ncpus=1 -t 2h ompi -- python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR decode with kaldi_data_dir=/KALDI/DATA/DIR model_egs_dir=/MODEL/EGS/DIR dataset=test_eval92
 
 """
 
