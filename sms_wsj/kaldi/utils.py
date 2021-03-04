@@ -146,9 +146,8 @@ def create_data_dir_from_audio_dir(
     Wrapper calling _create_data_dir for data_dirs from audio_dir
     """
     if isinstance(id_to_file_name, str):
+
         if '{}' in id_to_file_name:
-            if isinstance(target_speaker, (list, tuple)) and len(target_speaker) > 1:
-                assert id_to_file_name.count('{}') == 2, id_to_file_name
             id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(_id, spk)
         else:
             id_to_file_name_fn = lambda _id, spk: id_to_file_name.format(
@@ -156,6 +155,14 @@ def create_data_dir_from_audio_dir(
     else:
         id_to_file_name_fn = id_to_file_name
     assert callable(id_to_file_name_fn), id_to_file_name_fn
+    if isinstance(target_speaker, (list, tuple)) and len(target_speaker) > 1:
+        assert id_to_file_name_fn('id1', 'spk1') != id_to_file_name_fn(
+            'id1', 'spk2'), (id_to_file_name_fn('id1', 'spk1'),
+                             id_to_file_name_fn('id1', 'spk2'))
+        assert id_to_file_name_fn('id1', 'spk1') != id_to_file_name_fn(
+            'id2', 'spk1'), (id_to_file_name_fn('id1', 'spk1'),
+                             id_to_file_name_fn('id2', 'spk1'))
+
     get_wav_command_fn = partial(
         _get_wav_command_for_audio_dir, audio_dir=audio_dir,
         id_to_file_name_fn=id_to_file_name_fn
