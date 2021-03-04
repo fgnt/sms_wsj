@@ -14,7 +14,7 @@ $ python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR decode with kaldi_data_dir=/
 
 
 Example call on pc2 (HPC system in paderborn):
-$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:mem=2G:ncpus=1 -t 2h ompi -- python -m sms_wsj.kaldi.get_kaldi_wer -F ~/sacred/chime5/arrayBSS/54/kaldi/inear with inear audio_dir=../../audio/dev
+$ ccsalloc --group=hpc-prf-nt1 --res=rset=64:mem=2G:ncpus=1 -t 2h ompi -- python -m sms_wsj.kaldi.get_kaldi_wer -F /EXP/DIR decode with kaldi_data_dir=/KALDI/DATA/DIR model_egs_dir=/MODEL/EGS/DIR dataset=test_eval92
 
 """
 
@@ -36,7 +36,7 @@ kaldi_root = Path(os.environ['KALDI_ROOT'])
 @ex.command
 def create_dir(
         audio_dir: Path, dataset_names=None, base_dir=None, json_path=None, db=None,
-        data_type='sms_enh', id_to_file_name='{}_0.wav', target_speaker=0
+        data_type='sms_enh', id_to_file_name='{id}_{spk}.wav', target_speaker=0
 ):
     """
 
@@ -199,8 +199,11 @@ def default():
         data_type = 'sms_enh'
 
     # only used with audio_dir
-    id_to_file_name = '{}_0.wav'
+    id_to_file_name = '{id}_{spk}.wav'
+    # id_to_file_name = '{}_{}.wav' is another possible default, but only
+    # if the first {} represents the example id and the second the speaker id
     target_speaker = [0, 1]
+
     ref_channels = 0
 
     if ref_channels > 0 and isinstance(data_type, (list, tuple)):
