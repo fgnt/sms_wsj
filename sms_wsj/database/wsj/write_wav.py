@@ -50,7 +50,53 @@ def read_nist_wsj(path, expected_sample_rate=16000):
 
 
 def resample_with_sox(x, rate_in, rate_out):
+    """
+
+    Args:
+        x:
+        rate_in:
+        rate_out:
+
+    Returns:
+        Resampled signal.
+
+    >>> from paderbox.utils.pretty import pprint
+    >>> x = np.ones(10000)
+    >>> pprint(x.flags)
+      C_CONTIGUOUS : True
+      F_CONTIGUOUS : True
+      OWNDATA : True
+      WRITEABLE : True
+      ALIGNED : True
+      WRITEBACKIFCOPY : False
+      UPDATEIFCOPY : False
+    >>> y = resample_with_sox(x, 16000, 8000)
+    >>> pprint(y)
+    array(shape=(5000,), dtype=float32)
+    >>> pprint(y.flags)
+      C_CONTIGUOUS : True
+      F_CONTIGUOUS : True
+      OWNDATA : False
+      WRITEABLE : False
+      ALIGNED : True
+      WRITEBACKIFCOPY : False
+      UPDATEIFCOPY : False
+    >>> y = resample_with_sox(x, 16000, 16000)
+    >>> pprint(y)
+    array(shape=(10000,), dtype=float64)
+    >>> pprint(y.flags)
+      C_CONTIGUOUS : True
+      F_CONTIGUOUS : True
+      OWNDATA : False
+      WRITEABLE : False
+      ALIGNED : True
+      WRITEBACKIFCOPY : False
+      UPDATEIFCOPY : False
+    """
     if rate_in == rate_out:
+        # Mirror readonly output property from np.frombuffer
+        x = x.view()
+        x.flags.writeable = False
         return x
 
     x = x.astype(np.float32)
@@ -64,7 +110,7 @@ def resample_with_sox(x, rate_in, rate_out):
         stderr=subprocess.PIPE,
         input=x.tobytes(order="f")
     )
-    return np.fromstring(process.stdout, dtype=np.float32)
+    return np.frombuffer(process.stdout, dtype=np.float32)
 
 
 @ex.config
@@ -175,7 +221,7 @@ def write_wavs(dst_dir: Path, wsj0_root: Path, wsj1_root: Path, sample_rate):
         target.parent.mkdir(parents=True, exist_ok=True)
         signal = resample_with_sox(signal, rate_in=16000, rate_out=sample_rate)
         # normalization to mean 0:
-        signal -= np.mean(signal)
+        signal = signal - np.mean(signal)
         # normalization:
         #   Correction, because the allowed values are in the range [-1, 1).
         #       => "1" is not a vaild value

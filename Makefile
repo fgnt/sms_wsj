@@ -59,8 +59,7 @@ $(JSON_DIR)/sms_wsj.json: $(JSON_DIR)/intermediate_sms_wsj.json | $(SMS_WSJ_DIR)
 # however if you want to recreate them use "make rirs RIR_DIR=/path/to/storage/"
 rirs:
 	@echo creating $(RIR_DIR)
-	git clone https://github.com/boeddeker/rir-generator.git ./sms_wsj/reverb/rirgen_rep
-	pip install -e sms_wsj/reverb/rirgen_rep/python/
+	pip install git+https://github.com/boeddeker/rirgen
 	mpiexec -np ${num_jobs} python -m sms_wsj.database.create_rirs \
 	with database_path=$(RIR_DIR)
 

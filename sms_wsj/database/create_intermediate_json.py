@@ -356,7 +356,16 @@ def main(
             '(after punctuation filter)'
         )
 
-        rir_dataset = rir_db.get_dataset(dataset_name)
+        def add_rir_path(rir_ex):
+            assert 'audio_path' not in rir_ex, rir_ex
+            example_id = rir_ex['example_id']
+            rir_ex['audio_path'] = {'rir': [
+                str(rir_dir / dataset_name / example_id / f"h_{k}.wav")
+                for k in range(num_speakers)
+            ]}
+            return rir_ex
+
+        rir_dataset = rir_db.get_dataset(dataset_name).map(add_rir_path)
 
         assert len(rir_dataset) % len(source_dataset) == 0, (
             f'To avoid a bias towards certain utterance the len '
