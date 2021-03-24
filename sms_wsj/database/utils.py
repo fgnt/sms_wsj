@@ -170,7 +170,7 @@ def scenario_map_fn(
     h = example['audio_data']['rir']  # Shape (speaker, channel, sample)
 
     # Estimate start sample first, to make it independent of channel_mode
-    # Calculate one rir_start_sample for each speaker.
+    # Calculate one rir_start_sample (i.e. time of flight) for each speaker.
     rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
 
     if channel_slice is not None:
