@@ -132,6 +132,7 @@ def scenario_map_fn(
         add_speech_reverberation_tail=True,
 
         early_rir_samples: int = int(8000 * 0.05),  # 50 milli seconds
+        channel_slice: [None, slice, tuple, list] = None,
 
         details=False,
 ):
@@ -144,20 +145,38 @@ def scenario_map_fn(
     Args:
         example: Example dictionary.
         snr_range: required for noise generation
-        sync_speech_source: pad and/or cut the source signal to match the
-            length of the observations. Considers the offset.
-        add_speech_reverberation_direct:
-            Calculate the speech_reverberation_direct signal.
+        sync_speech_source: Legacy option. The new convention is, that
+            original_source is the unpadded signal, while speech_source is the
+            padded signal.
+            pad and/or cut the source signal to match the length of the
+            observations. Considers the offset.
+        add_speech_reverberation_early:
+            Calculate the add_speech_reverberation_early signal.
         add_speech_reverberation_tail:
             Calculate the speech_reverberation_tail signal.
+        channel_slice: e.g. None (All channels), [4] (Single channel), ...
+            Warning: Use this only for training. It will change the scale of
+            the data and the added white noise.
+            For the scale the standard deviation is estimated and the generated
+            noise shape changes, hence also the values.
+            With this option you can select the interested channels.
+            All RIRs are used to estimate the time of flight, but only the
+            interested channels are convolved with the original/speech source.
+            This reduces computation time and memory consumption.
 
     Returns:
 
     """
-    h = example['audio_data']['rir']  # Shape (K, D, T)
+    h = example['audio_data']['rir']  # Shape (speaker, channel, sample)
 
     # Estimate start sample first, to make it independent of channel_mode
+    # Calculate one rir_start_sample (i.e. time of flight) for each speaker.
     rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
+
+    if channel_slice is not None:
+        assert h.dim == 3, h.shape
+        h = h[:, channel_slice, :]
+        assert h.dim == 3, h.shape
 
     _, D, rir_length = h.shape
 
@@ -186,7 +205,7 @@ def scenario_map_fn(
         x = [fftconvolve(s_[..., None, :], h_, axes=-1)
              for s_, h_ in zip(s, h)]
 
-        assert len(x) == len(example['num_samples']['original_source'])
+        assert len(x) == len(example['num_samples']['original_source']), (len(x), len(example['num_samples']['original_source']))
         for x_, T_ in zip(x, example['num_samples']['original_source']):
             assert x_.shape == (D, T_ + rir_length - 1), (
                 x_.shape, D, T_ + rir_length - 1)
