@@ -211,7 +211,7 @@ def scenario_map_fn(
     s = example['audio_data']['original_source']
 
     def get_convolved_signals(h):
-        assert s.shape[0] == h.shape[0], (s.shape, h.shape)
+        assert len(s) == h.shape[0], (len(s), h.shape)
         x = [fftconvolve(s_[..., None, :], h_, axes=-1)
              for s_, h_ in zip(s, h)]
 
