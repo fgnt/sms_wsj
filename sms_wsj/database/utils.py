@@ -157,13 +157,22 @@ def scenario_map_fn(
             The speech_image is always computed, but when it is not needed,
             this option can reduce the memory consumption.
         add_speech_reverberation_early:
-            Calculate the speech_reverberation_early signal.
+            Calculate the speech_reverberation_early signal, i.e., the speech
+            source (padded original source) convolved with the early part of
+            the RIR.
         add_speech_reverberation_tail:
-            Calculate the speech_reverberation_tail signal.
+            Calculate the speech_reverberation_tail signal, i.e., the speech
+            source (padded original source) convolved with the tail part of
+            the RIR.
         add_noise_image:
             If True, add the noise_image the returned example.
             This option has no effect to the computation time or the peak
             memory consumption.
+        early_rir_samples:
+            The number of samples that we count as the early RIR, default 50ms.
+            The remaining part of the RIR we call tail.
+            Note: The length of the early RIR is the time of flight plus this
+            value.
         channel_slice: e.g. None (All channels), [4] (Single channel), ...
             Warning: Use this only for training. It will change the scale of
             the data and the added white noise.
