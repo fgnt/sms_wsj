@@ -46,4 +46,5 @@ def plot_scenario(ex, ax: plt.Axes = None, *, figsize=(12, 8)):
     ax.set(title=f'Dataset: {ex["dataset"]!r}, ExID: {ex["example_id"]!r}, RT60: {ex["sound_decay_time"]}')
     ax.autoscale(tight=True)
     ax.set_aspect('equal')
+    ax.legend()
     return ax
