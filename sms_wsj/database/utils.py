@@ -193,9 +193,9 @@ def scenario_map_fn(
     rir_start_sample = np.array([get_rir_start_sample(h_k) for h_k in h])
 
     if channel_slice is not None:
-        assert h.dim == 3, h.shape
+        assert h.ndim == 3, h.shape
         h = h[:, channel_slice, :]
-        assert h.dim == 3, h.shape
+        assert h.ndim == 3, h.shape
 
     _, D, rir_length = h.shape
 
