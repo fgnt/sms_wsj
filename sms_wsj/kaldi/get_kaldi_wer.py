@@ -36,7 +36,8 @@ kaldi_root = Path(os.environ['KALDI_ROOT'])
 @ex.command
 def create_dir(
         audio_dir: Path, dataset_names=None, base_dir=None, json_path=None, db=None,
-        data_type='sms_enh', id_to_file_name='{id}_{spk}.wav', target_speaker=0
+        data_type='sms_enh', id_to_file_name='{id}_{spk}.wav', target_speaker=0,
+        sample_rate=8000,
 ):
     """
 
@@ -49,6 +50,7 @@ def create_dir(
         data_type: name of data type to evaluate
         id_to_file_name: template to get the wav file name from the example_id
         target_speaker: index of speaker to decode
+        sample_rate:
 
     Returns:
 
@@ -64,7 +66,7 @@ def create_dir(
     create_data_dir_from_audio_dir(
         audio_dir, base_dir, id_to_file_name=id_to_file_name, db=db,
         json_path=json_path, dataset_names=dataset_names, data_type=data_type,
-        target_speaker=target_speaker
+        target_speaker=target_speaker, sample_rate=sample_rate
     )
 
 
@@ -217,6 +219,7 @@ def default():
     model_dir = 'chain/tdnn1a_sp'
     hires = True
     kaldi_cmd = 'run.pl'
+    sample_rate = 8000
 
     # only used for the paderborn parallel computing center
     if 'CCS_NODEFILE' in os.environ:
@@ -280,7 +283,8 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
 
     kaldi_cmd = _config['kaldi_cmd']
     if not base_dir == model_egs_dir and not (base_dir / 'steps').exists():
-        create_kaldi_dir(base_dir, model_egs_dir, exist_ok=True)
+        create_kaldi_dir(base_dir, model_egs_dir, exist_ok=True,
+                         sample_rate=_config['sample_rate'])
         if kaldi_cmd == 'ssh.pl':
             CCS_NODEFILE = Path(os.environ['CCS_NODEFILE'])
             (base_dir / '.queue').mkdir()
@@ -303,7 +307,8 @@ def run(_config, _run, audio_dir, kaldi_data_dir, json_path):
                 create_data_dir(
                     base_dir, db=db, data_type=d_type, dataset_names=dset,
                     ref_channels=_config['ref_channels'],
-                    target_speaker=_config['target_speaker']
+                    target_speaker=_config['target_speaker'],
+                    sample_rate=_config['sample_rate'],
                 )
             else:
                 assert len(data_type) == 1, (

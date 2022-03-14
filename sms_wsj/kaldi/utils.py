@@ -19,8 +19,6 @@ DB2AudioKeyMapper = dict(
 
 kaldi_root = Path(os.environ['KALDI_ROOT'])
 
-SAMPLE_RATE = 8000
-
 REQUIRED_FILES = []
 REQUIRED_DIRS = ['data/lang', 'data/local',
                  'local', 'steps', 'utils']
@@ -28,7 +26,7 @@ DIRS_WITH_CHANGEABLE_FILES = ['conf', 'data/lang_test_tgpr',
                               'data/lang_test_tg']
 
 
-def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
+def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False, sample_rate=8000):
     """
 
     Args:
@@ -74,10 +72,10 @@ def create_kaldi_dir(egs_path, org_dir=None, exist_ok=False):
         st = os.stat(new_script_path)
         os.chmod(new_script_path, st.st_mode | stat.S_IEXEC)
 
-    if SAMPLE_RATE != 16000:
+    if sample_rate != 16000:
         for file in ['mfcc.conf', 'mfcc_hires.conf']:
             with (egs_path / 'conf' / file).open('a') as fd:
-                fd.writelines(f"--sample-frequency={SAMPLE_RATE}\n")
+                fd.writelines(f"--sample-frequency={sample_rate}\n")
 
 
 def _get_wav_command_for_json(example, ref_ch, spk, audio_key):
@@ -115,7 +113,8 @@ def _get_wav_command_for_audio_dir(
 
 def create_data_dir(
         kaldi_dir, db=None, json_path=None, dataset_names=None,
-        data_type='wsj_8k', target_speaker=0, ref_channels=0):
+        data_type='wsj_8k', target_speaker=0, ref_channels=0,
+        sample_rate=8000):
     """
     Wrapper calling _create_data_dir for data_dirs from json or db object
     """
@@ -133,14 +132,15 @@ def create_data_dir(
     _create_data_dir(
         get_wav_command_fn, kaldi_dir=kaldi_dir, db=db, json_path=json_path,
         dataset_names=dataset_names, data_type=data_type,
-        target_speaker=target_speaker, ref_channels=ref_channels
+        target_speaker=target_speaker, ref_channels=ref_channels,
+        sample_rate=sample_rate
     )
 
 
 def create_data_dir_from_audio_dir(
         audio_dir, kaldi_dir, id_to_file_name='{id}_{spk}.wav', db=None,
         json_path=None, dataset_names=None, data_type='wsj_8k',
-        target_speaker=0, ref_channels=0
+        target_speaker=0, ref_channels=0, sample_rate=8000,
 ):
     """
     Wrapper calling _create_data_dir for data_dirs from audio_dir
@@ -170,14 +170,15 @@ def create_data_dir_from_audio_dir(
     _create_data_dir(
         get_wav_command_fn, kaldi_dir=kaldi_dir, db=db, json_path=json_path,
         dataset_names=dataset_names, data_type=data_type,
-        target_speaker=target_speaker, ref_channels=ref_channels
+        target_speaker=target_speaker, ref_channels=ref_channels,
+        sample_rate=sample_rate
     )
 
 
 def _create_data_dir(
         get_wav_command_fn, kaldi_dir, db=None, json_path=None,
         dataset_names=None, data_type='wsj_8k', target_speaker=0,
-        ref_channels=0,
+        ref_channels=0, sample_rate=8000,
 ):
     """
 
@@ -258,7 +259,7 @@ def _create_data_dir(
                 else:
                     num_samples = example['num_samples']
                 example_id_to_duration[
-                    example_id] = f"{num_samples / SAMPLE_RATE:.2f}"
+                    example_id] = f"{num_samples / sample_rate:.2f}"
                 dataset_to_example_id[dataset_name].append(example_id)
 
     assert len(example_id_to_speaker) > 0, dataset
