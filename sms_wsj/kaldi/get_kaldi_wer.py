@@ -227,7 +227,8 @@ def default():
             Path(os.environ['CCS_NODEFILE']).read_text().strip().splitlines()
         ))
     else:
-        num_jobs = os.cpu_count()
+        # WSJ dev has only 8 speaker and Kaldi fails, when num_jobs is higher.
+        num_jobs = min(8, os.cpu_count())
 
 
 def check_config_element(element):
