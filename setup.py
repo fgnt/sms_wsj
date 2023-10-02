@@ -94,6 +94,7 @@ setup(
             'pytest',
             'IPython',
             'scipy',
+            'pandas',
         ]
     },
 )
