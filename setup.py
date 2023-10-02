@@ -95,6 +95,9 @@ setup(
             'IPython',
             'scipy',
             'pandas',
+            'einops',
+            'nara_wpe',
+            'matplotlib',
             'pb_bss @ git+https://github.com/fgnt/pb_bss',  # Used for the table, that is shown in the publication
         ]
     },
