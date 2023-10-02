@@ -76,7 +76,7 @@ def generate_rir(
     assert filter_length is not None
     rir = np.zeros(
         (number_of_sources, number_of_sensors, filter_length),
-        dtype=np.float
+        dtype=np.float64
     )
     for k in range(number_of_sources):
         temp = rirgen.generate_rir(
