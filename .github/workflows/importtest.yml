@@ -25,7 +25,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade cython
+        python -m pip install --upgrade cython scipy numpy
         python -m pip install --upgrade setuptools
         python -m pip install flake8
         # https://github.com/pypa/pip/issues/12030#issuecomment-1546344047
