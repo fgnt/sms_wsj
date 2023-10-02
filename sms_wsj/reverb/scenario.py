@@ -43,7 +43,7 @@ def sample_from_random_box(center, edge_lengths, rng=np.random):
 
 def generate_sensor_positions(
         shape='cube',
-        center=np.zeros((3, 1), dtype=np.float),
+        center=np.zeros((3, 1), dtype=np.float64),
         scale=0.01,
         number_of_sensors=None,
         jitter=None,
@@ -92,13 +92,13 @@ def generate_sensor_positions(
         )
 
     elif shape == 'linear':
-        sensor_positions = np.zeros((3, number_of_sensors), dtype=np.float)
+        sensor_positions = np.zeros((3, number_of_sensors), dtype=np.float64)
         sensor_positions[1, :] = scale * np.arange(number_of_sensors)
         sensor_positions -= np.mean(sensor_positions, keepdims=True, axis=1)
 
     elif shape == 'circular':
         if number_of_sensors == 1:
-            sensor_positions = np.zeros((3, 1), dtype=np.float)
+            sensor_positions = np.zeros((3, 1), dtype=np.float64)
         else:
             radius = scale
             delta_phi = 2 * np.pi / number_of_sensors
