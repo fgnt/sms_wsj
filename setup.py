@@ -78,6 +78,12 @@ setup(
         'soundfile',
         # TODO scipy>=1.3.0
     ],
+    extras_require={
+        'all': [
+            'pytest',
+            'IPython',
+        ]
+    },
 
     # Installation problems in a clean, new environment:
     # 1. `cython` and `scipy` must be installed manually before using
