@@ -93,6 +93,7 @@ setup(
         'all': [
             'pytest',
             'IPython',
+            'scipy',
         ]
     },
 )
