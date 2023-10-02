@@ -78,12 +78,6 @@ setup(
         'soundfile',
         # TODO scipy>=1.3.0
     ],
-    extras_require={
-        'all': [
-            'pytest',
-            'IPython',
-        ]
-    },
 
     # Installation problems in a clean, new environment:
     # 1. `cython` and `scipy` must be installed manually before using
@@ -96,7 +90,9 @@ setup(
     # for example:
     # $ pip install -e .[dev,test]
     extras_require={
-        'dev': ['check-manifest'],
-        'test': ['coverage'],
+        'all': [
+            'pytest',
+            'IPython',
+        ]
     },
 )
