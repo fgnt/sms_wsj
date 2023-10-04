@@ -149,13 +149,13 @@ def extend_composition_example_greedy(rng, speaker_ids, example_compositions=Non
            ['Eve', 'Bob', 'Alice']], dtype='<U5')
     """
     if example_compositions is None:
-        example_compositions = np.arange(len(speaker_ids), dtype=np.int)
+        example_compositions = np.arange(len(speaker_ids), dtype=int)
         example_compositions = rng.permutation(example_compositions)[:, None]
         return example_compositions
 
     assert example_compositions.ndim == 2, example_compositions.shape
 
-    candidates = np.arange(len(speaker_ids), dtype=np.int)
+    candidates = np.arange(len(speaker_ids), dtype=int)
     speaker_ids = np.array(speaker_ids)
     for _ in range(tries):
         candidates = rng.permutation(candidates)

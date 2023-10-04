@@ -93,6 +93,13 @@ setup(
         'all': [
             'pytest',
             'IPython',
+            'matplotlib',
+            'scipy',
+            'pandas',
+            'einops',
+            'nara_wpe',
+            'paderbox',
+            'pb_bss @ git+https://github.com/fgnt/pb_bss',  # Used for the table, that is shown in the publication
         ]
     },
 )

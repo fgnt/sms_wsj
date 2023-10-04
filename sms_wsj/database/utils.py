@@ -56,7 +56,7 @@ def extract_piece(x, offset, target_length):
     def pad_axis(array, pad_width, axis=-1):
         array = np.asarray(array)
 
-        npad = np.zeros([array.ndim, 2], dtype=np.int)
+        npad = np.zeros([array.ndim, 2], dtype=int)
         npad[axis, :] = pad_width
         return np.pad(array, pad_width=npad, mode='constant')
 
