@@ -52,6 +52,10 @@ Afterwards you can create the database:
 ```bash
 $ make WSJ_DIR=/path/to/wsj SMS_WSJ_DIR=/path/to/write/db/to
 ```
+When you have one folder for WSJ0 and one for WSJ1, you can create the database with:
+```
+$ make WSJ0_DIR=/path/to/wsj0 WSJ1_DIR=/path/to/wsj1 SMS_WSJ_DIR=/path/to/write/db/to  # 
+```
 If desired the number of parallel jobs may be specified using the additonal
 input num_jobs. Per default `nproc --all` parallel jobs are used.
 
